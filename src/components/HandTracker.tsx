@@ -350,8 +350,8 @@ export default function HandTracker({
       // to drop their framerate in low-light conditions (which happens at 720p/1080p).
       const constraints: MediaStreamConstraints = {
         video: selectedDeviceId 
-          ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 640 }, height: { ideal: 480 } }
-          : { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+          ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 60, min: 30 } }
+          : { facingMode: "user", width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 60, min: 30 } },
         audio: false
       };
 
@@ -399,60 +399,55 @@ export default function HandTracker({
       lastXRef.current = [null, null];
       lastYRef.current = [null, null];
 
-      // Launch custom optimized tracking loop (RequestAnimationFrame)
+      // Launch custom optimized tracking loop (requestVideoFrameCallback)
       // IMPORTANT: Use isEnabledRef.current (NOT isEnabled prop) to avoid stale closure crash
       let isProcessing = false;
-      let lastVideoTime = -1;
-      addLog("Iniciando bucle de escaneo de alta fluidez...");
+      addLog("Iniciando bucle de escaneo optimizado...");
 
-      const tick = async () => {
+      const tick = async (now?: number, metadata?: any) => {
         // CRITICAL: Read from ref, not from closed-over isEnabled prop
         if (!isEnabledRef.current || !handsInstanceRef.current || !videoRef.current) {
           return; // Exit loop cleanly
         }
 
         if (videoRef.current.paused || videoRef.current.ended) {
-          frameIdRef.current = requestAnimationFrame(tick);
+          scheduleNextTick();
           return;
         }
 
-        // ReadyState >= 2 indicates HAVE_CURRENT_DATA or higher
         // We use isProcessing to ensure we don't stack multiple inference calls
-        if (videoRef.current.readyState >= 2 && 
-            videoRef.current.videoWidth > 0 && 
-            videoRef.current.videoHeight > 0 && 
-            !isProcessing) {
-              
-          // PERF: Prevent redundant GPU inference on the same frame.
-          // Displays run at 60Hz-120Hz, but webcams are usually 30Hz.
-          // Processing the same frame multiple times wastes massive CPU/GPU resources.
-          const currentTime = videoRef.current.currentTime;
-          if (currentTime !== lastVideoTime) {
-            isProcessing = true;
-            lastVideoTime = currentTime;
-            
-            try {
-              // PERF: Send videoElement directly to MediaPipe. 
-              // This allows MediaPipe to pull the frame straight to the GPU via WebGL,
-              // avoiding massive CPU rasterization overhead from a 2D canvas copy.
-              await handsInstanceRef.current.send({ image: videoRef.current });
-            } catch (sendErr) {
-              // Prevent spamming logs on every skipped frame
-              console.warn("MediaPipe tick sync skip:", sendErr);
-            } finally {
-              isProcessing = false;
-            }
+        if (!isProcessing) {
+          isProcessing = true;
+          try {
+            // PERF: Send videoElement directly to MediaPipe. 
+            // This allows MediaPipe to pull the frame straight to the GPU via WebGL,
+            // avoiding massive CPU rasterization overhead from a 2D canvas copy.
+            await handsInstanceRef.current.send({ image: videoRef.current });
+          } catch (sendErr) {
+            // Prevent spamming logs on every skipped frame
+            console.warn("MediaPipe tick sync skip:", sendErr);
+          } finally {
+            isProcessing = false;
           }
         }
 
         // Continue only if still enabled
         if (isEnabledRef.current) {
-          frameIdRef.current = requestAnimationFrame(tick);
+          scheduleNextTick();
         }
       };
 
+      const scheduleNextTick = () => {
+        if (!videoRef.current) return;
+        const vid = videoRef.current as any;
+        if ('requestVideoFrameCallback' in vid) {
+          frameIdRef.current = vid.requestVideoFrameCallback(tick);
+        } else {
+          frameIdRef.current = requestAnimationFrame(() => tick());
+        }
+      };
 
-      frameIdRef.current = requestAnimationFrame(tick);
+      scheduleNextTick();
       setModelStatus('active');
       if (onStatusChange) onStatusChange('active');
       setErrorMessage(null);
