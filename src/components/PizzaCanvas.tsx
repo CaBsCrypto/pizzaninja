@@ -1491,9 +1491,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       const vx = baseVx * expSpeedMult;
       
       // Vertical velocity precisely calculated using physics (h = v^2 / 2g) to keep them INSIDE the screen
-      // We want max peak height to be 75% of screen height (below the HUD), and min peak to be 40%
-      const minVyScale = 0.0154; // sqrt(2 * 0.0003 * 0.40)
-      const maxVyScale = 0.0212; // sqrt(2 * 0.0003 * 0.75)
+      // We want max peak height to be 65% of screen height (well below the HUD), and min peak to be 35%
+      const minVyScale = 0.0145; // sqrt(2 * 0.0003 * 0.35)
+      const maxVyScale = 0.0197; // sqrt(2 * 0.0003 * 0.65)
       const vyScale = minVyScale + Math.random() * (maxVyScale - minVyScale);
       
       const vy = -(height * vyScale) * expSpeedMult; 
