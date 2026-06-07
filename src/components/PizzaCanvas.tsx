@@ -1484,17 +1484,21 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       const speedFactor = diffSetting.speed;
       const expSpeedMult = (1.0 + (Math.exp(diffScale * 1.35) - 1) * 0.65) * speedFactor;
 
-      // "Suban y bajen" logic:
-      // Small horizontal inward velocity (1.5 to 3.5) so they don't shoot "derecho a lo loco"
-      const baseVx = isLeft ? (Math.random() * 2.0 + 1.5) : -(Math.random() * 2.0 + 1.5);
+      // "Suban y bajen" logic strictly bounded by screen resolution (Mobile-safe)
+      // Horizontal velocity proportional to width (arcs towards center slowly)
+      const horizontalPush = width * (Math.random() * 0.0015 + 0.0015);
+      const baseVx = isLeft ? horizontalPush : -horizontalPush;
       const vx = baseVx * expSpeedMult;
       
-      // Vertical velocity precisely calculated to keep them INSIDE the screen
-      // Gravity = 0.24. Max height = vy^2 / (2*g).
-      // vy = 16 -> height = 533px (stays in screen). vy = 11 -> height = 252px.
-      const vy = -(Math.random() * 5.0 + 11.0) * expSpeedMult; 
-      // Gravity strong enough to pull them down nicely in a smooth arc
-      const gravity = 0.24 * expSpeedMult * expSpeedMult; 
+      // Vertical velocity precisely calculated using physics (h = v^2 / 2g) to keep them INSIDE the screen
+      // We want max peak height to be 75% of screen height (below the HUD), and min peak to be 40%
+      const minVyScale = 0.0154; // sqrt(2 * 0.0003 * 0.40)
+      const maxVyScale = 0.0212; // sqrt(2 * 0.0003 * 0.75)
+      const vyScale = minVyScale + Math.random() * (maxVyScale - minVyScale);
+      
+      const vy = -(height * vyScale) * expSpeedMult; 
+      // Gravity scaled by height so pacing feels identical across all devices
+      const gravity = (height * 0.0003) * expSpeedMult * expSpeedMult; 
       const radius = Math.random() * 5 + 34; // more zoomed out / compact size
 
       // Random state: complete pizzas or a la mitad!
