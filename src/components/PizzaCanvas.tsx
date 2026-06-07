@@ -1489,8 +1489,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       const baseVx = isLeft ? (Math.random() * 2.0 + 1.5) : -(Math.random() * 2.0 + 1.5);
       const vx = baseVx * expSpeedMult;
       
-      // High vertical variation (14.0 to 22.0) so some reach higher than others
-      const vy = -(Math.random() * 8 + 14.0) * expSpeedMult; 
+      // Vertical velocity precisely calculated to keep them INSIDE the screen
+      // Gravity = 0.24. Max height = vy^2 / (2*g).
+      // vy = 16 -> height = 533px (stays in screen). vy = 11 -> height = 252px.
+      const vy = -(Math.random() * 5.0 + 11.0) * expSpeedMult; 
       // Gravity strong enough to pull them down nicely in a smooth arc
       const gravity = 0.24 * expSpeedMult * expSpeedMult; 
       const radius = Math.random() * 5 + 34; // more zoomed out / compact size
