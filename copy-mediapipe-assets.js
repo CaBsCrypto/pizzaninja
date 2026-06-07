@@ -25,6 +25,30 @@ function copyDir(src, dest) {
       fs.copyFileSync(srcFile, destFile);
       console.log(`Copied: ${file}`);
       
+      // Force disable SIMD check inside hands.js for mobile Safari WebAssembly stability
+      if (file === 'hands.js') {
+        try {
+          let content = fs.readFileSync(destFile, 'utf8');
+          let modified = false;
+          
+          const searchEd = 'function ed(){return E(function(a){switch(a.h){case 1:return a.s=2,D(a,WebAssembly.instantiate(ad),4);case 4:a.h=3;a.s=0;break;case 2:return a.s=0,a.l=null,a.return(!1);case 3:return a.return(!0)}})}';
+          if (content.includes(searchEd)) {
+            content = content.replace(
+              searchEd,
+              'function ed(){return E(function(a){return a.return(!1)})}'
+            );
+            modified = true;
+            console.log(`Patched ${file} to force WebAssembly SIMD detection to false for Safari/mobile compatibility.`);
+          }
+          
+          if (modified) {
+            fs.writeFileSync(destFile, content, 'utf8');
+          }
+        } catch (patchErr) {
+          console.error(`Failed to patch ${file}:`, patchErr);
+        }
+      }
+
       // Post-copy patch step for safety against MediaPipe's known dataFileDownloads loader bug
       if (file === 'hands_solution_packed_assets_loader.js') {
         try {

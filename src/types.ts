@@ -53,6 +53,7 @@ export interface Particle {
   isTopping?: boolean;
   isGlow?: boolean;    // Custom glowing shockwave ring indicator
   maxSize?: number;   // Maximum scale radius of expanding shockwave
+  isStain?: boolean;  // Screen splash stain effect
 }
 
 export interface SlicedPiece {
@@ -97,5 +98,6 @@ export interface ScoreRecord {
   domain?: string;
   txHash?: string;
   verified?: boolean;
+  mode?: string;
 }
 

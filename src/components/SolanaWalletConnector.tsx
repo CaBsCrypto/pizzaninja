@@ -276,10 +276,8 @@ export default function SolanaWalletConnector({ walletState, setWalletState, onT
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl relative overflow-hidden backdrop-blur-md">
-      {/* Decorative backdrop glow */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
-      <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-rose-500/5 rounded-full blur-2xl pointer-events-none" />
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl relative overflow-hidden">
+      {/* Removed large decorative background glow filters for mobile performance */}
 
       <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4">
         <div className="flex items-center gap-2">
@@ -354,7 +352,7 @@ export default function SolanaWalletConnector({ walletState, setWalletState, onT
                 type="button"
                 onClick={handleConnectSandboxWallet}
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-slate-950 font-black text-xs py-2.5 rounded-xl transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-slate-950 font-black text-xs py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Cpu className="w-4 h-4" />
                 <span>{loading ? 'Generando llaves...' : 'Inicializar Llave Sandbox'}</span>

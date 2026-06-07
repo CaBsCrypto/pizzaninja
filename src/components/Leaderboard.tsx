@@ -363,8 +363,17 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
   // Track currently expanded item index
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
-  // Sort scores primarily by points descending
-  const sortedScores = [...scores].sort((a, b) => b.score - a.score).slice(0, 10);
+  // Track active mode tab selection
+  const [activeTab, setActiveTab] = useState<'arcade' | 'classic' | 'zen'>('arcade');
+
+  // Filter scores by active mode (fallback missing modes to 'arcade' default)
+  const filteredScores = scores.filter(record => {
+    const recordMode = record.mode || 'arcade';
+    return recordMode === activeTab;
+  });
+
+  // Sort filtered scores primarily by points descending
+  const sortedScores = [...filteredScores].sort((a, b) => b.score - a.score).slice(0, 10);
 
   const timeAgo = (timestamp: number) => {
     const secs = Math.floor((Date.now() - timestamp) / 1000);
@@ -376,28 +385,55 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
   };
 
   return (
-    <div id="ninja-leaderboard" className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl h-full flex flex-col justify-between">
-      <div>
-        <div className="flex items-center gap-3 border-b border-slate-800 pb-4 mb-4">
-          <div className="bg-amber-500/20 p-2.5 rounded-2xl flex items-center justify-center text-amber-400">
-            <Trophy className="w-5 h-5" />
+    <div id="ninja-leaderboard" className="panel-clash p-6 h-full flex flex-col justify-between relative overflow-hidden">
+      <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/20 rounded-full blur-3xl pointer-events-none" />
+      
+      <div className="relative z-10">
+        <div className="flex items-center gap-3 border-b-4 border-blue-900/20 pb-4 mb-4">
+          <div className="bg-amber-400 p-3 rounded-2xl flex items-center justify-center border-b-4 border-amber-600 border-x-2 border-t-2 border-amber-300 shadow-md">
+            <Trophy className="w-6 h-6 text-white drop-shadow-md" />
           </div>
           <div>
-            <span className="text-xs uppercase tracking-wider text-slate-500 block font-mono">Tabla Global</span>
-            <h2 className="text-xl font-sans font-bold text-white tracking-tight">Records Imperiales</h2>
+            <span className="text-sm font-vt uppercase tracking-wider text-blue-700 block font-bold">Tabla Global</span>
+            <h2 className="text-2xl font-pixel text-blue-900 tracking-tight text-stroke-sm text-white drop-shadow-md">Récords de Arena</h2>
           </div>
         </div>
 
-        <p className="text-slate-400 text-xs mb-4">
-          Visualiza las 10 mejores marcas del salón de la fama Ninja. Haz clic en cualquier récord para expandir sus estadísticas y ver la repetición de los trazos.
+        <p className="text-blue-900 text-sm mb-4 font-vt font-bold">
+          Visualiza las mejores marcas. Haz clic en cualquier récord para ver la repetición.
         </p>
 
+        {/* Game Mode Tabs Selector */}
+        <div className="flex bg-blue-900/10 border-2 border-blue-900/20 p-1.5 rounded-2xl mb-4 font-vt text-lg gap-1 shadow-inner">
+          {(['arcade', 'classic', 'zen'] as const).map((mode) => {
+            const label = mode === 'classic' ? 'Clásico' : mode === 'zen' ? 'Zen' : 'Arena';
+            const active = activeTab === mode;
+            return (
+              <button
+                key={mode}
+                onClick={() => {
+                  setActiveTab(mode);
+                  setExpandedIndex(null);
+                }}
+                className={`flex-1 py-1.5 rounded-xl uppercase transition-all duration-150 cursor-pointer text-center ${
+                  active 
+                    ? 'bg-amber-400 text-white font-pixel border-b-4 border-amber-600 text-stroke-sm scale-[1.02] shadow-md' 
+                    : 'text-blue-800 font-bold hover:bg-blue-200/50'
+                }`}
+                type="button"
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Scoring table list */}
-        <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+        <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
           {sortedScores.length === 0 ? (
-            <div className="text-center py-10 border border-slate-805 border-dashed rounded-2xl bg-slate-950/20">
-              <Trophy className="w-8 h-8 text-slate-705 mx-auto mb-2" />
-              <p className="text-slate-500 text-xs text-center">¡Sé el primero en hornear y registrar tu nombre!</p>
+            <div className="text-center py-10 border-4 border-blue-300 border-dashed rounded-2xl bg-blue-100">
+              <Trophy className="w-10 h-10 text-amber-400 mx-auto mb-2 animate-bounce drop-shadow-md" />
+              <p className="text-blue-800 font-vt text-lg px-4">¡Sé el primero en dominar esta arena!</p>
             </div>
           ) : (
             sortedScores.map((record, index) => {
@@ -405,22 +441,21 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
               const isTop3 = itemRank <= 3;
               const isExpanded = expandedIndex === index;
               
-              // Custom rank color styling
               const rankColor = 
-                itemRank === 1 ? 'from-amber-400 to-amber-500 text-slate-950 shadow-amber-500/15' :
-                itemRank === 2 ? 'from-slate-300 to-slate-400 text-slate-950 shadow-slate-300/15' :
-                itemRank === 3 ? 'from-amber-600 to-amber-700 text-white shadow-amber-600/15' :
-                'bg-slate-850 text-slate-450 border border-slate-800';
+                itemRank === 1 ? 'bg-amber-400 border-amber-600 text-white text-stroke-sm' :
+                itemRank === 2 ? 'bg-slate-300 border-slate-500 text-white text-stroke-sm' :
+                itemRank === 3 ? 'bg-amber-600 border-amber-800 text-white text-stroke-sm' :
+                'bg-blue-800 border-blue-900 text-white text-stroke-sm';
 
               return (
                 <div 
                   key={index} 
-                  className={`flex flex-col rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+                  className={`flex flex-col rounded-2xl border-x-2 border-t-2 border-b-[6px] transition-all duration-300 relative overflow-hidden ${
                     isExpanded 
-                      ? 'bg-slate-950/70 border-amber-500/40 ring-1 ring-amber-500/20' 
+                      ? 'bg-white border-blue-900 border-b-[4px] translate-y-[2px]' 
                       : isTop3 
-                        ? 'bg-slate-950/30 border-slate-800/40 hover:bg-slate-850/40' 
-                        : 'bg-slate-950/20 border-slate-800/40 hover:bg-slate-850/40'
+                        ? 'bg-blue-50 border-blue-300 border-b-[6px] hover:-translate-y-1 hover:border-b-[8px]' 
+                        : 'bg-white border-blue-200 border-b-[6px] hover:-translate-y-1 hover:border-b-[8px]'
                   }`}
                 >
                   {/* Clickable Header Row Area */}
@@ -534,8 +569,8 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
                                 <ShieldCheck className="w-4 h-4 text-purple-400 shrink-0" />
                                 <div className="flex flex-col">
                                   <span className="text-[8px] text-purple-400 font-bold uppercase tracking-widest leading-none">Firma On-Chain</span>
-                                  <span className="text-[9px] text-slate-300 leading-none mt-1 truncate max-w-[170px]" title={record.txHash || 'PizzaNinjaProgram_Approved'}>
-                                    Tx: {record.txHash || 'PizzaNinjaProgram_Approved'}
+                                  <span className="text-[9px] text-slate-300 leading-none mt-1 truncate max-w-[170px]" title={record.txHash || 'SlashSliceProgram_Approved'}>
+                                    Tx: {record.txHash || 'SlashSliceProgram_Approved'}
                                   </span>
                                 </div>
                               </div>
@@ -562,22 +597,22 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
       </div>
 
       {/* Embedded statistics box */}
-      <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 mt-4">
-        <div className="flex items-center gap-2 text-[10px] uppercase font-mono tracking-wider text-slate-500 mb-2">
-          <Flame className="w-3.5 h-3.5 text-rose-500" />
-          <span>RÉCORDS ARCADES</span>
+      <div className="bg-blue-900 p-4 rounded-2xl border-b-4 border-blue-950 mt-4 text-white">
+        <div className="flex items-center gap-2 text-sm uppercase font-vt tracking-wider text-amber-400 mb-2 font-bold">
+          <Flame className="w-4 h-4" />
+          <span>ESTADÍSTICAS</span>
         </div>
-        <div className="grid grid-cols-2 gap-3 text-xs">
+        <div className="grid grid-cols-2 gap-3 text-sm font-vt">
           <div>
-            <span className="text-slate-400">Rondas Registradas:</span>
-            <span className="text-white font-mono font-bold block mt-0.5">
+            <span className="text-blue-300">Batallas jugadas:</span>
+            <span className="text-white font-pixel block mt-1 text-lg text-stroke-sm">
               {scores.length}
             </span>
           </div>
           <div>
-            <span className="text-slate-400">Récord Absoluto:</span>
-            <span className="text-amber-400 font-mono font-bold block mt-0.5">
-              {sortedScores[0] ? `${sortedScores[0].score} PTS` : '0 PTS'}
+            <span className="text-blue-300">Récord de Arena:</span>
+            <span className="text-amber-400 font-pixel block mt-1 text-lg text-stroke-sm">
+              {sortedScores[0] ? `${sortedScores[0].score}` : '0'} PTS
             </span>
           </div>
         </div>

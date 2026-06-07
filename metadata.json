@@ -1,5 +1,5 @@
 {
-  "name": "Pizza Ninja",
+  "name": "Slash Slice",
   "description": "Un minijuego de cortar pizzas estilo Fruit Ninja con un diseño retro-arcade espectacular, cuchillas personalizadas y tabla de clasificación local.",
   "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

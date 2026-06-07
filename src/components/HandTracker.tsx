@@ -15,11 +15,11 @@ import {
   HelpCircle,
   Terminal,
   RefreshCcw,
-  Video
 } from 'lucide-react';
 
+import { gameSocket } from '../services/websocket';
+
 const mediaPipePrintErr = (msg: any, ...args: any[]) => {
-  const fullMsg = typeof msg === 'string' ? msg : String(msg);
   
   // Detect informational or warning glogs, or successfully/inactive WebGL statuses
   const isInfo = /^[IWD]\d{4}\s+/.test(fullMsg) || 
@@ -43,12 +43,14 @@ const mediaPipePrintErr = (msg: any, ...args: any[]) => {
 };
 
 interface HandTrackerProps {
-  onCoordsTracked: (x: number, y: number, isEngaged: boolean) => void;
+  onCoordsTracked: (x: number, y: number, handIdx: number, isEngaged: boolean) => void;
   canvasWidth: number;
   canvasHeight: number;
   isEnabled: boolean;
   onStatusChange?: (status: 'inactive' | 'loading' | 'active' | 'error', errorMsg?: string) => void;
   onFallbackToMouse?: () => void;
+  isCompact?: boolean;
+  onHandPresenceChange?: (detected: boolean) => void;
 }
 
 export default function HandTracker({
@@ -57,7 +59,9 @@ export default function HandTracker({
   canvasHeight,
   isEnabled,
   onStatusChange,
-  onFallbackToMouse
+  onFallbackToMouse,
+  isCompact = false,
+  onHandPresenceChange
 }: HandTrackerProps) {
   // Config & Status States
   const [sourceType, setSourceType] = useState<'local' | 'cdn'>('cdn'); // Highly reliable CDN by default, local as backup
@@ -69,14 +73,19 @@ export default function HandTracker({
   const [showConfig, setShowConfig] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(true);
 
+  // Notify parent component about hand detection status changes
+  useEffect(() => {
+    onHandPresenceChange?.(handDetected);
+  }, [handDetected, onHandPresenceChange]);
+
   // Stats Counters
   const [frameCount, setFrameCount] = useState(0);
   const [lastFrameTime, setLastFrameTime] = useState<string>('');
   
   // Advanced Calibration
-  const [smoothingFactor, setSmoothingFactor] = useState(0.24);
+  const [smoothingFactor, setSmoothingFactor] = useState(0.50); // PERF: 0.50 is much snappier than 0.24, reducing input lag
   const [mirrorX, setMirrorX] = useState(true);
-  const [detectionConfidence, setDetectionConfidence] = useState(0.60);
+  const [detectionConfidence, setDetectionConfidence] = useState(0.40);
 
   // Camera Devices Listing
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -89,9 +98,42 @@ export default function HandTracker({
   const streamRef = useRef<MediaStream | null>(null);
   const frameIdRef = useRef<number | null>(null);
 
-  // EMA Coordinates Storage
-  const lastXRef = useRef<number | null>(null);
-  const lastYRef = useRef<number | null>(null);
+  // CRITICAL: isEnabledRef keeps the tick loop always reading the LATEST isEnabled value
+  // without this, the async tick closure captures a stale value and can't exit cleanly,
+  // causing MediaPipe to keep sending frames to a destroyed/closed instance (crash).
+  const isEnabledRef = useRef(isEnabled);
+  useEffect(() => {
+    isEnabledRef.current = isEnabled;
+  }, [isEnabled]);
+
+  // Smoothing ref - always latest value in async tick closure
+  const smoothingFactorRef = useRef(smoothingFactor);
+  useEffect(() => {
+    smoothingFactorRef.current = smoothingFactor;
+  }, [smoothingFactor]);
+
+  const mirrorXRef = useRef(mirrorX);
+  useEffect(() => {
+    mirrorXRef.current = mirrorX;
+  }, [mirrorX]);
+
+  // CRITICAL: onCoordsTrackedRef keeps handleResults always calling the LATEST prop.
+  // MediaPipe's hands.onResults() captures the function ref at setup time, so without this,
+  // handleResults calls the old onCoordsTracked where isPlaying/countdown are stale —
+  // this is why slicing and auto-start stopped working after PizzaCanvas re-renders.
+  const onCoordsTrackedRef = useRef(onCoordsTracked);
+  onCoordsTrackedRef.current = onCoordsTracked; // update synchronously every render
+
+  // PERF: Offscreen canvas for scaling video to 320x240 before MediaPipe inference
+  const scaleCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Dual-hand EMA Coordinates Storage (index 0 = hand 0, index 1 = hand 1)
+  const lastXRef = useRef<(number | null)[]>([null, null]);
+  const lastYRef = useRef<(number | null)[]>([null, null]);
+
+  // PERF: Frame throttle ref -- only fire React setState every N frames
+  // to avoid expensive re-renders on every ~30fps MediaPipe callback
+  const frameTickRef = useRef(0);
 
   // Custom logging utility
   const addLog = (msg: string) => {
@@ -169,7 +211,7 @@ export default function HandTracker({
       return;
     }
 
-    addLog(`Detección Óptica Activada. Iniciando flujo en modo: ${sourceType.toUpperCase()}`);
+    addLog(`Detección Óptica Activada (Modo 1 Mano). Iniciando en modo: ${sourceType.toUpperCase()}`);
     setCdnStatus('loading');
     if (onStatusChange) onStatusChange('loading');
 
@@ -180,12 +222,12 @@ export default function HandTracker({
           await loadScript('/mediapipe/camera_utils.js');
           await loadScript('/mediapipe/hands.js');
         } else {
-          addLog("Intentando cargar libs estables desde Google CDN (jsdelivr)...");
+          addLog("Intentando cargar libs estables desde CDN (jsdelivr@0.4.1646424915)...");
           await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js');
           await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js');
         }
         
-        addLog("Scripts cargados con éxito. Instanciando pipeline de detección...");
+        addLog("Scripts cargados con éxito. Instanciando pipeline de detección dual...");
         setCdnStatus('loaded');
         handleStartTracking();
       } catch (err: any) {
@@ -213,9 +255,9 @@ export default function HandTracker({
       try {
         handsInstanceRef.current.setOptions({
           maxNumHands: 1,
-          modelComplexity: 1,
+          modelComplexity: 0,  // PERF: lite model (0) is 2x faster than full (1)
           minDetectionConfidence: detectionConfidence,
-          minTrackingConfidence: 0.50,
+          minTrackingConfidence: 0.65  // PERF: higher = fewer expensive re-detects,
         });
         addLog(`Calibración del modelo actualizada (Confianza mínima: ${detectionConfidence})`);
       } catch (err: any) {
@@ -266,9 +308,16 @@ export default function HandTracker({
       // Clean previous instances
       if (handsInstanceRef.current) {
         try { handsInstanceRef.current.close(); } catch (e) {}
+        handsInstanceRef.current = null;
       }
 
-      addLog("Creando nueva instancia de MediaPipe Hands...");
+      // Cancel any previous RAF loop
+      if (frameIdRef.current) {
+        cancelAnimationFrame(frameIdRef.current);
+        frameIdRef.current = null;
+      }
+
+      addLog("Creando nueva instancia de MediaPipe Hands (1 mano)...");
       const hands = new AnyWindow.Hands({
         locateFile: (file: string) => {
           const resolvedPath = sourceType === 'local' 
@@ -282,14 +331,14 @@ export default function HandTracker({
 
       hands.setOptions({
         maxNumHands: 1,
-        modelComplexity: 1,
+        modelComplexity: 0,  // PERF: lite model (0) is 2x faster than full (1)
         minDetectionConfidence: detectionConfidence,
-        minTrackingConfidence: 0.50,
+        minTrackingConfidence: 0.40  // PERF: low threshold = extremely sticky tracking, far fewer expensive re-detects
       });
 
       hands.onResults(handleResults);
       handsInstanceRef.current = hands;
-      addLog("Instancia Hands vinculada con éxito.");
+      addLog("Instancia Hands (1 mano) vinculada con éxito.");
 
       // Check for video element
       if (!videoRef.current) {
@@ -297,6 +346,8 @@ export default function HandTracker({
       }
 
       // Build constraints
+      // PERF: Requesting 640x480 gives a good FOV without forcing standard webcams
+      // to drop their framerate in low-light conditions (which happens at 720p/1080p).
       const constraints: MediaStreamConstraints = {
         video: selectedDeviceId 
           ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 640 }, height: { ideal: 480 } }
@@ -319,29 +370,45 @@ export default function HandTracker({
       }
 
       // Exit if user turned off model while permission modal was active
-      if (!videoRef.current || !isEnabled) {
+      if (!videoRef.current || !isEnabledRef.current) {
         addLog("Detección suspendida post-aprobación del usuario.");
         stream.getTracks().forEach(t => t.stop());
         return;
       }
 
+      // Explicitly set playsinline and muted attributes directly on the DOM element for absolute iOS Safari safety
+      videoRef.current.setAttribute('playsinline', 'true');
+      videoRef.current.setAttribute('webkit-playsinline', 'true');
+      videoRef.current.setAttribute('muted', 'true');
+      videoRef.current.setAttribute('autoplay', 'true');
+      videoRef.current.muted = true;
+      videoRef.current.playsInline = true;
+
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
       
       try {
+        videoRef.current.load();
         await videoRef.current.play();
         addLog(`Reproductor de video activo. Resolucion actual: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`);
       } catch (pErr) {
         addLog(`Aviso de reproducción: Asegura permisos de autoplay/silencio (${pErr})`);
       }
 
+      // Reset EMA state for both hands
+      lastXRef.current = [null, null];
+      lastYRef.current = [null, null];
+
       // Launch custom optimized tracking loop (RequestAnimationFrame)
+      // IMPORTANT: Use isEnabledRef.current (NOT isEnabled prop) to avoid stale closure crash
       let isProcessing = false;
-      addLog("Iniciando bucle de escaneo de FPS...");
+      let lastVideoTime = -1;
+      addLog("Iniciando bucle de escaneo de alta fluidez...");
 
       const tick = async () => {
-        if (!isEnabled || !handsInstanceRef.current || !videoRef.current) {
-          return;
+        // CRITICAL: Read from ref, not from closed-over isEnabled prop
+        if (!isEnabledRef.current || !handsInstanceRef.current || !videoRef.current) {
+          return; // Exit loop cleanly
         }
 
         if (videoRef.current.paused || videoRef.current.ended) {
@@ -350,22 +417,40 @@ export default function HandTracker({
         }
 
         // ReadyState >= 2 indicates HAVE_CURRENT_DATA or higher
-        if (videoRef.current.readyState >= 2 && !isProcessing) {
-          isProcessing = true;
-          try {
-            await handsInstanceRef.current.send({ image: videoRef.current });
-          } catch (sendErr) {
-            // Prevent spamming logs on every skipped frame
-            console.warn("MediaPipe tick sync skip:", sendErr);
-          } finally {
-            isProcessing = false;
+        // We use isProcessing to ensure we don't stack multiple inference calls
+        if (videoRef.current.readyState >= 2 && 
+            videoRef.current.videoWidth > 0 && 
+            videoRef.current.videoHeight > 0 && 
+            !isProcessing) {
+              
+          // PERF: Prevent redundant GPU inference on the same frame.
+          // Displays run at 60Hz-120Hz, but webcams are usually 30Hz.
+          // Processing the same frame multiple times wastes massive CPU/GPU resources.
+          const currentTime = videoRef.current.currentTime;
+          if (currentTime !== lastVideoTime) {
+            isProcessing = true;
+            lastVideoTime = currentTime;
+            
+            try {
+              // PERF: Send videoElement directly to MediaPipe. 
+              // This allows MediaPipe to pull the frame straight to the GPU via WebGL,
+              // avoiding massive CPU rasterization overhead from a 2D canvas copy.
+              await handsInstanceRef.current.send({ image: videoRef.current });
+            } catch (sendErr) {
+              // Prevent spamming logs on every skipped frame
+              console.warn("MediaPipe tick sync skip:", sendErr);
+            } finally {
+              isProcessing = false;
+            }
           }
         }
 
-        if (isEnabled) {
+        // Continue only if still enabled
+        if (isEnabledRef.current) {
           frameIdRef.current = requestAnimationFrame(tick);
         }
       };
+
 
       frameIdRef.current = requestAnimationFrame(tick);
       setModelStatus('active');
@@ -420,12 +505,12 @@ export default function HandTracker({
     setHandDetected(false);
     if (onStatusChange) onStatusChange('inactive');
 
-    lastXRef.current = null;
-    lastYRef.current = null;
+    lastXRef.current = [null, null];
+    lastYRef.current = [null, null];
     addLog("Sensor apagado.");
   };
 
-  // Process Landmarks
+  // Process Landmarks - supports up to 2 hands
   const handleResults = (results: any) => {
     const canvas = overlayCanvasRef.current;
     if (!canvas) return;
@@ -437,82 +522,131 @@ export default function HandTracker({
 
     if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
       if (handDetected) {
-        addLog("Mano fuera del área de escaneo.");
+        addLog("Mano(s) fuera del área de escaneo.");
         setHandDetected(false);
       }
+      // Dispatch disengage for both hands when no hands visible
+      onCoordsTrackedRef.current(0, 0, 0, false);
+      onCoordsTrackedRef.current(0, 0, 1, false);
       return;
     }
 
     if (!handDetected) {
-      addLog("¡MANO ENCONTRADA! Iniciando rastreo...");
+      addLog(`¡MANO(S) ENCONTRADA(S)! (${results.multiHandLandmarks.length}). Iniciando rastreo dual...`);
       setHandDetected(true);
     }
 
-    // Stats updates
-    setFrameCount(f => f + 1);
-    setLastFrameTime(new Date().toLocaleTimeString());
-
-    const landmarks = results.multiHandLandmarks[0];
-    const indexTip = landmarks[8]; // INDEX_FINGER_TIP
-
-    let normX = indexTip.x;
-    if (mirrorX) {
-      normX = 1 - normX;
-    }
-    const normY = indexTip.y;
-
-    // Convert coordinates
-    const targetX = normX * canvasWidth;
-    const targetY = normY * canvasHeight;
-
-    let finalX = targetX;
-    let finalY = targetY;
-
-    // Exponential Moving Average (EMA)
-    if (lastXRef.current !== null && lastYRef.current !== null) {
-      finalX = smoothingFactor * targetX + (1 - smoothingFactor) * lastXRef.current;
-      finalY = smoothingFactor * targetY + (1 - smoothingFactor) * lastYRef.current;
+    // Stats updates — throttled to every 15 frames to avoid per-frame re-renders
+    // PERF: NEVER trigger React setState re-renders while the user is playing (isCompact = true)
+    if (!isCompact) {
+      frameTickRef.current = (frameTickRef.current + 1) % 15;
+      if (frameTickRef.current === 0) {
+        setFrameCount(f => f + 1);
+        setLastFrameTime(new Date().toLocaleTimeString());
+      }
     }
 
-    lastXRef.current = finalX;
-    lastYRef.current = finalY;
+    // Process each detected hand (up to 2)
+    const numHands = Math.min(results.multiHandLandmarks.length, 2);
+    const activeIndices = new Set<number>();
+    
+    for (let handIdx = 0; handIdx < numHands; handIdx++) {
+      const landmarks = results.multiHandLandmarks[handIdx];
+      const indexTip = landmarks[8]; // INDEX_FINGER_TIP
 
-    // Dispatch translated slice signals to canvas game
-    onCoordsTracked(finalX, finalY, true);
+      // Use handedness classification to assign hand index consistently if available
+      // MediaPipe labels Right/Left from the model's perspective (mirrored)
+      let preferredIdx = handIdx;
+      if (results.multiHandedness && results.multiHandedness[handIdx]) {
+        // 'Right' from MediaPipe = user's Left hand (camera mirror) -> idx 0
+        // 'Left'  from MediaPipe = user's Right hand (camera mirror) -> idx 1
+        const label = results.multiHandedness[handIdx].label;
+        preferredIdx = label === 'Right' ? 0 : 1;
+      }
 
-    // Draw cyber-skeleton feedback
-    ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
-    ctx.strokeStyle = '#10b981';
-    ctx.lineWidth = 1.5;
+      // Ensure unique index per frame (avoid two hands fighting for index 0 or 1)
+      let assignedHandIdx = preferredIdx;
+      if (activeIndices.has(assignedHandIdx)) {
+        assignedHandIdx = assignedHandIdx === 0 ? 1 : 0; // fallback to the other slot
+      }
+      activeIndices.add(assignedHandIdx);
 
-    const connect = (indices: number[]) => {
-      ctx.beginPath();
-      indices.forEach((idx, i) => {
-        const pt = landmarks[idx];
-        const cx = (mirrorX ? 1 - pt.x : pt.x) * canvas.width;
-        const cy = pt.y * canvas.height;
-        if (i === 0) ctx.moveTo(cx, cy);
-        else ctx.lineTo(cx, cy);
-      });
-      ctx.stroke();
-    };
+      let normX = indexTip.x;
+      if (mirrorXRef.current) {
+        normX = 1 - normX;
+      }
+      const normY = indexTip.y;
 
-    connect([0, 1, 2, 3, 4]); // Thumb
-    connect([0, 5, 6, 7, 8]); // Index
-    connect([9, 10, 11, 12]); // Middle
-    connect([13, 14, 15, 16]); // Ring
-    connect([0, 17, 18, 19, 20]); // Pinky
-    connect([5, 9, 13, 17]); // Palm
+      // Exponential Moving Average (EMA) per hand using normalized coords
+      let finalX = normX;
+      let finalY = normY;
+      const alpha = smoothingFactorRef.current;
+      const prevX = lastXRef.current[assignedHandIdx];
+      const prevY = lastYRef.current[assignedHandIdx];
 
-    // Draw nodes
-    landmarks.forEach((pt: any, idx: number) => {
-      const cx = (mirrorX ? 1 - pt.x : pt.x) * canvas.width;
-      const cy = pt.y * canvas.height;
-      ctx.beginPath();
-      ctx.arc(cx, cy, idx === 8 ? 6 : 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = idx === 8 ? '#f43f5e' : '#10b981'; // Red tip, green joints
-      ctx.fill();
-    });
+      if (prevX !== null && prevY !== null) {
+        finalX = prevX + alpha * (normX - prevX);
+        finalY = prevY + alpha * (normY - prevY);
+        
+        // PERF: Se eliminó el envío de WebSocket de aquí. 
+        // ¡Estábamos saturando la red y el Garbage Collector mandando 60-120 mensajes JSON por segundo!
+        // Ahora es PizzaCanvas quien envía el corte al backend SOLO cuando impacta con una pizza.
+      }
+
+      lastXRef.current[assignedHandIdx] = finalX;
+      lastYRef.current[assignedHandIdx] = finalY;
+
+      onCoordsTrackedRef.current(finalX, finalY, assignedHandIdx, true);
+
+      // Draw full cyber-skeleton feedback (throttled: every 2nd frame saves ~50% draw calls)
+      if (frameTickRef.current % 2 === 0) {
+        // Draw cyber-skeleton feedback for this hand
+        const handColor = assignedHandIdx === 0 ? '#10b981' : '#f59e0b'; // Green hand0, Amber hand1
+        const tipColor  = assignedHandIdx === 0 ? '#f43f5e' : '#06b6d4'; // Red tip0, Cyan tip1
+  
+        ctx.strokeStyle = handColor;
+        ctx.lineWidth = 1.5;
+
+        const connect = (indices: number[]) => {
+          ctx.beginPath();
+          indices.forEach((idx, i) => {
+            const pt = landmarks[idx];
+            const cx = (mirrorXRef.current ? 1 - pt.x : pt.x) * canvas.width;
+            const cy = pt.y * canvas.height;
+            if (i === 0) ctx.moveTo(cx, cy);
+            else ctx.lineTo(cx, cy);
+          });
+          ctx.stroke();
+        };
+
+        connect([0, 1, 2, 3, 4]); // Thumb
+        connect([0, 5, 6, 7, 8]); // Index
+        connect([9, 10, 11, 12]); // Middle
+        connect([13, 14, 15, 16]); // Ring
+        connect([0, 17, 18, 19, 20]); // Pinky
+        connect([5, 9, 13, 17]); // Palm
+
+        // Draw nodes
+        landmarks.forEach((pt: any, idx: number) => {
+          const cx = (mirrorXRef.current ? 1 - pt.x : pt.x) * canvas.width;
+          const cy = pt.y * canvas.height;
+          ctx.beginPath();
+          ctx.arc(cx, cy, idx === 8 ? 6 : 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = idx === 8 ? tipColor : handColor;
+          ctx.fill();
+        });
+      }
+    }
+
+    // Dispatch disengage for hand indices that were NOT detected in this frame
+    for (let i = 0; i < 2; i++) {
+      if (!activeIndices.has(i)) {
+        // Reset EMA for this hand slot since it's gone
+        lastXRef.current[i] = null;
+        lastYRef.current[i] = null;
+        onCoordsTrackedRef.current(0, 0, i, false);
+      }
+    }
   };
 
   // Switch camera manual handler
@@ -530,176 +664,222 @@ export default function HandTracker({
   };
 
   return (
-    <div id="optical-tracker-panel" className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl relative overflow-hidden backdrop-blur-md">
-      {/* Laser header border */}
-      <div className="absolute top-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent animate-pulse" />
+    <div
+      id={isCompact ? undefined : "optical-tracker-panel"}
+      className={
+        isCompact
+          ? `relative w-full h-full rounded-2xl overflow-hidden border-2 shadow-2xl flex items-center justify-center bg-slate-950 transition-all duration-300 ${
+              modelStatus === 'active'
+                ? handDetected
+                  ? 'border-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.35)] bg-slate-950/60'
+                  : 'border-amber-500/70 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse'
+                : 'border-slate-800 animate-pulse'
+            }`
+          : "bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl relative overflow-hidden grid grid-cols-1 md:grid-cols-12 gap-5"
+      }
+    >
+      {/* Laser header border (Full Mode Only) */}
+      {!isCompact && (
+        <div className="absolute top-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent animate-pulse z-10 pointer-events-none" />
+      )}
 
-      {/* Main HUD Title */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800/80 pb-4 mb-4 gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className={`p-2.5 rounded-xl border transition-all duration-300 ${
-            modelStatus === 'active' 
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.15)]' 
-              : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
-          }`}>
-            <CameraIcon className="w-4 h-4 animate-pulse" />
+      {/* Main HUD Title (Full Mode Only, spans 12 columns) */}
+      {!isCompact && (
+        <div className="md:col-span-12 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800/80 pb-4 mb-1 gap-3 relative z-20">
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2.5 rounded-xl border transition-all duration-300 ${
+              modelStatus === 'active' 
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.15)]' 
+                : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+            }`}>
+              <CameraIcon className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="font-sans font-bold text-sm text-white tracking-tight flex items-center gap-2">
+                Consola de Calibración Óptica — 1 Mano
+                {modelStatus === 'active' && (
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                )}
+              </h3>
+              <p className="text-[10px] text-slate-400 font-mono">DETECCIÓN DE 1 MANO · AUDITORÍA EN VIVO</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-sans font-bold text-sm text-white tracking-tight flex items-center gap-2">
-              Consola de Calibración Óptica
-              {modelStatus === 'active' && (
-                <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-              )}
-            </h3>
-            <p className="text-[10px] text-slate-400 font-mono">SELECCIÓN Y AUDITORÍA DE HARDWARE EN VIVO</p>
+
+          {/* Toggle Panel Controls */}
+          <div className="flex items-center gap-2 self-stretch sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setShowDiagnostics(!showDiagnostics)}
+              className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5 ${
+                showDiagnostics 
+                  ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' 
+                  : 'bg-slate-950 border-slate-900 text-slate-500'
+              }`}
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              <span>Terminal</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowConfig(!showConfig)}
+              className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5 ${
+                showConfig 
+                  ? 'bg-amber-500/15 border-amber-500/30 text-amber-400' 
+                  : 'bg-slate-950 border-slate-900 text-slate-500'
+              }`}
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+              <span>Filtros</span>
+            </button>
           </div>
         </div>
+      )}
 
-        {/* Toggle Panel Controls */}
-        <div className="flex items-center gap-2 self-stretch sm:self-auto">
-          <button
-            type="button"
-            onClick={() => setShowDiagnostics(!showDiagnostics)}
-            className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5 ${
-              showDiagnostics 
-                ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' 
-                : 'bg-slate-950 border-slate-900 text-slate-500'
-            }`}
-          >
-            <Terminal className="w-3.5 h-3.5" />
-            <span>Terminal</span>
-          </button>
+      {/* Unified Video and Canvas Wrapper */}
+      <div
+        className={
+          isCompact
+            ? "absolute inset-0 w-full h-full z-10"
+            : "md:col-span-5 relative w-full aspect-[4/3] bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex items-center justify-center z-10"
+        }
+      >
+        {/* Realtime Video Frame */}
+        <video
+          ref={videoRef}
+          width={640}
+          height={480}
+          className="absolute inset-0 w-full h-full object-cover opacity-60"
+          style={{ transform: mirrorX ? 'scaleX(-1)' : 'none' }}
+          playsInline
+          muted
+          autoPlay
+        />
 
-          <button
-            type="button"
-            onClick={() => setShowConfig(!showConfig)}
-            className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5 ${
-              showConfig 
-                ? 'bg-amber-500/15 border-amber-500/30 text-amber-400' 
-                : 'bg-slate-950 border-slate-900 text-slate-500'
-            }`}
-          >
-            <Settings2 className="w-3.5 h-3.5" />
-            <span>Filtros</span>
-          </button>
-        </div>
+        {/* Cyan Skeleton Overlay */}
+        <canvas
+          ref={overlayCanvasRef}
+          width={320}
+          height={240}
+          className="absolute inset-0 w-full h-full pointer-events-none z-10"
+        />
+
+        {/* Floating status alert overlaid in both modes */}
+        {modelStatus === 'active' && !handDetected && (
+          <div className="absolute inset-x-0 bottom-4 mx-auto w-fit bg-slate-950/90 border border-amber-500/30 text-[9px] font-mono text-amber-400 px-3 py-1 rounded-full z-20 flex items-center justify-center gap-1.5 animate-pulse shadow-md">
+            <span className="h-1.5 w-1.5 bg-amber-500 rounded-full animate-ping"></span>
+            <span>MUESTRA TU MANO FRENTE A LA PANTALLA</span>
+          </div>
+        )}
+
+        {/* Compact Micro HUD Overlay (Compact Mode Only) */}
+        {isCompact && (
+          <div className="absolute top-2 left-2 z-25 flex items-center gap-1 bg-slate-950/90 px-1.5 py-0.5 rounded border border-slate-800/80 font-mono text-[7px] font-bold text-white tracking-wider">
+            <span className={`h-1 w-1 rounded-full ${
+              modelStatus === 'active'
+                ? handDetected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'
+                : 'bg-slate-500'
+            }`} />
+            <span>{modelStatus === 'active' ? (handDetected ? 'MANO OK' : 'MANO ?') : 'SIN SENSOR'}</span>
+          </div>
+        )}
+
+        {/* Black-screen HUDs (Full Mode Only) */}
+        {!isCompact && modelStatus === 'off' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 bg-slate-950/90">
+            <Video className="w-9 h-9 text-slate-500 mb-2 animate-bounce" />
+            <span className="text-xs text-slate-300 font-bold font-sans uppercase">
+              Cámara Desconectada
+            </span>
+            <span className="text-[9px] text-slate-500 mt-1 max-w-[220px] leading-relaxed">
+              Activa el "Sensor Óptico" en la consola superior del juego para iniciar el reconocimiento.
+            </span>
+          </div>
+        )}
+
+        {modelStatus === 'starting' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 bg-slate-950/95">
+            <RefreshCcw className="w-8 h-8 text-amber-400 animate-spin mb-3" />
+            <span className="text-[10px] font-mono text-amber-300 font-bold uppercase tracking-widest leading-none">
+              Inicializando Pipeline Dual
+            </span>
+            <p className="text-[9px] text-slate-500 mt-1 max-w-[200px] leading-relaxed">
+              Cargando librerías WebAssembly y abriendo sensor local...
+            </p>
+          </div>
+        )}
+
+        {modelStatus === 'active' && handDetected && !isCompact && (
+          <div className="absolute top-4 left-4 bg-emerald-950/90 border border-emerald-500/40 text-[9px] font-mono text-emerald-400 px-2.5 py-1 rounded-lg z-20 flex items-center gap-1.5 font-bold shadow-md">
+            <Check className="w-3.5 h-3.5 text-emerald-400" />
+            <span>DIAGRAMA ACTIVO</span>
+          </div>
+        )}
+
+        {modelStatus === 'error' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 bg-rose-950/95">
+            <X className="w-9 h-9 text-rose-500 mb-2" />
+            <span className="text-xs text-rose-300 font-bold uppercase tracking-wider font-mono">
+              Error de Inicialización
+            </span>
+            <p className="text-[9.5px] text-slate-400 mt-1.5 max-w-[230px] leading-relaxed">
+              {errorMessage || "Acceso bloqueado o hardware no disponible. Usando mouse en reversa."}
+            </p>
+            {onFallbackToMouse && (
+              <button
+                type="button"
+                onClick={onFallbackToMouse}
+                className="mt-4 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-mono text-[9px] font-black uppercase tracking-wider rounded-lg transition duration-150 cursor-pointer shadow-lg border border-rose-450/30 flex items-center gap-1"
+              >
+                <span>Filtro de Emergencia: Ratón</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-        
-        {/* COL 1: Webcam Video Preview Block (width is 5 columns) */}
-        <div className="md:col-span-5 flex flex-col items-center justify-start relative space-y-3">
-          <div className="relative w-full aspect-[4/3] bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex items-center justify-center">
-            
-            {/* Realtime Video Frame */}
-            <video
-              ref={videoRef}
-              width={640}
-              height={480}
-              className="absolute inset-0 w-full h-full object-cover opacity-60"
-              style={{ transform: mirrorX ? 'scaleX(-1)' : 'none' }}
-              playsInline
-              muted
-              autoPlay
-            />
-
-            {/* Cyan Skeleton Overlay */}
-            <canvas
-              ref={overlayCanvasRef}
-              width={320}
-              height={240}
-              className="absolute inset-0 w-full h-full pointer-events-none z-10"
-            />
-
-            {/* Black-screen HUDs depending on status */}
-            {modelStatus === 'off' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 bg-slate-950/90 backdrop-blur-sm">
-                <Video className="w-9 h-9 text-slate-500 mb-2 animate-bounce" />
-                <span className="text-xs text-slate-300 font-bold font-sans uppercase">
-                  Cámara Desconectada
-                </span>
-                <span className="text-[9px] text-slate-500 mt-1 max-w-[220px] leading-relaxed">
-                  Activa el "Sensor Óptico" en la consola superior del juego para iniciar el reconocimiento.
-                </span>
-              </div>
-            )}
-
-            {modelStatus === 'starting' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 bg-slate-950/95">
-                <RefreshCcw className="w-8 h-8 text-amber-400 animate-spin mb-3" />
-                <span className="text-[10px] font-mono text-amber-300 font-bold uppercase tracking-widest leading-none">
-                  Inicializando Pipeline
-                </span>
-                <p className="text-[9px] text-slate-500 mt-1 max-w-[200px] leading-relaxed">
-                  Cargando librerías WebAssembly y abriendo sensor local...
-                </p>
-              </div>
-            )}
-
-            {modelStatus === 'active' && !handDetected && (
-              <div className="absolute inset-x-0 bottom-4 mx-auto w-fit bg-slate-950/90 border border-amber-500/30 text-[9px] font-mono text-amber-400 px-3 py-1 rounded-full z-20 flex items-center justify-center gap-1.5 animate-pulse shadow-md">
-                <span className="h-1.5 w-1.5 bg-amber-500 rounded-full animate-ping"></span>
-                <span>MUESTRA TU MANO FRENTE A LA PANTALLA</span>
-              </div>
-            )}
-
-            {modelStatus === 'active' && handDetected && (
-              <div className="absolute top-4 left-4 bg-emerald-950/90 border border-emerald-500/40 text-[9px] font-mono text-emerald-400 px-2.5 py-1 rounded-lg z-20 flex items-center gap-1.5 font-bold shadow-md">
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span>DIAGRAMA ACTIVO</span>
-              </div>
-            )}
-
-            {modelStatus === 'error' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 bg-rose-950/95 backdrop-blur-sm">
-                <X className="w-9 h-9 text-rose-500 mb-2" />
-                <span className="text-xs text-rose-300 font-bold uppercase tracking-wider font-mono">
-                  Error de Inicialización
-                </span>
-                <p className="text-[9.5px] text-slate-400 mt-1.5 max-w-[230px] leading-relaxed">
-                  {errorMessage || "Acceso bloqueado o hardware no disponible. Usando mouse en reversa."}
-                </p>
-                {onFallbackToMouse && (
-                  <button
-                    type="button"
-                    onClick={onFallbackToMouse}
-                    className="mt-4 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-mono text-[9px] font-black uppercase tracking-wider rounded-lg transition duration-150 cursor-pointer shadow-lg border border-rose-450/30 flex items-center gap-1"
-                  >
-                    <span>Filtro de Emergencia: Ratón</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            )}
+      {/* Quick Info Box (Full Mode Only) */}
+      {!isCompact && (
+        <div className="md:col-span-5 flex flex-col gap-2 w-full bg-slate-950/50 border border-slate-850 p-3 rounded-2xl z-20 relative">
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+            <span>Dispositivo de Entrada:</span>
+            <Video className="w-3.5 h-3.5 text-slate-500" />
           </div>
+          
+          <select
+            value={selectedDeviceId}
+            onChange={handleCameraChange}
+            className="w-full text-[10px] bg-slate-950 border border-slate-800 text-slate-300 rounded-lg py-1.5 px-2 outline-none focus:border-cyan-500/70 focus:ring-1 focus:ring-cyan-500/20 font-mono cursor-pointer"
+          >
+            <option value="">-- Cámara Predeterminada --</option>
+            {devices.map((device, index) => (
+              <option key={device.deviceId || index} value={device.deviceId}>
+                {device.label || `Cámara Secundaria (${index + 1})`}
+              </option>
+            ))}
+          </select>
 
-          {/* Quick Info Box */}
-          <div className="w-full bg-slate-950/50 border border-slate-850 p-3 rounded-2xl flex flex-col gap-2">
-            <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
-              <span>Dispositivo de Entrada:</span>
-              <Video className="w-3.5 h-3.5 text-slate-500" />
+          {/* Dual hand color legend */}
+          <div className="flex items-center gap-3 mt-1 pt-2 border-t border-slate-800/60">
+            <div className="flex items-center gap-1.5 text-[8px] font-mono text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+              <span>Mano Izq. (Verde)</span>
             </div>
-            
-            <select
-              value={selectedDeviceId}
-              onChange={handleCameraChange}
-              className="w-full text-[10px] bg-slate-950 border border-slate-800 text-slate-300 rounded-lg py-1.5 px-2 outline-none focus:border-cyan-500/70 focus:ring-1 focus:ring-cyan-500/20 font-mono"
-            >
-              <option value="">-- Cámara Predeterminada --</option>
-              {devices.map((device, index) => (
-                <option key={device.deviceId || index} value={device.deviceId}>
-                  {device.label || `Cámara Secundaria (${index + 1})`}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-1.5 text-[8px] font-mono text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+              <span>Mano Der. (Ámbar)</span>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* COL 2: Real-time Debug Logs Terminal and Calibration Dials (width is 7 columns) */}
-        <div className="md:col-span-7 flex flex-col justify-between space-y-4">
+      {/* Right Column Diagnostic Console / Logs / Configurations (Full Mode Only) */}
+      {!isCompact && (
+        <div className="md:col-span-7 flex flex-col justify-between space-y-4 z-20 relative">
           
           {/* Diagnostic Stats Overlay Grid */}
           <div className="grid grid-cols-2 shadow-inner sm:grid-cols-4 gap-2 bg-slate-950/80 border border-slate-850 p-2.5 rounded-2xl font-mono text-[9px]">
@@ -731,7 +911,7 @@ export default function HandTracker({
               <div className="flex items-center justify-between border-b border-slate-850 pb-2 mb-2">
                 <span className="text-slate-500 flex items-center gap-1 uppercase font-bold text-[8.5px]">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block" />
-                  Terminal de Auditoría MediaPipe / WebSocket
+                  Terminal de Auditoría · Dual-Mano
                 </span>
                 
                 {/* Source Selection Dials */}
@@ -742,7 +922,7 @@ export default function HandTracker({
                       setSourceType('cdn');
                       addLog("Modo manual: Cambiando origen a CDN oficial...");
                     }}
-                    className={`px-1.5 py-0.5 rounded text-[7.5px] font-bold ${sourceType === 'cdn' ? 'bg-cyan-500/25 text-cyan-400' : 'text-slate-500'}`}
+                    className={`px-1.5 py-0.5 rounded text-[7.5px] font-bold cursor-pointer ${sourceType === 'cdn' ? 'bg-cyan-500/25 text-cyan-400' : 'text-slate-500'}`}
                   >
                     CDN (Estable)
                   </button>
@@ -752,7 +932,7 @@ export default function HandTracker({
                       setSourceType('local');
                       addLog("Modo manual: Cambiando origen a Servidor Local...");
                     }}
-                    className={`px-1.5 py-0.5 rounded text-[7.5px] font-bold ${sourceType === 'local' ? 'bg-amber-500/25 text-amber-400' : 'text-slate-500'}`}
+                    className={`px-1.5 py-0.5 rounded text-[7.5px] font-bold cursor-pointer ${sourceType === 'local' ? 'bg-amber-500/25 text-amber-400' : 'text-slate-500'}`}
                   >
                     Local
                   </button>
@@ -858,7 +1038,7 @@ export default function HandTracker({
               href={typeof window !== 'undefined' ? window.location.href : '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full py-2 bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-sans font-bold text-[10px] uppercase tracking-wider rounded-xl transition duration-150 active:scale-[0.98] cursor-pointer shadow-lg flex items-center justify-center gap-1.5 border border-cyan-400/25"
+              className="w-full py-2 bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-sans font-bold text-[10px] uppercase tracking-wider rounded-xl transition duration-150 cursor-pointer shadow-lg flex items-center justify-center gap-1.5 border border-cyan-400/25"
             >
               <span>Jugar en Nueva Pestaña (Arranque Seguro)</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -873,8 +1053,7 @@ export default function HandTracker({
           </div>
 
         </div>
-
-      </div>
+      )}
     </div>
   );
 }

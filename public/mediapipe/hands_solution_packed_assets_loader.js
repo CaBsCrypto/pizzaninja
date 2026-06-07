@@ -29,7 +29,7 @@
 var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
 
       function fetchRemotePackage(packageName, packageSize, callback, errback) {
-        if (false /* forced false to prevent NodeJS fallback in browser/worker environments */) {
+        if (false /* forced false to avoid browser process object confusion */) {
           require('fs').readFile(packageName, function(err, contents) {
             if (err) {
               errback(err);
@@ -107,11 +107,11 @@ var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
       function assert(check, msg) {
         if (!check) throw msg + new Error().stack;
       }
-Module['FS_createPath']("/", "third_party", true, true);
-Module['FS_createPath']("/third_party", "mediapipe", true, true);
-Module['FS_createPath']("/third_party/mediapipe", "modules", true, true);
-Module['FS_createPath']("/third_party/mediapipe/modules", "hand_landmark", true, true);
-Module['FS_createPath']("/third_party/mediapipe/modules", "palm_detection", true, true);
+(Module['FS_createPath']||window.FS_createPath)("/", "third_party", true, true);
+(Module['FS_createPath']||window.FS_createPath)("/third_party", "mediapipe", true, true);
+(Module['FS_createPath']||window.FS_createPath)("/third_party/mediapipe", "modules", true, true);
+(Module['FS_createPath']||window.FS_createPath)("/third_party/mediapipe/modules", "hand_landmark", true, true);
+(Module['FS_createPath']||window.FS_createPath)("/third_party/mediapipe/modules", "palm_detection", true, true);
 
       /** @constructor */
       function DataRequest(start, end, audio) {
@@ -134,7 +134,7 @@ Module['FS_createPath']("/third_party/mediapipe/modules", "palm_detection", true
         finish: function(byteArray) {
           var that = this;
           
-          Module['FS_createPreloadedFile'](this.name, null, byteArray, true, true, function() {
+          (Module['FS_createPreloadedFile']||window.FS_createPreloadedFile)(this.name, null, byteArray, true, true, function() {
             Module['removeRunDependency']('fp ' + that.name);
           }, function() {
             if (that.audio) {
