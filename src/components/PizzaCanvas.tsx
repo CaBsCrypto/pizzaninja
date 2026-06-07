@@ -1475,22 +1475,24 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // Launcher position and speed
       const isLeft = Math.random() > 0.5;
       const startX = isLeft 
-        ? width * (0.05 + Math.random() * 0.20) 
-        : width * (0.75 + Math.random() * 0.20);
+        ? width * (0.05 + Math.random() * 0.15) 
+        : width * (0.80 + Math.random() * 0.15);
       const startY = height + 50;
       
-      const centerX = width / 2;
-      const xOffset = centerX - startX;
-      
-      // Non-linear (exponential) increase in physics speeds as timeLeft approaches 0 (timeLeft -> 0, so diffScale -> 1.0)
+      // Non-linear (exponential) increase in physics speeds as timeLeft approaches 0
       const diffSetting = DIFFICULTY_SETTINGS[arcadeDifficultyRef.current];
       const speedFactor = diffSetting.speed;
       const expSpeedMult = (1.0 + (Math.exp(diffScale * 1.35) - 1) * 0.65) * speedFactor;
 
-      const baseVx = isLeft ? (Math.random() * 3 + 5.5) : -(Math.random() * 3 + 5.5);
+      // "Suban y bajen" logic:
+      // Small horizontal inward velocity (1.5 to 3.5) so they don't shoot "derecho a lo loco"
+      const baseVx = isLeft ? (Math.random() * 2.0 + 1.5) : -(Math.random() * 2.0 + 1.5);
       const vx = baseVx * expSpeedMult;
-      const vy = -(Math.random() * 3 + 14.8) * expSpeedMult; 
-      const gravity = 0.18 * expSpeedMult * expSpeedMult; // Scale gravity quadratically to match velocity and keep items visually bounded in heights
+      
+      // High vertical variation (14.0 to 22.0) so some reach higher than others
+      const vy = -(Math.random() * 8 + 14.0) * expSpeedMult; 
+      // Gravity strong enough to pull them down nicely in a smooth arc
+      const gravity = 0.24 * expSpeedMult * expSpeedMult; 
       const radius = Math.random() * 5 + 34; // more zoomed out / compact size
 
       // Random state: complete pizzas or a la mitad!
