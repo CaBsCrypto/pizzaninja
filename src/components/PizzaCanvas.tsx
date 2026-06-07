@@ -3049,19 +3049,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       {damageFlash && (
         <div className="absolute inset-0 bg-red-600/30 pointer-events-none z-50 animate-pulse mix-blend-overlay" />
       )}
-      {/* Floating Fullscreen button on preparation screen */}
-      {!isPlaying && (
-        <button
-          onClick={() => {
-            toggleFullscreen();
-            playWebSound('splat');
-          }}
-          className="absolute top-4 right-4 z-40 btn-clash-blue p-3 shadow-xl flex items-center justify-center cursor-pointer pointer-events-auto"
-          title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}
-        >
-          {isFullscreen ? <Minimize2 className="w-5 h-5 text-white drop-shadow-md" /> : <Maximize2 className="w-5 h-5 text-white drop-shadow-md" />}
-        </button>
-      )}
+
       {/* HUD Header */}
       {isPlaying && (
         <div className="absolute top-0 inset-x-0 z-10 px-4 py-4 flex justify-between items-center bg-gradient-to-b from-blue-900/80 to-transparent pointer-events-none select-none">
@@ -3415,7 +3403,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           </div>
 
           {/* Floating Secondary Buttons */}
-          <div className="absolute top-4 md:top-6 left-4 md:left-6 flex flex-col gap-3 z-20">
+          <div className="absolute top-4 md:top-6 left-4 md:left-6 flex flex-row gap-3 z-20">
             <button onClick={() => { setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)]">
               🗡️
             </button>
@@ -3423,9 +3411,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               📋
             </button>
           </div>
-          <div className="absolute top-4 md:top-6 right-4 md:right-6 flex flex-col gap-3 z-20">
-            <button onClick={() => { setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)]">
+          <div className="absolute top-4 md:top-6 right-4 md:right-6 flex flex-row gap-3 z-20">
+            <button onClick={() => { setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)]" title="Ajustes">
               ⚙️
+            </button>
+            <button onClick={() => { toggleFullscreen(); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)]" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
+              {isFullscreen ? <Minimize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" /> : <Maximize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" />}
             </button>
           </div>
 
