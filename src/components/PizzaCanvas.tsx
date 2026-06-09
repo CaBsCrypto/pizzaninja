@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PizzaType, PizzaState, GameItem, Particle, SlicedPiece, TrailPoint, SlashReplayPoint } from '../types';
 import HandTracker from './HandTracker';
 import { gameSocket } from '../services/websocket';
+import { connectFreighter, isFreighterInstalled } from '../services/stellarWallet';
+import { getSpriteCache, drawCachedPizzaSlice } from '../graphics/PizzaSpriteCache';
 
 export type GameMode = 'arcade' | 'classic' | 'zen';
 
@@ -58,7 +60,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     return output;
   };
   
-  // Game states in React for HUD
+  // Game states in React for HUD (Only used for initial renders and game over logic)
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [timeLeft, setTimeLeft] = useState(45);
@@ -116,8 +118,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   };
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [walletPubKey, setWalletPubKey] = useState<string | null>(null);
+  const [unlockedKnives, setUnlockedKnives] = useState<string[]>(['fire']); // Default
 
-  useEffect(() => {
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });useEffect(() => {
     const handleFullscreenChange = () => {
       const isFull = !!(
         document.fullscreenElement ||
@@ -214,6 +218,23 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         startGame();
       }
     }, 800);
+  };
+
+  const updateHUD = () => {
+    const scoreEl = document.getElementById('hud-score-display');
+    if (scoreEl) scoreEl.innerText = String(stateRef.current.score);
+    
+    for (let i = 1; i <= 3; i++) {
+      const lifeEl = document.getElementById('hud-life-' + i);
+      if (lifeEl) {
+        lifeEl.className = `transition-all duration-300 text-2xl ${stateRef.current.lives >= i ? 'opacity-100 scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : 'opacity-30 grayscale scale-75'}`;
+      }
+    }
+    
+    const comboContainerEl = document.getElementById('hud-combo-container');
+    const comboMultEl = document.getElementById('hud-combo-multiplier');
+    if (comboContainerEl) comboContainerEl.style.display = stateRef.current.ninjaCombo >= 2 ? 'flex' : 'none';
+    if (comboMultEl) comboMultEl.innerText = 'x' + stateRef.current.comboMultiplier;
   };
 
   useEffect(() => {
@@ -353,6 +374,19 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                     state: p.sliced ? PizzaState.Half : PizzaState.Whole,
                     isBomb: false
                 }));
+            }
+        } else if (msg.type === "INVENTORY_UPDATE") {
+            if (msg.inventory && msg.inventory.unlockedKnives) {
+                setUnlockedKnives(msg.inventory.unlockedKnives);
+                
+                // If they unlocked gold, auto-equip it to show off!
+                if (msg.inventory.unlockedKnives.includes('gold')) {
+                    setBladeStyle('gold');
+                    onToastMessage?.("¡Has desbloqueado el Cuchillo del Capo!", "success");
+                } else if (msg.inventory.unlockedKnives.includes('cyber')) {
+                    setBladeStyle('cyber');
+                    onToastMessage?.("¡Has desbloqueado el Cuchillo Cyber!", "success");
+                }
             }
         }
     });
@@ -644,13 +678,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       shakeDuration: 0,
       shakeIntensity: 0,
     };
-    setScore(0);
-    setLives(gameMode === 'zen' ? 999 : 3);
-    setTimeLeft(gameMode === 'zen' ? 999999 : 45);
+    updateHUD();
     setElapsedTime(0);
     setGameDifficulty(1);
-    setComboMultiplier(1);
-    setNinjaCombo(1);
     setShowComboAlert(false);
     setIsPlaying(true);
     playWebSound('splat');
@@ -994,6 +1024,17 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         clearInterval(clockInterval);
         setIsPlaying(false);
         playWebSound('gameover');
+        
+        // --- MULTIGAME INTEGRATION ---
+        // Send score to Go Backend to save in Redis Vault and mint Ingredients
+        if (gameSocket && gameSocket.readyState === WebSocket.OPEN) {
+          gameSocket.send(JSON.stringify({
+            type: 'SCORE_SUBMIT',
+            pubKey: walletPubKey || 'G_GUEST_' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            score: stateRef.current.score
+          }));
+        }
+        
         onGameOver(
           stateRef.current.score, 
           elapsed, 
@@ -1024,7 +1065,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
     let animationFrameId: number;
 
-    // Helper to draw a beautifully realistic hand-baked vector pizza
+    // Get the prepared OffscreenCanvas instances for the game
+    const cache = getSpriteCache();
+
+    // Helper to draw a cached vector pizza sprite instantly (O(1) drawing instead of procedural layers)
     const drawPizzaVector = (
       itemCtx: CanvasRenderingContext2D,
       type: PizzaType,
@@ -1036,345 +1080,27 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       itemCtx.save();
       itemCtx.rotate(rotation);
 
-      const isHalf = state === PizzaState.Half;
+      const effectivePerformanceMode = performanceMode || controlMode === 'camera';
 
-      if (type === PizzaType.Pineapple) {
-        // Draw a gorgeous, extremely detailed spiky green-crowned whole pineapple!
-        // This makes the Pineapple immediately distinct and warns the player that it is a special tropical obstacle.
-        
-        // Let's add a pulsing, radiant golden-red warning halo underneath
-        if (!performanceMode) {
-          const now = Date.now();
-          const pulse = Math.sin(now * 0.01) * 0.15 + 0.85;
-          const warningGrad = itemCtx.createRadialGradient(0, 0, radius * 0.2, 0, 0, radius * 1.15);
-          warningGrad.addColorStop(0, 'rgba(239, 68, 68, 0.45)');
-          warningGrad.addColorStop(0.5, 'rgba(245, 158, 11, 0.18)');
-          warningGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-          itemCtx.fillStyle = warningGrad;
-          itemCtx.beginPath();
-          itemCtx.arc(0, 0, radius * 1.15 * pulse, 0, Math.PI * 2);
-          itemCtx.fill();
-        }
-
-        // 1. Draw Leaf Crown at the top of the body (pointing up relative to rotation)
-        itemCtx.fillStyle = '#16a34a'; // rich green leaves
-        itemCtx.strokeStyle = '#14532d';
-        itemCtx.lineWidth = 2.0;
-
-        // Draw multiple leaves fanning out
-        const leafPaths = [
-          // Middle leaf
-          { x1: 0, y1: -radius * 0.3, cx: -radius * 0.08, cy: -radius * 0.75, x2: 0, y2: -radius * 1.1, cx2: radius * 0.08, cy2: -radius * 0.75 },
-          // Left leaf
-          { x1: -radius * 0.15, y1: -radius * 0.3, cx: -radius * 0.4, cy: -radius * 0.65, x2: -radius * 0.38, y2: -radius * 0.9, cx2: -radius * 0.15, cy2: -radius * 0.5 },
-          // Right leaf
-          { x1: radius * 0.15, y1: -radius * 0.3, cx: radius * 0.4, cy: -radius * 0.65, x2: radius * 0.38, y2: -radius * 0.9, cx2: radius * 0.15, cy2: -radius * 0.5 },
-          // Nested inner leaves
-          { x1: -radius * 0.08, y1: -radius * 0.35, cx: -radius * 0.2, cy: -radius * 0.85, x2: -radius * 0.18, y2: -radius * 1.05, cx2: 0, cy2: -radius * 0.65 },
-          { x1: radius * 0.08, y1: -radius * 0.35, cx: radius * 0.2, cy: -radius * 0.85, x2: radius * 0.18, y2: -radius * 1.05, cx2: 0, cy2: -radius * 0.65 },
-        ];
-
-        leafPaths.forEach(lp => {
-          itemCtx.beginPath();
-          itemCtx.moveTo(lp.x1, lp.y1);
-          itemCtx.quadraticCurveTo(lp.cx, lp.cy, lp.x2, lp.y2);
-          itemCtx.quadraticCurveTo(lp.cx2, lp.cy2, lp.x1, lp.y1);
-          itemCtx.fill();
-          itemCtx.stroke();
-        });
-
-        // 2. Draw Pineapple Body (oval)
-        // Set up golden orange gradient
-        const bodyGrad = itemCtx.createRadialGradient(0, radius * 0.15, 5, 0, radius * 0.15, radius * 0.75);
-        bodyGrad.addColorStop(0, '#facc15'); // central yellow
-        bodyGrad.addColorStop(0.7, '#ea580c'); // warm orange edge
-        bodyGrad.addColorStop(1, '#9a3412'); // deep reddish shadow
-
-        itemCtx.fillStyle = bodyGrad;
-        itemCtx.strokeStyle = '#7c2d12';
-        itemCtx.lineWidth = 3;
-
-        itemCtx.beginPath();
-        // Draw ellipse body representing whole pineapple fruit
-        itemCtx.ellipse(0, radius * 0.18, radius * 0.46, radius * 0.62, 0, 0, Math.PI * 2);
-        itemCtx.fill();
-        itemCtx.stroke();
-
-        // 3. Draw spiky scales texture
-        itemCtx.strokeStyle = 'rgba(124, 45, 18, 0.61)';
-        itemCtx.lineWidth = 1.8;
-        
-        // Draw diagonal lines
-        for (let strokePass = 0; strokePass < 2; strokePass++) {
-          const sign = strokePass === 0 ? 1 : -1;
-          for (let offset = -radius * 0.4; offset <= radius * 0.4; offset += radius * 0.22) {
-            itemCtx.save();
-            itemCtx.beginPath();
-            itemCtx.ellipse(0, radius * 0.18, radius * 0.46, radius * 0.62, 0, 0, Math.PI * 2);
-            itemCtx.clip();
-            
-            itemCtx.beginPath();
-            itemCtx.moveTo(offset - radius * 0.5 * sign, radius * 0.18 - radius * 0.65);
-            itemCtx.lineTo(offset + radius * 0.5 * sign, radius * 0.18 + radius * 0.65);
-            itemCtx.stroke();
-            itemCtx.restore();
-          }
-        }
-
-        // Draw little brown scale centers (spikes)
-        itemCtx.save();
-        itemCtx.beginPath();
-        itemCtx.ellipse(0, radius * 0.18, radius * 0.46, radius * 0.62, 0, 0, Math.PI * 2);
-        itemCtx.clip();
-        
-        itemCtx.fillStyle = '#7c2d12';
-        const dots = [
-          { dx: 0, dy: radius * 0.18 },
-          { dx: -radius * 0.2, dy: radius * -0.02 },
-          { dx: radius * 0.2, dy: radius * -0.02 },
-          { dx: -radius * 0.2, dy: radius * 0.38 },
-          { dx: radius * 0.2, dy: radius * 0.38 },
-          { dx: 0, dy: radius * -0.15 },
-          { dx: 0, dy: radius * 0.51 },
-          { dx: -radius * 0.32, dy: radius * 0.18 },
-          { dx: radius * 0.32, dy: radius * 0.18 },
-        ];
-        dots.forEach(d => {
-          itemCtx.beginPath();
-          // Draw small spiky crown-triangle in each scale
-          itemCtx.moveTo(d.dx - 3, d.dy + 1);
-          itemCtx.lineTo(d.dx, d.dy - 5);
-          itemCtx.lineTo(d.dx + 3, d.dy + 1);
-          itemCtx.fill();
-        });
-        itemCtx.restore();
-
-        // 4. Draw warning/hazardous details (glowing biohazard warning sign on top of the pineapple)
-        // This makes it extremely obvious it is a hazard!
-        itemCtx.fillStyle = '#ef4444';
-        itemCtx.strokeStyle = '#ffffff';
-        itemCtx.lineWidth = 1.6;
-        
-        itemCtx.beginPath();
-        itemCtx.arc(0, radius * 0.15, 12, 0, Math.PI * 2);
-        itemCtx.fill();
-        itemCtx.stroke();
-
-        itemCtx.fillStyle = '#ffffff';
-        itemCtx.font = '900 13px sans-serif';
-        itemCtx.textAlign = 'center';
-        itemCtx.textBaseline = 'middle';
-        itemCtx.fillText('⚠️', 0, radius * 0.15 + 0.5);
-
-        itemCtx.restore();
-        return;
+      if (type === PizzaType.Pineapple && cache.pineappleWarning && !effectivePerformanceMode) {
+         // Draw glow behind pineapple
+         itemCtx.drawImage(cache.pineappleWarning, -radius * 1.15, -radius * 1.15, radius * 2.3, radius * 2.3);
       }
 
-      // 1. Toasted Crust
-      itemCtx.beginPath();
-      if (isHalf) {
-        itemCtx.arc(0, 0, radius, -Math.PI / 2, Math.PI / 2);
-        itemCtx.lineTo(0, -radius);
+      let sprite;
+      if (state === PizzaState.Half) {
+        sprite = cache.half[type];
       } else {
-        itemCtx.arc(0, 0, radius, 0, Math.PI * 2);
+        sprite = cutsMade > 0 ? cache.scarred[type] : cache.whole[type];
       }
-
-      if (type === PizzaType.Burnt) {
-        itemCtx.fillStyle = '#27272a'; // Carbonised gray
-        itemCtx.strokeStyle = '#09090b';
-      } else {
-        itemCtx.fillStyle = '#ca8a04'; // Warm oven toasted orange crust
-        itemCtx.strokeStyle = '#78350f';
+      
+      if (sprite) {
+        itemCtx.drawImage(sprite, -radius, -radius, radius * 2, radius * 2);
       }
-      itemCtx.lineWidth = 3.5;
-      itemCtx.fill();
-      itemCtx.stroke();
-
-      // 2. Rich Marinara Tomato Sauce Base (slightly smaller)
-      itemCtx.beginPath();
-      const sauceRadius = radius * 0.86;
-      if (isHalf) {
-        itemCtx.arc(0, 0, sauceRadius, -Math.PI / 2, Math.PI / 2);
-        itemCtx.lineTo(0, -sauceRadius);
-      } else {
-        itemCtx.arc(0, 0, sauceRadius, 0, Math.PI * 2);
-      }
-      itemCtx.fillStyle = type === PizzaType.Burnt ? '#18181b' : '#b91c1c';
-      itemCtx.fill();
-
-      // 3. Gourmet Creamy Melted Mozzarella/Cheddar Cheese
-      itemCtx.beginPath();
-      const cheeseRadius = radius * 0.78;
-      if (isHalf) {
-        itemCtx.arc(0, 0, cheeseRadius, -Math.PI / 2, Math.PI / 2);
-        itemCtx.lineTo(0, -cheeseRadius);
-      } else {
-        itemCtx.arc(0, 0, cheeseRadius, 0, Math.PI * 2);
-      }
-
-      if (type === PizzaType.Burnt) {
-        itemCtx.fillStyle = '#3f3f46'; // burnt cheese
-      } else if (type === PizzaType.FourCheese) {
-        itemCtx.fillStyle = '#fef08a'; // double golden yellow combo
-      } else if (type === PizzaType.Veggie) {
-        itemCtx.fillStyle = '#fffbeb'; // creamier white
-      } else {
-        itemCtx.fillStyle = '#fde047'; // hot standard cheese
-      }
-      itemCtx.fill();
-
-      // 4. Subtle toasted oven bubbles inside the cheese
-      if (type !== PizzaType.Burnt) {
-        itemCtx.fillStyle = 'rgba(146, 64, 14, 0.4)'; // baked brown cheese clusters
-        const spots = isHalf 
-          ? [{ r: radius * 0.25, a: 0.2 }, { r: radius * 0.45, a: -0.5 }, { r: radius * 0.5, a: 0.6 }] 
-          : [{ r: radius * 0.15, a: 0.3 }, { r: radius * 0.4, a: -0.9 }, { r: radius * 0.5, a: 1.5 }, { r: radius * 0.3, a: 3.1 }];
-        
-        spots.forEach(spot => {
-          const sx = Math.cos(spot.a) * spot.r;
-          const sy = Math.sin(spot.a) * spot.r;
-          itemCtx.beginPath();
-          itemCtx.arc(sx, sy, radius * 0.08, 0, Math.PI * 2);
-          itemCtx.fill();
-        });
-      }
-
-      // 5. Chef Ingredient Toppings
-      if (type === PizzaType.Pepperoni) {
-        itemCtx.fillStyle = '#991b1b'; // pepperoni slices
-        itemCtx.strokeStyle = '#7f1d1d';
-        itemCtx.lineWidth = 1;
-
-        const peps = isHalf 
-          ? [{ r: radius * 0.4, a: -0.2 }, { r: radius * 0.45, a: 0.8 }, { r: radius * 0.2, a: 0.3 }]
-          : [{ r: radius * 0.4, a: -0.4 }, { r: radius * 0.45, a: 0.8 }, { r: radius * 0.48, a: 2.2 }, { r: radius * 0.32, a: -2.3 }, { r: radius * 0.2, a: 1.1 }];
-        
-        peps.forEach(p => {
-          const px = Math.cos(p.a) * p.r;
-          const py = Math.sin(p.a) * p.r;
-          
-          itemCtx.beginPath();
-          itemCtx.arc(px, py, radius * 0.14, 0, Math.PI * 2);
-          itemCtx.fill();
-          itemCtx.stroke();
-
-          // Pepperoni outer crispy rim shine
-          itemCtx.beginPath();
-          itemCtx.fillStyle = '#dc2626';
-          itemCtx.arc(px, py, radius * 0.1, 0, Math.PI * 2);
-          itemCtx.fill();
-        });
-      } else if (type === PizzaType.Veggie) {
-        // Red onion rings, green peppers, black olives
-        const items = isHalf
-          ? [{ r: radius * 0.3, a: -0.4, item: 'pepper' }, { r: radius * 0.45, a: 0.7, item: 'olive' }, { r: radius * 0.4, a: 0.1, item: 'onion' }]
-          : [{ r: radius * 0.3, a: -0.5, item: 'pepper' }, { r: radius * 0.45, a: 0.8, item: 'pepper' }, { r: radius * 0.5, a: -2.2, item: 'olive' }, { r: radius * 0.28, a: 2.5, item: 'olive' }, { r: radius * 0.4, a: 1.4, item: 'onion' }];
-
-        items.forEach(it => {
-          const ix = Math.cos(it.a) * it.r;
-          const iy = Math.sin(it.a) * it.r;
-
-          if (it.item === 'pepper') {
-            itemCtx.strokeStyle = '#16a34a';
-            itemCtx.lineWidth = 3;
-            itemCtx.lineCap = 'round';
-            itemCtx.beginPath();
-            itemCtx.arc(ix, iy, radius * 0.1, 0, Math.PI * 0.61);
-            itemCtx.stroke();
-          } else if (it.item === 'olive') {
-            itemCtx.fillStyle = '#0f172a'; // shiny deep olivier black
-            itemCtx.beginPath();
-            itemCtx.arc(ix, iy, radius * 0.08, 0, Math.PI * 2);
-            itemCtx.fill();
-
-            // Olive core hole
-            itemCtx.fillStyle = '#fffbeb';
-            itemCtx.beginPath();
-            itemCtx.arc(ix, iy, radius * 0.03, 0, Math.PI * 2);
-            itemCtx.fill();
-          } else if (it.item === 'onion') {
-            itemCtx.strokeStyle = '#c084fc'; // purple red onion ribbon
-            itemCtx.lineWidth = 2;
-            itemCtx.beginPath();
-            itemCtx.arc(ix, iy, radius * 0.11, 0, Math.PI * 0.8);
-            itemCtx.stroke();
-          }
-        });
-      } else if (type === PizzaType.FourCheese) {
-        // Deep double cheese splashes and oregano herbs
-        itemCtx.fillStyle = '#f97316'; // melted cheddar spots
-        const pockets = isHalf 
-          ? [{ r: radius * 0.35, a: 0.5 }, { r: radius * 0.42, a: -0.4 }]
-          : [{ r: radius * 0.35, a: 0.5 }, { r: radius * 0.42, a: -0.4 }, { r: radius * 0.5, a: 2.3 }, { r: radius * 0.12, a: -1.9 }];
-        
-        pockets.forEach(pkt => {
-          const px = Math.cos(pkt.a) * pkt.r;
-          const py = Math.sin(pkt.a) * pkt.r;
-          itemCtx.beginPath();
-          itemCtx.arc(px, py, radius * 0.13, 0, Math.PI * 2);
-          itemCtx.fill();
-        });
-
-        // Oregano herb sprinkles
-        itemCtx.fillStyle = '#22c55e';
-        const sprCount = isHalf ? 8 : 16;
-        for (let i = 0; i < sprCount; i++) {
-          const sprAngle = (i / sprCount) * Math.PI * 2 + Math.random() * 0.3;
-          const sprDist = (0.2 + 0.45 * Math.random()) * radius;
-          itemCtx.fillRect(Math.cos(sprAngle) * sprDist, Math.sin(sprAngle) * sprDist, 2.5, 2.5);
-        }
-      }
-
-      // 6. Dashed line highlighting perfect slice cuts
-      if (type !== PizzaType.Burnt) {
-        itemCtx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-        itemCtx.lineWidth = 1.8;
-        itemCtx.setLineDash([5, 5]);
-        itemCtx.beginPath();
-        if (isHalf) {
-          // Half pizza slicing guides
-          itemCtx.moveTo(0, 0);
-          itemCtx.lineTo(radius * 0.95 * Math.cos(-Math.PI / 4), radius * 0.95 * Math.sin(-Math.PI / 4));
-          itemCtx.moveTo(0, 0);
-          itemCtx.lineTo(radius * 0.95 * Math.cos(Math.PI / 4), radius * 0.95 * Math.sin(Math.PI / 4));
-        } else {
-          // Full cruz guides for whole pizza
-          itemCtx.moveTo(-radius * 0.9, 0);
-          itemCtx.lineTo(radius * 0.9, 0);
-          itemCtx.moveTo(0, -radius * 0.9);
-          itemCtx.lineTo(0, radius * 0.9);
-        }
-        itemCtx.stroke();
-        itemCtx.setLineDash([]); // clear dash state
-      }
-
-      // 7. Visual sliced scar if cut once
-      if (!isHalf && cutsMade === 1) {
-        itemCtx.strokeStyle = 'rgba(239, 68, 68, 0.9)'; // hot glowing sauce crack
-        itemCtx.lineWidth = 4;
-        itemCtx.beginPath();
-        itemCtx.moveTo(-radius * 0.95, 0);
-        itemCtx.lineTo(radius * 0.95, 0);
-        itemCtx.stroke();
-
-        itemCtx.fillStyle = '#fde047'; // cheese drip in crack
-        itemCtx.beginPath();
-        itemCtx.arc(radius * 0.3, 0, 3, 0, Math.PI * 2);
-        itemCtx.arc(-radius * 0.4, 0, 3.5, 0, Math.PI * 2);
-        itemCtx.fill();
-
-        itemCtx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-        itemCtx.lineWidth = 1.6;
-        itemCtx.beginPath();
-        itemCtx.moveTo(-radius * 0.9, 0);
-        itemCtx.lineTo(radius * 0.9, 0);
-        itemCtx.stroke();
-      }
-
       itemCtx.restore();
     };
 
-    // Helper to draw clean fading wedge pieces
+    // Helper to draw clean fading wedge pieces using the sprite cache mask
     const drawPizzaSliceVector = (
       sliceCtx: CanvasRenderingContext2D,
       type: PizzaType,
@@ -1383,55 +1109,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       endAngle: number,
       alpha: number
     ) => {
-      sliceCtx.save();
-      sliceCtx.globalAlpha = alpha;
-
-      // 1. Sector shape for slices
-      sliceCtx.beginPath();
-      sliceCtx.moveTo(0, 0);
-      sliceCtx.arc(0, 0, radius, startAngle, endAngle);
-      sliceCtx.closePath();
-
-      if (type === PizzaType.Burnt || type === PizzaType.Veggie) {
-        // match dark or veggie style
-        sliceCtx.fillStyle = type === PizzaType.Burnt ? '#27272a' : '#ca8a04';
-        sliceCtx.strokeStyle = type === PizzaType.Burnt ? '#09090b' : '#78350f';
-      } else {
-        sliceCtx.fillStyle = '#ca8a04';
-        sliceCtx.strokeStyle = '#78350f';
-      }
-      sliceCtx.lineWidth = 3;
-      sliceCtx.fill();
-      sliceCtx.stroke();
-
-      // 2. Tomato sauce
-      sliceCtx.beginPath();
-      sliceCtx.moveTo(0, 0);
-      sliceCtx.arc(0, 0, radius * 0.85, startAngle, endAngle);
-      sliceCtx.closePath();
-      sliceCtx.fillStyle = type === PizzaType.Burnt ? '#18181b' : '#b91c1c';
-      sliceCtx.fill();
-
-      // 3. Mozzarella cheese on sector
-      sliceCtx.beginPath();
-      sliceCtx.moveTo(0, 0);
-      sliceCtx.arc(0, 0, radius * 0.77, startAngle, endAngle);
-      sliceCtx.closePath();
-      sliceCtx.fillStyle = type === PizzaType.Burnt ? '#3f3f46' : '#fde047';
-      sliceCtx.fill();
-
-      // 4. Little topping dot inside slice
-      if (type === PizzaType.Pepperoni) {
-        sliceCtx.fillStyle = '#dc2626';
-        const midA = (startAngle + endAngle) / 2;
-        const tx = Math.cos(midA) * radius * 0.45;
-        const ty = Math.sin(midA) * radius * 0.45;
-        sliceCtx.beginPath();
-        sliceCtx.arc(tx, ty, radius * 0.12, 0, Math.PI * 2);
-        sliceCtx.fill();
-      }
-
-      sliceCtx.restore();
+      drawCachedPizzaSlice(sliceCtx, cache, type, radius, startAngle, endAngle, alpha);
     };
 
     const spawnGameItem = (width: number, height: number, diffScale: number) => {
@@ -1636,8 +1314,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         // Decaying / resetting combo after 550ms has passed since the last satisfying slice!
         if (stateRef.current.comboCount > 1 && now - stateRef.current.lastSliceTime > 550) {
           stateRef.current.comboCount = 1;
-          setComboMultiplier(1);
-          setNinjaCombo(1);
+          stateRef.current.comboMultiplier = 1;
+          stateRef.current.ninjaCombo = 1;
+          updateHUD();
           setShowComboAlert(false);
           setComboDetails(null);
         }
@@ -1724,20 +1403,28 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // Update and draw sword slash trails
       const trail = stateRef.current.trail;
       if (!isPaused) {
-        for (let i = 0; i < trail.length; i++) {
-          trail[i].age -= 16; // reduction speed
-        }
+        let activeCount = 0;
         const hand0Active = controlMode === 'camera' && (Date.now() - lastHandTrackedTimeRef.current[0] < 500);
-        stateRef.current.trail = trail.filter((t, idx) => t.age > 0 || (hand0Active && idx === trail.length - 1));
+        for (let i = 0; i < trail.length; i++) {
+          trail[i].age -= 16;
+          if (trail[i].age > 0 || (hand0Active && i === trail.length - 1)) {
+            trail[activeCount++] = trail[i];
+          }
+        }
+        trail.length = activeCount;
       }
 
       const trail1 = stateRef.current.trail1;
       if (!isPaused) {
-        for (let i = 0; i < trail1.length; i++) {
-          trail1[i].age -= 16; // reduction speed
-        }
+        let activeCount1 = 0;
         const hand1Active = controlMode === 'camera' && (Date.now() - lastHandTrackedTimeRef.current[1] < 500);
-        stateRef.current.trail1 = trail1.filter((t, idx) => t.age > 0 || (hand1Active && idx === trail1.length - 1));
+        for (let i = 0; i < trail1.length; i++) {
+          trail1[i].age -= 16;
+          if (trail1[i].age > 0 || (hand1Active && i === trail1.length - 1)) {
+            trail1[activeCount1++] = trail1[i];
+          }
+        }
+        trail1.length = activeCount1;
       }
 
       const activeTrail = stateRef.current.trail;
@@ -1857,69 +1544,72 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           ctx.lineJoin = 'round';
           ctx.lineCap = 'round';
 
-          // PASS 1 + 2: Wide aura + hot trail (skipped in camera/perf mode -- saves ~36 stroke calls per 2 hands)
+          // HIGH PERFORMANCE TRAIL ENVELOPE: Draw entire sword slash with one polygon fill!
+          const drawEnvelope = (trail: TrailPoint[], colorBase: string, maxWidth: number, isCore: boolean) => {
+            if (trail.length < 2) return;
+            const tip = trail[trail.length - 1];
+            const tail = trail[0];
+            
+            ctx.beginPath();
+            
+            // Move up the left side of the blade
+            for (let i = 0; i < trail.length; i++) {
+              const p = trail[i];
+              const pNext = i < trail.length - 1 ? trail[i + 1] : p;
+              const pPrev = i > 0 ? trail[i - 1] : p;
+              
+              let dx = pNext.x - pPrev.x;
+              let dy = pNext.y - pPrev.y;
+              const len = Math.hypot(dx, dy) || 1;
+              dx /= len;
+              dy /= len;
+              const nx = -dy;
+              const ny = dx;
+              
+              const ratio = (i + 1) / trail.length;
+              const segSpeed = Math.min(Math.max(len / 13, 0.75), 2.8);
+              const width = maxWidth * ratio * segSpeed;
+              
+              if (i === 0) ctx.moveTo(p.x + nx * width, p.y + ny * width);
+              else ctx.lineTo(p.x + nx * width, p.y + ny * width);
+            }
+            
+            // Move down the right side of the blade
+            for (let i = trail.length - 1; i >= 0; i--) {
+              const p = trail[i];
+              const pNext = i < trail.length - 1 ? trail[i + 1] : p;
+              const pPrev = i > 0 ? trail[i - 1] : p;
+              
+              let dx = pNext.x - pPrev.x;
+              let dy = pNext.y - pPrev.y;
+              const len = Math.hypot(dx, dy) || 1;
+              dx /= len;
+              dy /= len;
+              const nx = -dy;
+              const ny = dx;
+              
+              const ratio = (i + 1) / trail.length;
+              const segSpeed = Math.min(Math.max(len / 13, 0.75), 2.8);
+              const width = maxWidth * ratio * segSpeed;
+              
+              ctx.lineTo(p.x - nx * width, p.y - ny * width);
+            }
+            ctx.closePath();
+            
+            // Create fading gradient from base to tip
+            const grad = ctx.createLinearGradient(tail.x, tail.y, tip.x, tip.y);
+            grad.addColorStop(0, colorBase + '0)');
+            grad.addColorStop(0.5, colorBase + (isCore ? '0.6)' : '0.4)'));
+            grad.addColorStop(1, colorBase + (isCore ? '0.95)' : '0.85)'));
+            ctx.fillStyle = grad;
+            ctx.fill();
+          };
+
           if (!effectivePerformanceMode) {
-          // PASS 1: Wide background aura
-          for (let i = 0; i < activeTrail.length - 1; i++) {
-            const p1 = activeTrail[i];
-            const p2 = activeTrail[i + 1];
-            const segDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-            const segSpeedFactor = Math.min(Math.max(segDist / 13, 0.75), 2.8);
-            
-            const ageRatio = Math.max(0, Math.min(1, p1.age / 300));
-            const ratio = (i + 1) / activeTrail.length; // 0 to 1 as it reaches the tip
-            const width = 16 * ratio * ageRatio * segSpeedFactor;
-
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            
-            const intensity = Math.min(0.85, 0.42 * segSpeedFactor);
-            ctx.strokeStyle = `${trailColor1}${intensity * ageRatio})`; 
-            ctx.lineWidth = Math.max(1, width);
-            ctx.stroke();
+             drawEnvelope(activeTrail, trailColor1, 16, false); // Wide aura
+             drawEnvelope(activeTrail, trailColor2, 8, false);  // Hot trail
           }
-
-          // PASS 2: Middle hot trail
-          for (let i = 0; i < activeTrail.length - 1; i++) {
-            const p1 = activeTrail[i];
-            const p2 = activeTrail[i + 1];
-            const segDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-            const segSpeedFactor = Math.min(Math.max(segDist / 13, 0.75), 2.8);
-
-            const ageRatio = Math.max(0, Math.min(1, p1.age / 300));
-            const ratio = (i + 1) / activeTrail.length;
-            const width = 8 * ratio * ageRatio * segSpeedFactor;
-
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            
-            const intensity = Math.min(0.95, 0.72 * segSpeedFactor);
-            ctx.strokeStyle = `${trailColor2}${intensity * ageRatio})`; 
-            ctx.lineWidth = Math.max(0.5, width);
-            ctx.stroke();
-          }
-          }
-
-          // PASS 3: Core super-heated sharp razor-line
-          for (let i = 0; i < activeTrail.length - 1; i++) {
-            const p1 = activeTrail[i];
-            const p2 = activeTrail[i + 1];
-            const segDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-            const segSpeedFactor = Math.min(Math.max(segDist / 13, 0.75), 2.8);
-
-            const ageRatio = Math.max(0, Math.min(1, p1.age / 300));
-            const ratio = (i + 1) / activeTrail.length;
-            const width = 3 * ratio * ageRatio * Math.min(1.4, segSpeedFactor);
-
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `${trailColor3}${0.95 * ageRatio})`; 
-            ctx.lineWidth = Math.max(0.2, width);
-            ctx.stroke();
-          }
+          drawEnvelope(activeTrail, trailColor3, 3, true);      // Core laser edge
 
           ctx.restore();
         }
@@ -1977,109 +1667,117 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // 4. Update and Draw items
       if (isPlaying) {
         const newItemsToSpawn: GameItem[] = [];
-        stateRef.current.items = stateRef.current.items.filter(item => {
-        // Handle pre-slicing frame scale-up animation and final splitting division
-        if (item.isPreSlicing && !isPaused) {
-          item.preSliceFrames = (item.preSliceFrames || 0) + 1;
-          const maxFrames = item.preSliceMaxFrames || 7;
-          
-          if (item.preSliceFrames >= maxFrames) {
-            // Trigger actual division splits at the end of the bounce sequence!
-            item.isSliced = true;
-            item.sliceAngle = item.swipeAngle || 0;
-            
-            const swipeAngle = item.swipeAngle || 0;
-            const speedRatio = item.speedRatio || 1.0;
-            const now = Date.now();
-            
-            // Spawn tasty sauce & topping splat crumbs perfectly at final split moment
-            const countBase = Math.round(18 * speedRatio);
-            addSplatParticles(item.x, item.y, item.color, countBase, item.type, speedRatio);
-            
-            if (item.state === PizzaState.Whole) {
-              const splitAngle1 = swipeAngle + Math.PI / 2;
-              const splitAngle2 = swipeAngle - Math.PI / 2;
+        const items = stateRef.current.items;
+        let activeItemsCount = 0;
 
-              const half1: GameItem = {
-                id: stateRef.current.nextId++,
-                type: item.type,
-                state: PizzaState.Half,
-                x: item.x + Math.cos(splitAngle1) * 12,
-                y: item.y + Math.sin(splitAngle1) * 12,
-                vx: item.vx * 0.75 + Math.cos(splitAngle1) * 2.5,
-                vy: item.vy * 0.85 - 1.8,
-                radius: item.radius,
-                isSliced: false,
-                sliceAngle: 0,
-                rotation: splitAngle1,
-                rotationSpeed: (-0.06 - Math.random() * 0.04) * (item.gravity ? Math.sqrt(item.gravity / 0.28) : 1),
-                color: item.color,
-                points: 15,
-                label: item.label,
-                cutsMade: 0,
-                gravity: item.gravity,
-                lastCutTime: now,
-              };
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          let keepItem = true;
 
-              const half2: GameItem = {
-                id: stateRef.current.nextId++,
-                type: item.type,
-                state: PizzaState.Half,
-                x: item.x + Math.cos(splitAngle2) * 12,
-                y: item.y + Math.sin(splitAngle2) * 12,
-                vx: item.vx * 0.75 + Math.cos(splitAngle2) * 2.5,
-                vy: item.vy * 0.85 - 1.8,
-                radius: item.radius,
-                isSliced: false,
-                sliceAngle: 0,
-                rotation: splitAngle1 + Math.PI,
-                rotationSpeed: (0.06 + Math.random() * 0.04) * (item.gravity ? Math.sqrt(item.gravity / 0.28) : 1),
-                color: item.color,
-                points: 15,
-                label: item.label,
-                cutsMade: 0,
-                gravity: item.gravity,
-                lastCutTime: now,
-              };
+          // Handle pre-slicing frame scale-up animation and final splitting division
+          if (item.isPreSlicing && !isPaused) {
+            item.preSliceFrames = (item.preSliceFrames || 0) + 1;
+            const maxFrames = item.preSliceMaxFrames || 7;
+            
+            if (item.preSliceFrames >= maxFrames) {
+              // Trigger actual division splits at the end of the bounce sequence!
+              item.isSliced = true;
+              item.sliceAngle = item.swipeAngle || 0;
+              
+              const swipeAngle = item.swipeAngle || 0;
+              const speedRatio = item.speedRatio || 1.0;
+              const now = Date.now();
+              
+              // Spawn tasty sauce & topping splat crumbs perfectly at final split moment
+              const countBase = Math.round(18 * speedRatio);
+              addSplatParticles(item.x, item.y, item.color, countBase, item.type, speedRatio);
+              
+              if (item.state === PizzaState.Whole) {
+                const splitAngle1 = swipeAngle + Math.PI / 2;
+                const splitAngle2 = swipeAngle - Math.PI / 2;
 
-              newItemsToSpawn.push(half1, half2);
-            } else {
-              createSlicedSectors(item, swipeAngle);
+                const half1: GameItem = {
+                  id: stateRef.current.nextId++,
+                  type: item.type,
+                  state: PizzaState.Half,
+                  x: item.x + Math.cos(splitAngle1) * 12,
+                  y: item.y + Math.sin(splitAngle1) * 12,
+                  vx: item.vx * 0.75 + Math.cos(splitAngle1) * 2.5,
+                  vy: item.vy * 0.85 - 1.8,
+                  radius: item.radius,
+                  isSliced: false,
+                  sliceAngle: 0,
+                  rotation: splitAngle1,
+                  rotationSpeed: (-0.06 - Math.random() * 0.04) * (item.gravity ? Math.sqrt(item.gravity / 0.28) : 1),
+                  color: item.color,
+                  points: 15,
+                  label: item.label,
+                  cutsMade: 0,
+                  gravity: item.gravity,
+                  lastCutTime: now,
+                };
+
+                const half2: GameItem = {
+                  id: stateRef.current.nextId++,
+                  type: item.type,
+                  state: PizzaState.Half,
+                  x: item.x + Math.cos(splitAngle2) * 12,
+                  y: item.y + Math.sin(splitAngle2) * 12,
+                  vx: item.vx * 0.75 + Math.cos(splitAngle2) * 2.5,
+                  vy: item.vy * 0.85 - 1.8,
+                  radius: item.radius,
+                  isSliced: false,
+                  sliceAngle: 0,
+                  rotation: splitAngle1 + Math.PI,
+                  rotationSpeed: (0.06 + Math.random() * 0.04) * (item.gravity ? Math.sqrt(item.gravity / 0.28) : 1),
+                  color: item.color,
+                  points: 15,
+                  label: item.label,
+                  cutsMade: 0,
+                  gravity: item.gravity,
+                  lastCutTime: now,
+                };
+
+                newItemsToSpawn.push(half1, half2);
+              } else {
+                createSlicedSectors(item, swipeAngle);
+              }
+              keepItem = false;
             }
-            return false; // Remove this item from core list
           }
-        }
 
-        if (!isPaused) {
-          // Apply simple physics gravity model
-          if (true) {
+          if (keepItem && !isPaused) {
+            // Apply simple physics gravity model
             item.x += item.vx;
             item.y += item.vy;
             item.vy += (item.gravity !== undefined ? item.gravity : 0.28); // gravity force descending
             item.rotation += item.rotationSpeed;
           }
-        }
 
-        const isOutOfScreen = item.y > height + 100;
+          const isOutOfScreen = item.y > height + 100;
 
-        if (isOutOfScreen) {
-          // If good pizza falls unsliced
-          if (!item.isSliced && !item.isPreSlicing && item.type !== PizzaType.Pineapple && item.type !== PizzaType.Burnt) {
-            if (stateRef.current.gameMode === 'classic') {
-              stateRef.current.lives = Math.max(0, stateRef.current.lives - 1);
-              setLives(stateRef.current.lives);
-              playWebSound('error');
-            } else {
-              stateRef.current.score = Math.max(0, stateRef.current.score - 5);
-              setScore(stateRef.current.score);
+          if (keepItem && isOutOfScreen) {
+            // If good pizza falls unsliced
+            if (!item.isSliced && !item.isPreSlicing && item.type !== PizzaType.Pineapple && item.type !== PizzaType.Burnt) {
+              if (stateRef.current.gameMode === 'classic') {
+                stateRef.current.lives = Math.max(0, stateRef.current.lives - 1);
+                updateHUD();
+                playWebSound('error');
+              } else {
+                stateRef.current.score = Math.max(0, stateRef.current.score - 5);
+                updateHUD();
+              }
             }
+            keepItem = false;
           }
-          return false;
-        }
 
-        if (item.isSliced) {
-          return false; // filtered out
-        }
+          if (keepItem && item.isSliced) {
+            keepItem = false;
+          }
+
+          if (!keepItem) continue;
+
+          items[activeItemsCount++] = item;
 
         // Draw standard rotating pizza
         ctx.save();
@@ -2183,7 +1881,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       }
 
       // 5. Update and Draw Sliced Sector Wedges
-      stateRef.current.slicedPieces = stateRef.current.slicedPieces.filter(piece => {
+      const slicedPieces = stateRef.current.slicedPieces;
+      let activePiecesCount = 0;
+      for (let i = 0; i < slicedPieces.length; i++) {
+        const piece = slicedPieces[i];
         if (!isPaused) {
           piece.x += piece.vx;
           piece.y += piece.vy;
@@ -2193,7 +1894,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         }
 
         if (piece.y > height + 80 || piece.alpha <= 0) {
-          return false; // clean memory
+          continue; // clean memory
         }
 
         ctx.save();
@@ -2204,8 +1905,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         drawPizzaSliceVector(ctx, piece.type, piece.radius, piece.startAngle, piece.endAngle, piece.alpha);
 
         ctx.restore();
-        return true;
-      });
+        slicedPieces[activePiecesCount++] = piece;
+      }
+      slicedPieces.length = activePiecesCount;
       } else {
         // --- MENU / CALIBRATION LOOP ---
         if (countdown === null) {
@@ -2406,7 +2108,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       // 7. Update and Draw Floating Combo Text overlays
       let currentFont = '';
-      stateRef.current.comboTexts = (stateRef.current.comboTexts || []).filter(ct => {
+      const comboTexts = stateRef.current.comboTexts || [];
+      let activeComboCount = 0;
+      
+      for (let i = 0; i < comboTexts.length; i++) {
+        const ct = comboTexts[i];
+        
         if (!isPaused) {
           ct.age += 1;
           ct.x += ct.vx;
@@ -2436,7 +2143,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         }
         ct.alpha = currentAlpha;
         
-        if (ct.alpha <= 0) return false;
+        if (ct.alpha <= 0) continue;
 
         // Interactive Sinusoidal Sway Wobble
         const wobble = Math.sin(ct.age * 0.18) * 0.08 * (1.0 - lifeRatio);
@@ -2487,8 +2194,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         }
         
         ctx.restore();
-        return true;
-      });
+        comboTexts[activeComboCount++] = ct;
+      }
+      comboTexts.length = activeComboCount;
+      stateRef.current.comboTexts = comboTexts;
 
       ctx.restore(); // Restore from screen shake translation
 
@@ -2673,8 +2382,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     stateRef.current.lastSliceTime = rawSliceTime;
 
     // Update React States so they render cleanly on HUD
-    setComboMultiplier(multiplier);
-    setNinjaCombo(stateRef.current.comboCount);
+    stateRef.current.comboMultiplier = multiplier;
+    stateRef.current.ninjaCombo = stateRef.current.comboCount;
+    updateHUD();
     setShowComboAlert(stateRef.current.comboCount >= 3);
 
     // Calculate precision
@@ -2788,7 +2498,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         setLives(0);
       } else {
         stateRef.current.lives = Math.max(0, stateRef.current.lives - 1);
-        setLives(stateRef.current.lives);
+        updateHUD();
       }
       
       playWebSound('error');
@@ -2814,7 +2524,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // Whole pizza hit: splits into two smaller halves!
       const scoreGain = 10 * multiplier;
       stateRef.current.score += scoreGain;
-      setScore(stateRef.current.score);
+      updateHUD();
 
       playWebSound('splat', stateRef.current.comboCount);
       spawnSparkleBlast(cutPointX, cutPointY);
@@ -2832,7 +2542,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // Half pizza hit (requires only 1 slice to segment into final wedges)
       const scoreGain = 15 * multiplier;
       stateRef.current.score += scoreGain;
-      setScore(stateRef.current.score);
+      updateHUD();
 
       playWebSound('splat', stateRef.current.comboCount);
       spawnSparkleBlast(cutPointX, cutPointY);
@@ -3061,16 +2771,14 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             <span className="text-3xl drop-shadow-md">👑</span>
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-widest text-amber-500 font-bold leading-none">Puntos</span>
-              <span className="text-3xl font-black text-white leading-none mt-1 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">{String(score)}</span>
+              <span id="hud-score-display" className="text-3xl font-black text-white leading-none mt-1 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">{String(stateRef.current.score)}</span>
             </div>
 
             {/* Embedded Circular Fire Combo Indicator */}
-            {ninjaCombo >= 2 && (
-              <div className="absolute -right-6 -bottom-6 w-16 h-16 bg-slate-900 border-4 border-red-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.8)] animate-pulse z-20">
-                <Flame className="absolute -top-3 w-6 h-6 text-orange-500 animate-bounce fill-orange-500" />
-                <span className="text-2xl font-black text-white drop-shadow-[0_0_5px_rgba(255,255,255,1)]">x{comboMultiplier}</span>
-              </div>
-            )}
+            <div id="hud-combo-container" style={{ display: stateRef.current.ninjaCombo >= 2 ? 'flex' : 'none' }} className="absolute -right-6 -bottom-6 w-16 h-16 bg-slate-900 border-4 border-red-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.8)] animate-pulse z-20">
+              <Flame className="absolute -top-3 w-6 h-6 text-orange-500 animate-bounce fill-orange-500" />
+              <span id="hud-combo-multiplier" className="text-2xl font-black text-white drop-shadow-[0_0_5px_rgba(255,255,255,1)]">x{stateRef.current.comboMultiplier}</span>
+            </div>
           </div>
 
           {/* Lives list pill */}
@@ -3079,8 +2787,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               {[1, 2, 3].map((pizzaLifeId) => (
                 <span
                   key={pizzaLifeId}
+                  id={`hud-life-${pizzaLifeId}`}
                   className={`transition-all duration-300 text-2xl ${
-                    lives >= pizzaLifeId 
+                    stateRef.current.lives >= pizzaLifeId 
                       ? 'opacity-100 scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'
                       : 'opacity-30 grayscale scale-75'
                   }`}
@@ -3341,65 +3050,124 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/40 pointer-events-auto')
             : 'bg-slate-950/94'
         }`}>
+          {/* TOP RIGHT BILLETERA BUTTON */}
+          <div className="absolute top-6 right-6 z-50">
+            {walletPubKey ? (
+              <div className="bg-slate-800/80 border border-emerald-500/50 rounded-full px-4 py-2 flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-pixel text-emerald-400 text-xs">
+                  {walletPubKey.substring(0, 5)}...{walletPubKey.substring(walletPubKey.length - 4)}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={async () => {
+                  const installed = await isFreighterInstalled();
+                  if (!installed) {
+                    onToastMessage?.("Freighter no está instalado. Redirigiendo...", 'error');
+                    window.open('https://freighter.app', '_blank');
+                    return;
+                  }
+                  const pubKey = await connectFreighter();
+                  if (pubKey) {
+                    setWalletPubKey(pubKey);
+                    onToastMessage?.("Bóveda de Soroban conectada", 'success');
+                    
+                    // Enviar PubKey a Go para sincronizar NFTs
+                    if (gameSocket && gameSocket.readyState === WebSocket.OPEN) {
+                      gameSocket.send(JSON.stringify({
+                        type: "WALLET_CONNECT",
+                        pubKey: pubKey
+                      }));
+                    }
+                  } else {
+                    onToastMessage?.("Error al conectar Freighter", 'error');
+                  }
+                }}
+                className="bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-blue-400 rounded-full px-4 py-2 hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 shadow-lg cursor-pointer"
+              >
+                <Zap className="w-4 h-4 text-white fill-amber-300" />
+                <span className="font-pixel text-white text-xs tracking-wider">CONECTAR BOVEDA</span>
+              </button>
+            )}
+          </div>
+
           {/* Main Content Centered */}
           <div className={`flex flex-col landscape:flex-row items-center justify-center gap-2 md:gap-6 landscape:gap-12 w-full max-w-lg landscape:max-w-4xl mx-auto z-10 transition-all duration-300 ${activeModal ? 'blur-md scale-95 opacity-50' : 'blur-0 scale-100 opacity-100'}`}>
             
-            {/* Mascot */}
-            <div className="relative group animate-[fade-in-up_0.5s_ease-out] shrink-0">
-              <div className="absolute -inset-8 bg-gradient-to-r from-emerald-500/20 via-green-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse" />
-              <img src="/ninja_turtle.png" alt="Ninja Turtle Mascot" className="relative w-48 h-48 md:w-64 md:h-64 landscape:w-48 landscape:h-48 object-contain drop-shadow-[0_0_25px_rgba(16,185,129,0.5)] animate-[bounce_4s_infinite]" />
-            </div>
-
-            {/* Right Side / Bottom Side Container */}
-            <div className="flex flex-col items-center landscape:items-start w-full max-w-sm landscape:max-w-xl">
-              {/* Title */}
-              <div className="text-center landscape:text-left mt-[-1rem] landscape:mt-0">
-                <h1 className="text-4xl md:text-5xl landscape:text-6xl font-pixel text-white text-stroke-title tracking-widest leading-none drop-shadow-2xl">Slash Slice</h1>
-                <span className="text-xs md:text-sm font-pixel text-emerald-400 text-stroke-sm uppercase tracking-widest block mt-2 drop-shadow-lg">Turtle Ninja Edition</span>
-              </div>
-
-              {/* Score badge from last game (conditional) */}
-              {score > 0 && (
-                <div className="bg-slate-900/80 border-2 border-emerald-400/50 rounded-full px-6 py-2 mt-3 flex items-center justify-center gap-3 text-sm font-pixel text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                  <Trophy className="w-4 h-4 text-emerald-500" /> 
-                  Última Puntuación: <span className="text-emerald-400">{score}</span>
+            {controlMode === 'mouse' ? (
+              <>
+                {/* Mascot */}
+                <div className="relative group animate-[fade-in-up_0.5s_ease-out] shrink-0">
+                  <div className="absolute -inset-8 bg-gradient-to-r from-emerald-500/20 via-green-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse" />
+                  <img src="/ninja_turtle.png" alt="Ninja Turtle Mascot" className="relative w-48 h-48 md:w-64 md:h-64 landscape:w-48 landscape:h-48 object-contain drop-shadow-[0_0_25px_rgba(16,185,129,0.5)] animate-[bounce_4s_infinite]" />
                 </div>
-              )}
 
-              {/* Huge Play Buttons */}
-              <div className="flex flex-col landscape:flex-row w-full gap-3 md:gap-4 mt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setControlMode('mouse');
-                    playWebSound('splat');
-                    initiateCountdown();
-                  }}
-                  className="w-full p-3 md:p-4 rounded-2xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-3 bg-gradient-to-b from-amber-400 to-amber-500 border-x-4 border-t-4 border-amber-300 border-b-[6px] border-b-amber-600 active:border-b-0 active:translate-y-[6px] active:mt-[6px] text-white z-10 shadow-2xl hover:brightness-110"
-                >
-                  <span className="text-2xl md:text-3xl drop-shadow-md">🖱️</span>
-                  <div className="flex flex-col items-start text-left">
-                    <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Jugar con Ratón</span>
-                    <span className="text-[9px] md:text-[10px] font-sans font-bold text-amber-900 uppercase mt-1">Modo Clásico (Táctil)</span>
+                {/* Right Side / Bottom Side Container */}
+                <div className="flex flex-col items-center landscape:items-start w-full max-w-sm landscape:max-w-xl">
+                  {/* Title */}
+                  <div className="text-center landscape:text-left mt-[-1rem] landscape:mt-0">
+                    <h1 className="text-4xl md:text-5xl landscape:text-6xl font-pixel text-white text-stroke-title tracking-widest leading-none drop-shadow-2xl">Slash Slice</h1>
+                    <span className="text-xs md:text-sm font-pixel text-emerald-400 text-stroke-sm uppercase tracking-widest block mt-2 drop-shadow-lg">Turtle Ninja Edition</span>
                   </div>
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setControlMode('camera');
-                    playWebSound('splat');
-                  }}
-                  className="w-full p-3 md:p-4 rounded-2xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-3 bg-gradient-to-b from-blue-500 to-blue-600 border-x-4 border-t-4 border-blue-400 border-b-[6px] border-b-blue-800 active:border-b-0 active:translate-y-[6px] active:mt-[6px] text-white z-10 shadow-2xl hover:brightness-110"
-                >
-                  <span className="text-2xl md:text-3xl drop-shadow-md">👁️</span>
-                  <div className="flex flex-col items-start text-left">
-                    <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Activar Cámara</span>
-                    <span className="text-[9px] md:text-[10px] font-sans font-bold text-blue-100 uppercase mt-1">Corta con tu propia mano</span>
+                  {/* Score badge from last game (conditional) */}
+                  {score > 0 && (
+                    <div className="bg-slate-900/80 border-2 border-emerald-400/50 rounded-full px-6 py-2 mt-3 flex items-center justify-center gap-3 text-sm font-pixel text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                      <Trophy className="w-4 h-4 text-emerald-500" /> 
+                      Última Puntuación: <span className="text-emerald-400">{score}</span>
+                    </div>
+                  )}
+
+                  {/* Huge Play Buttons */}
+                  <div className="flex flex-col landscape:flex-row w-full gap-3 md:gap-4 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setControlMode('mouse');
+                        playWebSound('splat');
+                        initiateCountdown();
+                      }}
+                      className="w-full p-3 md:p-4 rounded-2xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-3 bg-gradient-to-b from-amber-400 to-amber-500 border-x-4 border-t-4 border-amber-300 border-b-[6px] border-b-amber-600 active:border-b-0 active:translate-y-[6px] active:mt-[6px] text-white z-10 shadow-2xl hover:brightness-110"
+                    >
+                      <span className="text-2xl md:text-3xl drop-shadow-md">🖱️</span>
+                      <div className="flex flex-col items-start text-left">
+                        <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Jugar con Ratón</span>
+                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-amber-900 uppercase mt-1">Modo Clásico (Táctil)</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setControlMode('camera');
+                        playWebSound('splat');
+                      }}
+                      className="w-full p-3 md:p-4 rounded-2xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-3 bg-gradient-to-b from-blue-500 to-blue-600 border-x-4 border-t-4 border-blue-400 border-b-[6px] border-b-blue-800 active:border-b-0 active:translate-y-[6px] active:mt-[6px] text-white z-10 shadow-2xl hover:brightness-110"
+                    >
+                      <span className="text-2xl md:text-3xl drop-shadow-md">👁️</span>
+                      <div className="flex flex-col items-start text-left">
+                        <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Activar Cámara</span>
+                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-blue-100 uppercase mt-1">Corta con tu propia mano</span>
+                      </div>
+                    </button>
                   </div>
+                </div>
+              </>
+            ) : (
+              /* CAMERA MODE WAITING UI - Clear the center so Start Pizza is visible */
+              <div className="flex flex-col items-center justify-center text-center -mt-32">
+                <h2 className="text-3xl md:text-4xl font-pixel text-white text-stroke-title drop-shadow-2xl animate-pulse">
+                  {handDetected ? "¡CORTA LA PIZZA!" : "BUSCANDO TU MANO..."}
+                </h2>
+                <button 
+                  onClick={() => { setControlMode('mouse'); playWebSound('splat'); }}
+                  className="mt-6 px-6 py-2 bg-slate-800/80 border border-slate-600 rounded-full text-slate-300 font-sans text-xs uppercase tracking-widest hover:bg-slate-700 hover:text-white transition-all"
+                >
+                  Volver al Modo Ratón
                 </button>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Floating Secondary Buttons */}

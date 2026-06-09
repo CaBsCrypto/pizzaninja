@@ -402,6 +402,7 @@ export default function HandTracker({
       // Launch custom optimized tracking loop (requestVideoFrameCallback)
       // IMPORTANT: Use isEnabledRef.current (NOT isEnabled prop) to avoid stale closure crash
       let isProcessing = false;
+      let frameSkipCounter = 0; // Sprint 4: Extreme Optimization
       addLog("Iniciando bucle de escaneo optimizado...");
 
       const tick = async (now?: number, metadata?: any) => {
@@ -417,6 +418,13 @@ export default function HandTracker({
 
         // We use isProcessing to ensure we don't stack multiple inference calls
         if (!isProcessing) {
+          frameSkipCounter++;
+          // Skip every other frame to effectively halve the CPU usage (e.g., 60fps -> 30fps inference)
+          if (frameSkipCounter % 2 !== 0) {
+            scheduleNextTick();
+            return;
+          }
+
           isProcessing = true;
           try {
             // PERF: Send videoElement directly to MediaPipe. 
