@@ -1873,8 +1873,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         }
 
         ctx.restore();
-        return true;
-      });
+      }
+      
+      stateRef.current.items.length = activeItemsCount;
+
 
       if (newItemsToSpawn.length > 0) {
         stateRef.current.items.push(...newItemsToSpawn);
