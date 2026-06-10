@@ -21,13 +21,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastHandTrackedTimeRef = useRef<number[]>([0, 0]);
   const containerRef = useRef<HTMLDivElement>(null);
-  const bgImageRef = useRef<HTMLImageElement | null>(null);
-
-  useEffect(() => {
-    const img = new Image();
-    img.src = '/counter_bg.png';
-    img.onload = () => { bgImageRef.current = img; };
-  }, []);
 
   /**
    * Mathematically rigorous, 100% numerically stable, critically damped 1D spring-damper.
@@ -1293,17 +1286,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         ctx.translate(shakeOffsetX, shakeOffsetY);
       }
 
-      // 1. Clear with customized Pizzeria backdrop
-      if (bgImageRef.current) {
-        ctx.drawImage(bgImageRef.current, 0, 0, width, height);
-        // Subtle dark overlay to ensure neon gameplay items pop
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.fillRect(0, 0, width, height);
-      } else {
-        // Fallback
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, width, height);
-      }
+      // 1. Fast solid color clear for maximum performance
+      // Using a dark slate color to match the synthwave aesthetic without GPU texture overhead
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, width, height);
 
       // 2. Spawn mechanism and combo logic (only active during gameplay)
       const now = Date.now();
