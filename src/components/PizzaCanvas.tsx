@@ -1235,14 +1235,11 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     // PERF: In camera mode, cap the game render loop to 30fps.
     // Hand tracking delivers at 20fps -- running the canvas at 60fps wastes ~50% CPU for no visual gain.
     // loopRunner is a stable reference used by updateLoop's self-scheduling rAF call.
-    let lastRenderTs = 0;
-    // CRITICAL PHYSICS FIX: Cap strictly to 60fps. If left at 0 (uncapped), users with 120Hz/144Hz 
-    // monitors will run the physics loop twice as fast, causing gravity to apply double!
-    const RENDER_INTERVAL_MS = 1000 / 60;
+    let lastRenderTs = performance.now();
     let loopRunner: () => void;
 
-    // Main animation frame function
-    const updateLoop = () => {
+    // Main animation frame function with deltaTime scaling for ultra-fluid physics
+    const updateLoop = (timeScale: number) => {
       if (!canvas || !ctx) return;
       const width = canvas.width;
       const height = canvas.height;
@@ -1327,7 +1324,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // Interpolate MediaPipe hand coordinates to a silky-smooth 60 FPS in camera mode (runs in both menu and gameplay)
       if (controlMode === 'camera' && !isPaused) {
         const nowMs = Date.now();
-        const dt = 0.0166; // Fixed timestep for spring stability
+        const dt = 0.01666 * timeScale; // Real delta timestep for spring stability
         const smoothTime = 0.07; // Snappy 70ms response time for zero perceived lag
 
         for (let handIdx = 0; handIdx < 2; handIdx++) {
@@ -1396,7 +1393,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         let activeCount = 0;
         const hand0Active = controlMode === 'camera' && (Date.now() - lastHandTrackedTimeRef.current[0] < 500);
         for (let i = 0; i < trail.length; i++) {
-          trail[i].age -= 16;
+          trail[i].age -= 16 * timeScale;
           if (trail[i].age > 0 || (hand0Active && i === trail.length - 1)) {
             trail[activeCount++] = trail[i];
           }
@@ -1409,7 +1406,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         let activeCount1 = 0;
         const hand1Active = controlMode === 'camera' && (Date.now() - lastHandTrackedTimeRef.current[1] < 500);
         for (let i = 0; i < trail1.length; i++) {
-          trail1[i].age -= 16;
+          trail1[i].age -= 16 * timeScale;
           if (trail1[i].age > 0 || (hand1Active && i === trail1.length - 1)) {
             trail1[activeCount1++] = trail1[i];
           }
@@ -1666,7 +1663,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
           // Handle pre-slicing frame scale-up animation and final splitting division
           if (item.isPreSlicing && !isPaused) {
-            item.preSliceFrames = (item.preSliceFrames || 0) + 1;
+            item.preSliceFrames = (item.preSliceFrames || 0) + 1 * timeScale;
             const maxFrames = item.preSliceMaxFrames || 7;
             
             if (item.preSliceFrames >= maxFrames) {
@@ -1738,10 +1735,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
           if (keepItem && !isPaused) {
             // Apply simple physics gravity model
-            item.x += item.vx;
-            item.y += item.vy;
-            item.vy += (item.gravity !== undefined ? item.gravity : 0.28); // gravity force descending
-            item.rotation += item.rotationSpeed;
+            item.x += item.vx * timeScale;
+            item.y += item.vy * timeScale;
+            item.vy += (item.gravity !== undefined ? item.gravity : 0.28) * timeScale; // gravity force descending
+            item.rotation += item.rotationSpeed * timeScale;
           }
 
           const isOutOfScreen = item.y > height + 100;
@@ -1878,11 +1875,11 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       for (let i = 0; i < slicedPieces.length; i++) {
         const piece = slicedPieces[i];
         if (!isPaused) {
-          piece.x += piece.vx;
-          piece.y += piece.vy;
-          piece.vy += (piece.gravity !== undefined ? piece.gravity * 1.25 : 0.35); // slightly faster gravity for satisfying slice drops
-          piece.rotation += piece.rotationSpeed;
-          piece.alpha -= 0.024; // fade off cleanly
+          piece.x += piece.vx * timeScale;
+          piece.y += piece.vy * timeScale;
+          piece.vy += (piece.gravity !== undefined ? piece.gravity * 1.25 : 0.35) * timeScale; // slightly faster gravity for satisfying slice drops
+          piece.rotation += piece.rotationSpeed * timeScale;
+          piece.alpha -= 0.024 * timeScale; // fade off cleanly
         }
 
         if (piece.y > height + 80 || piece.alpha <= 0) {
@@ -2000,8 +1997,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         if (p.isGlow) {
           if (!isPaused) {
             // Shockwave expands outward and fades out rapidly
-            p.size += (p.maxSize ? (p.maxSize - p.size) * 0.18 : 3.5);
-            p.alpha -= 0.048; // fades out in ~21 frames
+            p.size += (p.maxSize ? (p.maxSize - p.size) * 0.18 * timeScale : 3.5 * timeScale);
+            p.alpha -= 0.048 * timeScale; // fades out in ~21 frames
           }
           
           if (p.alpha <= 0) {
@@ -2054,16 +2051,16 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           }
         } else {
           if (!isPaused) {
-            p.x += p.vx;
-            p.y += p.vy;
+            p.x += p.vx * timeScale;
+            p.y += p.vy * timeScale;
             if (!p.isStain) {
-              p.vy += (p.gravity || 0);
-              p.alpha -= 0.038;
+              p.vy += (p.gravity || 0) * timeScale;
+              p.alpha -= 0.038 * timeScale;
             } else {
               // Juicy Screen Stains: they stick to the screen and slowly drip down
-              p.vy += (p.gravity || 0) * 0.05; 
-              p.vx *= 0.85; // extreme drag
-              p.alpha -= 0.008; // slow fade (hangs around longer)
+              p.vy += (p.gravity || 0) * 0.05 * timeScale; 
+              p.vx *= Math.pow(0.85, timeScale); // extreme drag
+              p.alpha -= 0.008 * timeScale; // slow fade (hangs around longer)
             }
           }
 
@@ -2107,10 +2104,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         const ct = comboTexts[i];
         
         if (!isPaused) {
-          ct.age += 1;
-          ct.x += ct.vx;
-          ct.y += ct.vy;
-          ct.vy *= 0.985; // slight deceleration
+          ct.age += 1 * timeScale;
+          ct.x += ct.vx * timeScale;
+          ct.y += ct.vy * timeScale;
+          ct.vy *= Math.pow(0.985, timeScale); // slight deceleration
         }
         
         const lifeRatio = ct.age / ct.maxAge;
@@ -2224,28 +2221,27 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         ctx.restore();
       }
 
-      animationFrameId = requestAnimationFrame(loopRunner);
     }; // end updateLoop
 
-    // Assign loopRunner (throttled wrapper) AFTER updateLoop is defined.
-    // When updateLoop runs (via requestAnimationFrame(loopRunner) at line 2486),
-    // loopRunner is already assigned -- JS closures capture the variable, not the value.
+    // Assign loopRunner (deltaTime calculated) AFTER updateLoop is defined.
     loopRunner = () => {
-      if (RENDER_INTERVAL_MS > 0) {
-        const now = performance.now();
-        if (now - lastRenderTs >= RENDER_INTERVAL_MS) {
-          lastRenderTs = now;
-          updateLoop();
-        } else {
-          animationFrameId = requestAnimationFrame(loopRunner);
-        }
-      } else {
-        // uncapped (mouse mode): updateLoop self-schedules via requestAnimationFrame(loopRunner)
-        updateLoop();
-      }
+      const now = performance.now();
+      let dt = now - lastRenderTs;
+      lastRenderTs = now;
+      
+      // Prevent huge jumps if the user switched tabs (cap at 100ms)
+      if (dt > 100) dt = 100;
+      
+      // Calculate timeScale relative to a perfect 60fps frame (16.666ms)
+      const timeScale = dt / (1000 / 60);
+
+      updateLoop(timeScale);
+      
+      animationFrameId = requestAnimationFrame(loopRunner);
     };
 
     // Kick off the game loop
+    lastRenderTs = performance.now();
     animationFrameId = requestAnimationFrame(loopRunner);
 
     return () => {
