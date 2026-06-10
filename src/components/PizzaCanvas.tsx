@@ -3131,14 +3131,14 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                       onClick={() => {
                         setControlMode('mouse');
                         playWebSound('splat');
-                        // initiateCountdown(); // Se quitó para que obligue a cortar la pizza de inicio
+                        initiateCountdown();
                       }}
                       className="w-full p-3 md:p-4 rounded-2xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-3 bg-gradient-to-b from-amber-400 to-amber-500 border-x-4 border-t-4 border-amber-300 border-b-[6px] border-b-amber-600 active:border-b-0 active:translate-y-[6px] active:mt-[6px] text-white z-10 shadow-2xl hover:brightness-110"
                     >
                       <span className="text-2xl md:text-3xl drop-shadow-md">🖱️</span>
                       <div className="flex flex-col items-start text-left">
-                        <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Corta para Jugar</span>
-                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-amber-900 uppercase mt-1">¡Corta la pizza central!</span>
+                        <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Jugar con Ratón</span>
+                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-amber-900 uppercase mt-1">Modo Clásico (Táctil)</span>
                       </div>
                     </button>
 
