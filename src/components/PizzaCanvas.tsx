@@ -2827,7 +2827,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           {/* Interactive Audio Controls Popover */}
           <div className="relative">
             <button
-              onClick={() => {
+              onPointerDown={(e) => {
+                e.stopPropagation();
                 setShowSoundSettings(!showSoundSettings);
                 playWebSound('splat');
               }}
@@ -3043,23 +3044,23 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             : 'bg-slate-950/20'
         }`}>
           {/* TOP NAVIGATION BAR */}
-          <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-[60] pointer-events-none">
+          <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-[60]">
             {/* Left Icons */}
             <div className="flex flex-row gap-2 md:gap-3 pointer-events-auto relative z-[60]">
-              <button onClick={() => { setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer">
+              <button onPointerDown={(e) => { e.stopPropagation(); setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer">
                 🗡️
               </button>
-              <button onClick={() => { setActiveModal('rules'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer">
+              <button onPointerDown={(e) => { e.stopPropagation(); setActiveModal('rules'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer">
                 📋
               </button>
             </div>
 
             {/* Right Icons + Wallet */}
             <div className="flex flex-row items-center gap-2 md:gap-3 pointer-events-auto relative z-[60]">
-              <button onClick={() => { setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)]" title="Ajustes">
+              <button onPointerDown={(e) => { e.stopPropagation(); setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)] cursor-pointer" title="Ajustes">
                 ⚙️
               </button>
-              <button onClick={() => { toggleFullscreen(); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)]" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
+              <button onPointerDown={(e) => { e.stopPropagation(); toggleFullscreen(); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)] cursor-pointer" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
                 {isFullscreen ? <Minimize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" /> : <Maximize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" />}
               </button>
               
@@ -3073,7 +3074,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                 </div>
               ) : (
                 <button
-                  onClick={async () => {
+                  onPointerDown={async (e) => {
+                    e.stopPropagation();
                     const installed = await isFreighterInstalled();
                     if (!installed) {
                       onToastMessage?.("Freighter no está instalado. Redirigiendo...", 'error');
@@ -3187,10 +3189,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
           {/* Modal Overlay */}
           {activeModal && (
-            <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md pointer-events-auto" onClick={() => setActiveModal(null)}>
+            <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md pointer-events-auto" onPointerDown={() => setActiveModal(null)}>
               <div 
                 className="panel-clash p-5 md:p-6 rounded-3xl w-full max-w-md animate-[bounce-in_0.3s_cubic-bezier(0.175,0.885,0.32,1.275)]"
-                onClick={e => e.stopPropagation()}
+                onPointerDown={e => e.stopPropagation()}
               >
                 <div className="flex justify-between items-center mb-6 border-b-2 border-blue-200/20 pb-4">
                   <h2 className="text-xl font-pixel text-white text-stroke-sm">
@@ -3198,7 +3200,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                     {activeModal === 'rules' && '📋 Tutorial'}
                     {activeModal === 'settings' && '⚙️ Ajustes'}
                   </h2>
-                  <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full transition-colors">
+                  <button onPointerDown={() => setActiveModal(null)} className="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full transition-colors cursor-pointer">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
@@ -3217,7 +3219,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                         ].map((item) => (
                           <button
                             key={item.id}
-                            onClick={() => { setBladeStyle(item.id as any); playWebSound('splat'); setActiveModal(null); }}
+                            onPointerDown={() => { setBladeStyle(item.id as any); playWebSound('splat'); setActiveModal(null); }}
                             className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 border-b-4 border-2 transition-all cursor-pointer ${
                               bladeStyle === item.id 
                                 ? `bg-gradient-to-b ${item.color} ${item.border} border-b-0 translate-y-[4px] text-white shadow-inner` 
@@ -3288,12 +3290,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                       {/* Music Theme */}
                       <div>
                         <h3 className="font-pixel text-[10px] text-blue-300 uppercase mb-3">Banda Sonora</h3>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button onClick={() => { setMusicTheme('italian'); playWebSound('splat'); }} className={`p-3 rounded-xl flex items-center gap-2 border-b-[3px] border-2 transition-all ${musicTheme === 'italian' ? 'bg-amber-600 border-amber-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
-                            <span className="text-xl">🪗</span> <span className="font-pixel text-[8px] uppercase">Italiana</span>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button onPointerDown={() => { setMusicTheme('italian'); playWebSound('splat'); }} className={`p-3 rounded-xl flex items-center gap-2 border-b-[3px] border-2 transition-all cursor-pointer ${musicTheme === 'italian' ? 'bg-amber-600 border-amber-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                            <span className="text-xl">🤌</span> <span className="font-pixel text-[10px]">Tarantella</span>
                           </button>
-                          <button onClick={() => { setMusicTheme('synthwave'); playWebSound('splat'); }} className={`p-3 rounded-xl flex items-center gap-2 border-b-[3px] border-2 transition-all ${musicTheme === 'synthwave' ? 'bg-fuchsia-600 border-fuchsia-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
-                            <span className="text-xl">⚡</span> <span className="font-pixel text-[8px] uppercase">Synthwave</span>
+                          <button onPointerDown={() => { setMusicTheme('synthwave'); playWebSound('splat'); }} className={`p-3 rounded-xl flex items-center gap-2 border-b-[3px] border-2 transition-all cursor-pointer ${musicTheme === 'synthwave' ? 'bg-fuchsia-600 border-fuchsia-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                            <span className="text-xl">🎹</span> <span className="font-pixel text-[10px]">Synthwave</span>
                           </button>
                         </div>
                       </div>
@@ -3301,14 +3303,14 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                       {/* Volume & Perf */}
                       <div className="space-y-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
                         <div className="flex items-center gap-3">
-                          <button onClick={() => setSoundEnabled(!soundEnabled)} className="text-amber-500 hover:scale-110 transition-transform">
+                          <button onPointerDown={(e) => { e.stopPropagation(); setSoundEnabled(!soundEnabled); }} className="text-amber-500 hover:scale-110 transition-transform cursor-pointer">
                             {soundEnabled && globalVolume > 0 ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 text-rose-500" />}
                           </button>
-                          <input type="range" min="0" max="1" step="0.05" value={globalVolume} onChange={(e) => setGlobalVolume(parseFloat(e.target.value))} className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                          <input type="range" min="0" max="1" step="0.05" value={globalVolume} onChange={(e) => setGlobalVolume(parseFloat(e.target.value))} className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" onPointerDown={e => e.stopPropagation()} />
                         </div>
                         <div className="flex justify-between items-center pt-3 border-t border-slate-800">
                           <span className="font-pixel text-[9px] text-slate-300">Rendimiento Gráfico</span>
-                          <button onClick={togglePerformanceMode} className={`px-3 py-1.5 rounded-lg font-pixel text-[8px] uppercase border ${performanceMode ? 'bg-blue-900/50 border-blue-500 text-blue-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
+                          <button onPointerDown={(e) => { e.stopPropagation(); togglePerformanceMode(); }} className={`px-3 py-1.5 rounded-lg font-pixel text-[8px] uppercase border cursor-pointer ${performanceMode ? 'bg-blue-900/50 border-blue-500 text-blue-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
                             {performanceMode ? 'Optimizado' : 'Alto (60 FPS)'}
                           </button>
                         </div>
