@@ -192,166 +192,102 @@ export default function App() {
 
   const scoreRegistrationCard = pendingScore && (
     <motion.div 
-      initial={{ scale: 0.8, opacity: 0, y: 50 }}
+      initial={{ scale: 0.9, opacity: 0, y: 20 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
-      transition={{ type: "spring", bounce: 0.5 }}
-      className="panel-clash p-4 md:p-6 relative z-50 mx-auto max-w-xl md:max-w-2xl w-full max-h-[95%] overflow-y-auto custom-scrollbar flex flex-col"
+      exit={{ scale: 0.9, opacity: 0, y: -20 }}
+      className="panel-clash p-6 md:p-8 rounded-3xl w-full max-w-2xl md:max-w-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-center mx-auto z-50 pointer-events-auto"
     >
-      <div className="absolute top-0 right-0 p-3">
-        <Sparkles className="w-8 h-8 text-amber-400 animate-spin" style={{ animationDuration: '4s' }} />
-      </div>
+      {/* Decorative corner glow */}
+      <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-400/20 blur-3xl rounded-full pointer-events-none" />
       
-      <div className="text-center mb-4">
-        <h2 className="font-pixel text-amber-400 text-3xl text-stroke-sm drop-shadow-md">¡VICTORIA!</h2>
-        <span className="bg-blue-900 text-white font-vt text-lg px-3 py-1 rounded-full border-2 border-blue-400 inline-block mt-2 shadow-inner">
-          Modo: {pendingScore.gameMode === 'classic' ? 'Clásico' : pendingScore.gameMode === 'zen' ? 'Zen' : 'Arena'}
-        </span>
-      </div>
-      
-      <div className="flex flex-col md:flex-row gap-4 md:gap-6 w-full">
-        {/* Left Column: Score Stats */}
-        <div className="flex-1 bg-blue-900/50 rounded-2xl p-4 border-2 border-blue-800 shadow-inner text-center flex flex-col justify-center">
-        <h4 className="text-white font-pixel text-4xl tracking-tight text-stroke-sm drop-shadow-lg">
-          {String(pendingScore.score)} <span className="text-xl text-amber-400">PTS</span>
-        </h4>
-        
-        <div className="flex justify-center gap-6 mt-4 pt-4 border-t-2 border-blue-800/50 text-xl font-vt">
-          <div className="flex flex-col items-center text-blue-100">
-            <Clock className="w-6 h-6 text-blue-300 mb-1" />
-            <span>{pendingScore.duration}s</span>
-          </div>
-          <div className="flex flex-col items-center text-blue-100">
-            <Swords className="w-6 h-6 text-blue-300 mb-1" />
-            <span>{pendingScore.slashes} Cortes</span>
-          </div>
+      {/* Left Side: Game Over Info & Score */}
+      <div className="w-full md:w-1/2 flex flex-col items-center text-center space-y-4">
+        <h2 className="text-3xl md:text-5xl font-pixel text-white text-stroke-title drop-shadow-lg leading-tight uppercase">
+          ¡Tiempo Agotado!
+        </h2>
+        <div className="bg-slate-900/50 p-4 rounded-2xl border-2 border-slate-700/50 w-full shadow-inner relative overflow-hidden">
+           <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 to-transparent pointer-events-none" />
+           <div className="relative z-10 flex flex-col items-center">
+             <span className="font-vt text-blue-300 text-sm uppercase tracking-widest mb-1 font-bold">Puntuación Final</span>
+             <div className="text-5xl font-black text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] font-sans italic tracking-tighter">
+               {pendingScore.score} <span className="text-xl text-amber-200">pts</span>
+             </div>
+           </div>
         </div>
       </div>
 
-        {/* Right Column: Save / Register Action */}
-        <div className="flex-1 flex flex-col justify-center">
-          {walletState.connected ? (
-            <div className="space-y-3 bg-amber-100 border-4 border-amber-300 p-4 rounded-2xl text-center shadow-md">
-          <span className="text-sm font-pixel text-amber-800 uppercase block mb-2">Firma On-Chain</span>
-          <div className="text-blue-900 text-xl font-vt bg-white py-2 px-3 rounded-xl border-2 border-amber-200 truncate shadow-inner">
-            👤 {walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 8)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO')}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              const pseudoHash = 'SlashSliceTx' + Math.random().toString(36).substring(2, 10).toUpperCase() + 'Sig';
-              const newRecord: ScoreRecord = {
-                name: walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO'),
-                score: pendingScore.score,
-                timestamp: Date.now(),
-                duration: pendingScore.duration,
-                slashes: pendingScore.slashes,
-                slashHistory: pendingScore.slashHistory,
-                pubkey: walletState.publicKey || undefined,
-                domain: walletState.domainName || undefined,
-                txHash: pseudoHash,
-                verified: true,
-                mode: pendingScore.gameMode || 'arcade',
-              };
-
-              const updated = [newRecord, ...scores];
-              setScores(updated);
-              localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
-              setPendingScore(null);
-              playWebSound('register');
-              showToast('🔥 ¡Récord Épico Guardado!', 'success');
-            }}
-            className="w-full btn-clash-gold py-3 text-lg flex items-center justify-center gap-2 mt-2"
-          >
-            <Star className="w-5 h-5 fill-white" />
-            <span>INMORTALIZAR RÉCORD</span>
-          </button>
-          <div className="flex justify-between items-center text-xs text-amber-700 pt-2 font-vt">
+      {/* Right Side: Registration Form */}
+      <div className="w-full md:w-1/2 flex flex-col justify-center">
+        {walletState.connected ? (
+          <div className="space-y-3 bg-amber-100 border-4 border-amber-300 p-4 rounded-2xl text-center shadow-md">
+            <span className="text-sm font-pixel text-amber-800 uppercase block mb-2">Firma On-Chain</span>
+            <div className="text-blue-900 text-xl font-vt bg-white py-2 px-3 rounded-xl border-2 border-amber-200 truncate shadow-inner">
+              👤 {walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 8)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO')}
+            </div>
             <button
               type="button"
               onClick={() => {
-                setWalletState(prev => ({
-                  ...prev,
-                  connected: false,
-                  publicKey: null,
-                  domainName: null
-                }));
+                const pseudoHash = 'SlashSliceTx' + Math.random().toString(36).substring(2, 10).toUpperCase() + 'Sig';
+                const newRecord: ScoreRecord = {
+                  name: walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO'),
+                  score: pendingScore.score,
+                  timestamp: Date.now(),
+                  duration: pendingScore.duration,
+                  slashes: pendingScore.slashes,
+                  slashHistory: pendingScore.slashHistory,
+                  pubkey: walletState.publicKey || undefined,
+                  domain: walletState.domainName || undefined,
+                  txHash: pseudoHash,
+                  verified: true,
+                  mode: pendingScore.gameMode || 'arcade',
+                };
+                const updated = [newRecord, ...scores];
+                setScores(updated);
+                localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
+                setPendingScore(null);
+                playWebSound('register');
+                showToast('🔥 ¡Récord Épico Guardado!', 'success');
               }}
-              className="hover:text-amber-900 transition underline cursor-pointer"
+              className="w-full btn-clash-gold py-3 text-lg flex items-center justify-center gap-2 mt-2"
             >
-              Cambiar Nombre
+              <Star className="w-5 h-5 fill-white" />
+              <span>INMORTALIZAR RÉCORD</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setPendingScore(null)}
-              className="hover:text-amber-900 transition cursor-pointer font-bold"
-            >
-              Omitir
-      <div className="panel-clash p-6 md:p-8 rounded-3xl w-full max-w-2xl md:max-w-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-center">
-        {/* Decorative corner glow */}
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-400/20 blur-3xl rounded-full pointer-events-none" />
-        
-        {/* Left Side: Game Over Info & Image */}
-        <div className="w-full md:w-1/2 flex flex-col items-center text-center space-y-4">
-          <h2 className="text-3xl md:text-5xl font-pixel text-white text-stroke-title drop-shadow-lg leading-tight uppercase">
-            ¡Tiempo Agotado!
-          </h2>
-          <div className="bg-slate-900/50 p-4 rounded-2xl border-2 border-slate-700/50 w-full shadow-inner relative overflow-hidden">
-             <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 to-transparent pointer-events-none" />
-             <div className="relative z-10 flex flex-col items-center">
-               <span className="font-vt text-blue-300 text-sm uppercase tracking-widest mb-1 font-bold">Puntuación Final</span>
-               <div className="text-5xl font-black text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] font-sans italic tracking-tighter">
-                 {pendingScore?.score} <span className="text-xl text-amber-200">pts</span>
-               </div>
-             </div>
-          </div>
-        </div>
-
-        {/* Right Side: Registration Form */}
-        <div className="w-full md:w-1/2">
-          {false ? (
-            <div className="flex flex-col items-center justify-center py-8 space-y-4">
-              <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
-              <p className="font-pixel text-blue-800 text-lg animate-pulse">Guardando en Solana...</p>
-            </div>
-          ) : (
-            <form
-              onSubmit={handleRegisterScore}
-              className="flex flex-col gap-4"
-            >
-              <div className="space-y-2">
-                <label htmlFor="chef-name" className="font-pixel text-blue-900 text-lg block drop-shadow-sm">
-                  Nombre del Chef
-                </label>
-                <input
-                  id="chef-name"
-                  type="text"
-                  maxLength={12}
-                  placeholder="CHEF_NINJA"
-                  value={chefName}
-                  onChange={(e) => setChefName(e.target.value)}
-                  className="bg-white border-4 border-blue-200 text-blue-900 rounded-2xl px-5 py-4 text-2xl font-vt text-center uppercase focus:outline-none focus:border-amber-400 shadow-inner w-full transition-all"
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                className="btn-clash-blue py-3 md:py-4 text-xl md:text-2xl w-full flex items-center justify-center gap-3 mt-2"
-              >
-                <span>REGISTRAR RÉCORD</span>
-                <ArrowRight className="w-6 h-6" />
+            <div className="flex justify-between items-center text-xs text-amber-700 pt-2 font-vt">
+              <button type="button" onClick={() => setWalletState(prev => ({...prev, connected: false, publicKey: null, domainName: null}))} className="hover:text-amber-900 transition underline cursor-pointer">
+                Cambiar Nombre
               </button>
-            </form>
-          )}
-          {true && (
-            <button
-              type="button"
-              onClick={() => setPendingScore(null)}
-              className="text-xs md:text-sm font-vt font-bold text-slate-400 hover:text-slate-500 transition block text-center w-full cursor-pointer underline mt-4"
-            >
+              <button type="button" onClick={() => setPendingScore(null)} className="hover:text-amber-900 transition cursor-pointer font-bold">
+                Omitir
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleRegisterScore} className="flex flex-col gap-4">
+            <div className="space-y-2">
+              <label htmlFor="chef-name" className="font-pixel text-blue-900 text-lg block drop-shadow-sm text-center">
+                Firma tu obra maestra
+              </label>
+              <input
+                id="chef-name"
+                type="text"
+                maxLength={12}
+                placeholder="CHEF_NINJA"
+                value={chefName}
+                onChange={(e) => setChefName(e.target.value)}
+                className="bg-white border-4 border-blue-200 text-blue-900 rounded-2xl px-5 py-4 text-2xl font-vt text-center uppercase focus:outline-none focus:border-amber-400 shadow-inner w-full transition-all"
+                required
+              />
+            </div>
+            <button type="submit" className="btn-clash-blue py-3 md:py-4 text-xl w-full flex items-center justify-center gap-3 mt-2">
+              <span>GUARDAR RÉCORD</span>
+              <ArrowRight className="w-6 h-6" />
+            </button>
+            <button type="button" onClick={() => setPendingScore(null)} className="text-xs md:text-sm font-vt font-bold text-slate-400 hover:text-slate-500 transition block text-center w-full cursor-pointer underline mt-2">
               Omitir registro y volver al menú
             </button>
-          )}
-        </div>
+          </form>
+        )}
       </div>
     </motion.div>
   );
@@ -413,17 +349,8 @@ export default function App() {
       {/* Main Container Workspace */}
       <main className="relative max-w-4xl mx-auto px-6 mt-8 z-40">
         
-        <div className="space-y-6">
+        <div className="space-y-4">
           
-          {/* Portada Principal (Cover Banner) */}
-          <div className="relative w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-800/80 group">
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent z-10 pointer-events-none" />
-            <img src="/cover_banner.png" alt="Slash Slice Arena Cover" className="w-full aspect-[16/9] object-cover transition-transform duration-700 group-hover:scale-105" />
-            <div className="absolute bottom-4 left-6 z-20">
-              <span className="font-pixel text-amber-400 text-xl md:text-2xl drop-shadow-[0_0_10px_rgba(251,191,36,0.8)]">v2.0 Ninja Engine</span>
-            </div>
-          </div>
-
           <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl">
             {/* Score Registry Popup overlay INSIDE the game container */}
             <AnimatePresence>
@@ -461,12 +388,6 @@ export default function App() {
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Diagrama de Arquitectura / Funcionamiento */}
-          <div className="relative w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-blue-900 bg-blue-950/40 p-4 backdrop-blur-sm">
-            <h2 className="text-center font-pixel text-2xl text-blue-200 mb-4 uppercase tracking-widest text-stroke-sm">Arquitectura & Flujo del Proyecto</h2>
-            <img src="/diagram_banner.png" alt="Arquitectura del proyecto" className="w-full rounded-xl border-2 border-blue-500/30 object-contain shadow-inner bg-slate-950/50 aspect-video md:aspect-auto" />
           </div>
 
         </div>
