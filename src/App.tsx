@@ -286,44 +286,71 @@ export default function App() {
               className="hover:text-amber-900 transition cursor-pointer font-bold"
             >
               Omitir
-            </button>
+      <div className="panel-clash p-6 md:p-8 rounded-3xl w-full max-w-2xl md:max-w-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-center">
+        {/* Decorative corner glow */}
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-400/20 blur-3xl rounded-full pointer-events-none" />
+        
+        {/* Left Side: Game Over Info & Image */}
+        <div className="w-full md:w-1/2 flex flex-col items-center text-center space-y-4">
+          <h2 className="text-3xl md:text-5xl font-pixel text-white text-stroke-title drop-shadow-lg leading-tight uppercase">
+            ¡Tiempo Agotado!
+          </h2>
+          <div className="bg-slate-900/50 p-4 rounded-2xl border-2 border-slate-700/50 w-full shadow-inner relative overflow-hidden">
+             <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 to-transparent pointer-events-none" />
+             <div className="relative z-10 flex flex-col items-center">
+               <span className="font-vt text-blue-300 text-sm uppercase tracking-widest mb-1 font-bold">Puntuación Final</span>
+               <div className="text-5xl font-black text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] font-sans italic tracking-tighter">
+                 {pendingScore?.score} <span className="text-xl text-amber-200">pts</span>
+               </div>
+             </div>
           </div>
         </div>
-      ) : (
-            <form onSubmit={handleRegisterScore} className="space-y-3 w-full">
-          <div className="bg-blue-900/30 p-3 md:p-4 rounded-2xl border-2 border-blue-800">
-            <label htmlFor="chef-name" className="block text-sm font-pixel text-blue-200 mb-2 text-center text-stroke-sm">
-              Tu Nombre de Chef:
-            </label>
-            <div className="flex flex-col gap-3">
-              <input
-                id="chef-name"
-                type="text"
-                maxLength={12}
-                placeholder="CHEF_NINJA"
-                value={chefName}
-                onChange={(e) => setChefName(e.target.value)}
-                className="bg-white border-4 border-blue-200 text-blue-900 rounded-xl px-4 py-3 text-xl font-vt text-center uppercase focus:outline-none focus:border-amber-400 shadow-inner"
-                required
-              />
+
+        {/* Right Side: Registration Form */}
+        <div className="w-full md:w-1/2">
+          {false ? (
+            <div className="flex flex-col items-center justify-center py-8 space-y-4">
+              <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              <p className="font-pixel text-blue-800 text-lg animate-pulse">Guardando en Solana...</p>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleRegisterScore}
+              className="flex flex-col gap-4"
+            >
+              <div className="space-y-2">
+                <label htmlFor="chef-name" className="font-pixel text-blue-900 text-lg block drop-shadow-sm">
+                  Nombre del Chef
+                </label>
+                <input
+                  id="chef-name"
+                  type="text"
+                  maxLength={12}
+                  placeholder="CHEF_NINJA"
+                  value={chefName}
+                  onChange={(e) => setChefName(e.target.value)}
+                  className="bg-white border-4 border-blue-200 text-blue-900 rounded-2xl px-5 py-4 text-2xl font-vt text-center uppercase focus:outline-none focus:border-amber-400 shadow-inner w-full transition-all"
+                  required
+                />
+              </div>
               <button
                 type="submit"
-                className="btn-clash-blue py-2.5 md:py-3 text-lg md:text-xl w-full flex items-center justify-center gap-2"
+                className="btn-clash-blue py-3 md:py-4 text-xl md:text-2xl w-full flex items-center justify-center gap-3 mt-2"
               >
-                <span>GUARDAR RÉCORD</span>
-                <ArrowRight className="w-5 h-5" />
+                <span>REGISTRAR RÉCORD</span>
+                <ArrowRight className="w-6 h-6" />
               </button>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setPendingScore(null)}
-            className="text-xs md:text-sm font-vt font-bold text-blue-300 hover:text-white transition block text-center w-full cursor-pointer underline mt-2"
-          >
-            Omitir registro
-          </button>
-        </form>
-      )}
+            </form>
+          )}
+          {true && (
+            <button
+              type="button"
+              onClick={() => setPendingScore(null)}
+              className="text-xs md:text-sm font-vt font-bold text-slate-400 hover:text-slate-500 transition block text-center w-full cursor-pointer underline mt-4"
+            >
+              Omitir registro y volver al menú
+            </button>
+          )}
         </div>
       </div>
     </motion.div>
@@ -386,8 +413,17 @@ export default function App() {
       {/* Main Container Workspace */}
       <main className="relative max-w-4xl mx-auto px-6 mt-8 z-40">
         
-        <div className="space-y-4">
+        <div className="space-y-6">
           
+          {/* Portada Principal (Cover Banner) */}
+          <div className="relative w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-800/80 group">
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent z-10 pointer-events-none" />
+            <img src="/cover_banner.png" alt="Slash Slice Arena Cover" className="w-full aspect-[16/9] object-cover transition-transform duration-700 group-hover:scale-105" />
+            <div className="absolute bottom-4 left-6 z-20">
+              <span className="font-pixel text-amber-400 text-xl md:text-2xl drop-shadow-[0_0_10px_rgba(251,191,36,0.8)]">v2.0 Ninja Engine</span>
+            </div>
+          </div>
+
           <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl">
             {/* Score Registry Popup overlay INSIDE the game container */}
             <AnimatePresence>
@@ -425,6 +461,12 @@ export default function App() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Diagrama de Arquitectura / Funcionamiento */}
+          <div className="relative w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-blue-900 bg-blue-950/40 p-4 backdrop-blur-sm">
+            <h2 className="text-center font-pixel text-2xl text-blue-200 mb-4 uppercase tracking-widest text-stroke-sm">Arquitectura & Flujo del Proyecto</h2>
+            <img src="/diagram_banner.png" alt="Arquitectura del proyecto" className="w-full rounded-xl border-2 border-blue-500/30 object-contain shadow-inner bg-slate-950/50 aspect-video md:aspect-auto" />
           </div>
 
         </div>

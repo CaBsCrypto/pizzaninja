@@ -1165,14 +1165,15 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       const vx = baseVx * expSpeedMult;
       
       // Vertical velocity precisely calculated using physics (h = v^2 / 2g) to keep them INSIDE the screen
-      // We want max peak height to be 65% of screen height (well below the HUD), and min peak to be 35%
-      const minVyScale = 0.0145; // sqrt(2 * 0.0003 * 0.35)
-      const maxVyScale = 0.0197; // sqrt(2 * 0.0003 * 0.65)
+      // We want max peak height to be 70% of screen height, and min peak to be 35%. Lower gravity for floaty fluidity.
+      const minVyScale = 0.0132; // sqrt(2 * 0.00025 * 0.35)
+      const maxVyScale = 0.0187; // sqrt(2 * 0.00025 * 0.70)
       const vyScale = minVyScale + Math.random() * (maxVyScale - minVyScale);
       
-      const vy = -(height * vyScale) * expSpeedMult; 
+      // Añadimos un pequeño impulso base adicional (1.1x) para mayor sensación de fuerza inicial
+      const vy = -(height * vyScale) * expSpeedMult * 1.1; 
       // Gravity scaled by height so pacing feels identical across all devices
-      const gravity = (height * 0.0003) * expSpeedMult * expSpeedMult; 
+      const gravity = (height * 0.00025) * expSpeedMult * expSpeedMult; 
 
       // Escala dinámica basada en la resolución para que se vean proporcionales (más grandes)
       const scaleFactor = Math.max(1.0, width / 1000); 
@@ -1315,7 +1316,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         if (true) {
           if (now - stateRef.current.lastSpawnTime > spawnInterval) {
             // Emit 1 to 3 items based on difficulty level
-            const count = Math.random() < 0.4 ? 1 : Math.random() < 0.8 || diffScale < 0.5 ? 2 : 3;
+            const count = Math.random() < 0.35 ? 1 : Math.random() < 0.75 || diffScale < 0.4 ? 2 : 3;
             for (let s = 0; s < count; s++) {
               spawnGameItem(width, height, diffScale);
             }
@@ -1736,11 +1737,11 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             }
           }
 
+          // Smooth 60fps velocity integration
           if (keepItem && !isPaused) {
-            // Apply simple physics gravity model
             item.x += item.vx * timeScale;
             item.y += item.vy * timeScale;
-            item.vy += (item.gravity !== undefined ? item.gravity : 0.28) * timeScale; // gravity force descending
+            item.vy += (item.gravity || 0.18) * timeScale;
             item.rotation += item.rotationSpeed * timeScale;
           }
 
@@ -1825,7 +1826,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           ctx.restore();
         }
 
-        // Circular ambient backing glow (skip in camera/perf mode - expensive per-pizza gradient)
+        // Circular ambient glow
         if (!effectivePerformanceMode) {
           ctx.beginPath();
           const fillGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, item.radius * 1.05);
