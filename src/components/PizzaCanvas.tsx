@@ -3147,6 +3147,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                       onClick={() => {
                         setControlMode('camera');
                         playWebSound('splat');
+                        setTimeout(() => initiateCountdown(), 500);
                       }}
                       className="w-full p-3 md:p-4 rounded-2xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-3 bg-gradient-to-b from-blue-500 to-blue-600 border-x-4 border-t-4 border-blue-400 border-b-[6px] border-b-blue-800 active:border-b-0 active:translate-y-[6px] active:mt-[6px] text-white z-10 shadow-2xl hover:brightness-110"
                     >
