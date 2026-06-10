@@ -324,7 +324,7 @@ export default function App() {
   );
 
   return (
-    <div id="ninja-app-root" className="min-h-screen bg-blue-900 text-slate-100 font-sans selection:bg-amber-400 selection:text-white pb-16 overflow-hidden relative" style={{ backgroundImage: "url('/arena_bg.png')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+    <div id="ninja-app-root" className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-amber-400 selection:text-white pb-16 overflow-hidden relative">
       
       {/* Cartoon clouds decoration */}
       <div className="absolute top-10 left-10 w-32 h-16 bg-white/20 rounded-full blur-xl pointer-events-none" />

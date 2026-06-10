@@ -402,8 +402,8 @@ export default function HandTracker({
       // Launch custom optimized tracking loop (requestVideoFrameCallback)
       // IMPORTANT: Use isEnabledRef.current (NOT isEnabled prop) to avoid stale closure crash
       let isProcessing = false;
-      let frameSkipCounter = 0; // Sprint 4: Extreme Optimization
-      addLog("Iniciando bucle de escaneo optimizado...");
+      let lastInferenceTime = 0;
+      addLog("Iniciando bucle de escaneo optimizado (20FPS cap)...");
 
       const tick = async (now?: number, metadata?: any) => {
         // CRITICAL: Read from ref, not from closed-over isEnabled prop
@@ -416,16 +416,19 @@ export default function HandTracker({
           return;
         }
 
+        const nowMs = Date.now();
+
         // We use isProcessing to ensure we don't stack multiple inference calls
         if (!isProcessing) {
-          frameSkipCounter++;
-          // Skip every other frame to effectively halve the CPU usage (e.g., 60fps -> 30fps inference)
-          if (frameSkipCounter % 2 !== 0) {
+          // Limit to ~20 FPS inference maximum (50ms between frames)
+          // This drastically reduces tablet CPU thermal throttling while keeping tracking smooth
+          if (nowMs - lastInferenceTime < 50) {
             scheduleNextTick();
             return;
           }
 
           isProcessing = true;
+          lastInferenceTime = nowMs;
           try {
             // PERF: Send videoElement directly to MediaPipe. 
             // This allows MediaPipe to pull the frame straight to the GPU via WebGL,

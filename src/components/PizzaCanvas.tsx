@@ -1177,7 +1177,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       const vy = -(height * vyScale) * expSpeedMult; 
       // Gravity scaled by height so pacing feels identical across all devices
       const gravity = (height * 0.0003) * expSpeedMult * expSpeedMult; 
-      const radius = Math.random() * 5 + 34; // more zoomed out / compact size
+
+      // Escala dinámica basada en la resolución para que se vean proporcionales (más grandes)
+      const scaleFactor = Math.max(1.0, width / 1000); 
+      const radius = (Math.random() * 10 + 45) * scaleFactor;
 
       // Random state: complete pizzas or a la mitad!
       const state = Math.random() < 0.65 ? PizzaState.Whole : PizzaState.Half;
@@ -3049,8 +3052,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       {!isPlaying && (
         <div className={`absolute inset-0 flex flex-col items-center justify-center p-4 select-none overflow-hidden transition-all duration-300 ${
           controlMode === 'camera'
-            ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/40 pointer-events-auto')
-            : 'bg-slate-950/94'
+            ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/20 pointer-events-auto')
+            : 'bg-slate-950/20'
         }`}>
           {/* TOP RIGHT BILLETERA BUTTON */}
           <div className="absolute top-6 right-6 z-50">
@@ -3100,13 +3103,13 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             {controlMode === 'mouse' ? (
               <>
                 {/* Mascot */}
-                <div className="relative group animate-[fade-in-up_0.5s_ease-out] shrink-0">
+                <div className="relative group animate-[fade-in-up_0.5s_ease-out] shrink-0 pointer-events-none">
                   <div className="absolute -inset-8 bg-gradient-to-r from-emerald-500/20 via-green-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse" />
                   <img src="/ninja_turtle.png" alt="Ninja Turtle Mascot" className="relative w-48 h-48 md:w-64 md:h-64 landscape:w-48 landscape:h-48 object-contain drop-shadow-[0_0_25px_rgba(16,185,129,0.5)] animate-[bounce_4s_infinite]" />
                 </div>
 
                 {/* Right Side / Bottom Side Container */}
-                <div className="flex flex-col items-center landscape:items-start w-full max-w-sm landscape:max-w-xl">
+                <div className="flex flex-col items-center landscape:items-start w-full max-w-sm landscape:max-w-xl pointer-events-none">
                   {/* Title */}
                   <div className="text-center landscape:text-left mt-[-1rem] landscape:mt-0">
                     <h1 className="text-4xl md:text-5xl landscape:text-6xl font-pixel text-white text-stroke-title tracking-widest leading-none drop-shadow-2xl">Slash Slice</h1>
@@ -3122,20 +3125,20 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                   )}
 
                   {/* Huge Play Buttons */}
-                  <div className="flex flex-col landscape:flex-row w-full gap-3 md:gap-4 mt-4">
+                  <div className="flex flex-col landscape:flex-row w-full gap-3 md:gap-4 mt-4 pointer-events-auto">
                     <button
                       type="button"
                       onClick={() => {
                         setControlMode('mouse');
                         playWebSound('splat');
-                        initiateCountdown();
+                        // initiateCountdown(); // Se quitó para que obligue a cortar la pizza de inicio
                       }}
                       className="w-full p-3 md:p-4 rounded-2xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-3 bg-gradient-to-b from-amber-400 to-amber-500 border-x-4 border-t-4 border-amber-300 border-b-[6px] border-b-amber-600 active:border-b-0 active:translate-y-[6px] active:mt-[6px] text-white z-10 shadow-2xl hover:brightness-110"
                     >
                       <span className="text-2xl md:text-3xl drop-shadow-md">🖱️</span>
                       <div className="flex flex-col items-start text-left">
-                        <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Jugar con Ratón</span>
-                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-amber-900 uppercase mt-1">Modo Clásico (Táctil)</span>
+                        <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Corta para Jugar</span>
+                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-amber-900 uppercase mt-1">¡Corta la pizza central!</span>
                       </div>
                     </button>
 
@@ -3150,7 +3153,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                       <span className="text-2xl md:text-3xl drop-shadow-md">👁️</span>
                       <div className="flex flex-col items-start text-left">
                         <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Activar Cámara</span>
-                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-blue-100 uppercase mt-1">Corta con tu propia mano</span>
+                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-blue-100 uppercase mt-1">Juega con tus manos</span>
                       </div>
                     </button>
                   </div>
@@ -3158,13 +3161,13 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               </>
             ) : (
               /* CAMERA MODE WAITING UI - Clear the center so Start Pizza is visible */
-              <div className="flex flex-col items-center justify-center text-center -mt-32">
+              <div className="flex flex-col items-center justify-center text-center -mt-32 pointer-events-none">
                 <h2 className="text-3xl md:text-4xl font-pixel text-white text-stroke-title drop-shadow-2xl animate-pulse">
                   {handDetected ? "¡CORTA LA PIZZA!" : "BUSCANDO TU MANO..."}
                 </h2>
                 <button 
                   onClick={() => { setControlMode('mouse'); playWebSound('splat'); }}
-                  className="mt-6 px-6 py-2 bg-slate-800/80 border border-slate-600 rounded-full text-slate-300 font-sans text-xs uppercase tracking-widest hover:bg-slate-700 hover:text-white transition-all"
+                  className="mt-6 px-6 py-2 bg-slate-800/80 border border-slate-600 rounded-full text-slate-300 font-sans text-xs uppercase tracking-widest hover:bg-slate-700 hover:text-white transition-all pointer-events-auto"
                 >
                   Volver al Modo Ratón
                 </button>
