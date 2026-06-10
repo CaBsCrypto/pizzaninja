@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Lilita+One&family=Sniglet:wght@400;800&display=swap');
+@import "tailwindcss";
 @keyframes screen-shake-mild {
   0%, 100% { transform: translate(0, 0); }
   10%, 90% { transform: translate(-2.5px, 1.5px); }

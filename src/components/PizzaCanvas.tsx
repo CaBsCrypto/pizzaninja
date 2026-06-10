@@ -244,18 +244,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   const [showComboAlert, setShowComboAlert] = useState(false);
   const [ninjaCombo, setNinjaCombo] = useState(1);
 
-  const [activeShake, setActiveShake] = useState<'mild' | 'intense' | null>(null);
   const [damageFlash, setDamageFlash] = useState(false);
-
-  useEffect(() => {
-    if (activeShake) {
-      const timer = setTimeout(() => {
-        setActiveShake(null);
-        setDamageFlash(false);
-      }, activeShake === 'intense' ? 300 : 150);
-      return () => clearTimeout(timer);
-    }
-  }, [activeShake]);
 
   const [arcadeDifficulty, setArcadeDifficulty] = useState<'casual' | 'pro' | 'ninja'>('pro');
   const arcadeDifficultyRef = useRef<'casual' | 'pro' | 'ninja'>('pro');
@@ -1043,7 +1032,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    // PERF FIX: Do not run the heavy physics and rendering loop if we are not playing.
+    // PERF: Do not run the heavy physics and rendering loop if we are not playing.
     // This stops the canvas from burning CPU/battery behind the main menu (loading screen lag fix).
     if (!isPlaying) return;
 
@@ -1163,9 +1152,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // Gravity scaled by height so pacing feels identical across all devices
       const gravity = (height * 0.00025) * expSpeedMult * expSpeedMult; 
 
-      // Escala dinámica basada en la resolución para que se vean proporcionales (más grandes)
-      const scaleFactor = Math.max(1.0, width / 1000); 
-      const radius = (Math.random() * 10 + 45) * scaleFactor;
+      // Escala dinámica basada en la resolución para que se vean proporcionales (más grandes en tablets/PC)
+      const scaleFactor = Math.max(1.0, width / 700); 
+      const radius = (Math.random() * 15 + 50) * scaleFactor;
 
       // Random state: complete pizzas or a la mitad!
       const state = Math.random() < 0.65 ? PizzaState.Whole : PizzaState.Half;
@@ -1260,20 +1249,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         }
       }
 
-      // Calculate screen shake offsets
-      let shakeOffsetX = 0;
-      let shakeOffsetY = 0;
-      if (stateRef.current.shakeDuration && stateRef.current.shakeDuration > 0) {
-        stateRef.current.shakeDuration--;
-        const intensity = stateRef.current.shakeIntensity || 3;
-        shakeOffsetX = (Math.random() - 0.5) * intensity;
-        shakeOffsetY = (Math.random() - 0.5) * intensity;
-      }
-
       ctx.save();
-      if (shakeOffsetX !== 0 || shakeOffsetY !== 0) {
-        ctx.translate(shakeOffsetX, shakeOffsetY);
-      }
 
       // 1. Fast solid color clear for maximum performance
       // Using a dark slate color to match the synthwave aesthetic without GPU texture overhead
@@ -1538,7 +1514,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               
               let dx = pNext.x - pPrev.x;
               let dy = pNext.y - pPrev.y;
-              const len = Math.hypot(dx, dy) || 1;
+              // Math.sqrt is significantly faster than Math.hypot in V8
+              const len = Math.sqrt(dx*dx + dy*dy) || 1;
               dx /= len;
               dy /= len;
               const nx = -dy;
@@ -1560,7 +1537,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               
               let dx = pNext.x - pPrev.x;
               let dy = pNext.y - pPrev.y;
-              const len = Math.hypot(dx, dy) || 1;
+              const len = Math.sqrt(dx*dx + dy*dy) || 1;
               dx /= len;
               dy /= len;
               const nx = -dy;
@@ -2386,24 +2363,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       textColor = "text-yellow-400";
       shadowClass = "shadow-[0_0_24px_rgba(234,179,8,0.7)]";
       extraScale = 1.35;
-
-      // Intense Screen Shake
-      stateRef.current.shakeDuration = 14;
-      stateRef.current.shakeIntensity = 9;
-      setActiveShake(null);
-      requestAnimationFrame(() => setActiveShake('intense'));
     } else if (precisionRatio >= 0.70) {
       accuracyText = "¡CORTE PERFECTO! ✨";
       colorClasses = "from-cyan-400 via-sky-300 to-blue-500";
       textColor = "text-cyan-400";
       shadowClass = "shadow-[0_0_20px_rgba(6,182,212,0.6)]";
       extraScale = 1.25;
-
-      // Mild Screen Shake
-      stateRef.current.shakeDuration = 8;
-      stateRef.current.shakeIntensity = 4.5;
-      setActiveShake(null);
-      requestAnimationFrame(() => setActiveShake('mild'));
     } else if (precisionRatio >= 0.45) {
       accuracyText = "¡EXCELENTE! 🔥";
       colorClasses = "from-orange-500 via-red-400 to-rose-500";
@@ -2469,8 +2434,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       
       playWebSound('error');
       
-      // HUGE SCREEN SHAKE and RED DAMAGE FLASH overlay!
-      setActiveShake('intense');
+      // RED DAMAGE FLASH overlay!
       setDamageFlash(true);
 
       // Flash overlay feedback (wider and more vivid for extreme velocity blasts)
@@ -2718,8 +2682,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         isPlaying 
           ? 'aspect-[16/9]' 
           : 'min-h-[640px] landscape:min-h-0 landscape:aspect-[16/9] md:min-h-0 md:aspect-[16/9] overflow-y-auto landscape:overflow-hidden md:overflow-hidden'
-      } ${
-        activeShake === 'intense' ? 'shake-intense' : activeShake === 'mild' ? 'shake-mild' : ''
       }`}>
       {/* Red damage overlay flash */}
       {damageFlash && (
