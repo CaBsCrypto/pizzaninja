@@ -3043,46 +3043,67 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/20 pointer-events-auto')
             : 'bg-slate-950/20'
         }`}>
-          {/* TOP RIGHT BILLETERA BUTTON */}
-          <div className="absolute top-6 right-6 z-50">
-            {walletPubKey ? (
-              <div className="bg-slate-800/80 border border-emerald-500/50 rounded-full px-4 py-2 flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="font-pixel text-emerald-400 text-xs">
-                  {walletPubKey.substring(0, 5)}...{walletPubKey.substring(walletPubKey.length - 4)}
-                </span>
-              </div>
-            ) : (
-              <button
-                onClick={async () => {
-                  const installed = await isFreighterInstalled();
-                  if (!installed) {
-                    onToastMessage?.("Freighter no está instalado. Redirigiendo...", 'error');
-                    window.open('https://freighter.app', '_blank');
-                    return;
-                  }
-                  const pubKey = await connectFreighter();
-                  if (pubKey) {
-                    setWalletPubKey(pubKey);
-                    onToastMessage?.("Bóveda de Soroban conectada", 'success');
-                    
-                    // Enviar PubKey a Go para sincronizar NFTs
-                    if (gameSocket && gameSocket.readyState === WebSocket.OPEN) {
-                      gameSocket.send(JSON.stringify({
-                        type: "WALLET_CONNECT",
-                        pubKey: pubKey
-                      }));
-                    }
-                  } else {
-                    onToastMessage?.("Error al conectar Freighter", 'error');
-                  }
-                }}
-                className="bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-blue-400 rounded-full px-4 py-2 hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 shadow-lg cursor-pointer"
-              >
-                <Zap className="w-4 h-4 text-white fill-amber-300" />
-                <span className="font-pixel text-white text-xs tracking-wider">CONECTAR BOVEDA</span>
+          {/* TOP NAVIGATION BAR */}
+          <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-50 pointer-events-none">
+            {/* Left Icons */}
+            <div className="flex flex-row gap-2 md:gap-3 pointer-events-auto">
+              <button onClick={() => { setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)]">
+                🗡️
               </button>
-            )}
+              <button onClick={() => { setActiveModal('rules'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+                📋
+              </button>
+            </div>
+
+            {/* Right Icons + Wallet */}
+            <div className="flex flex-row items-center gap-2 md:gap-3 pointer-events-auto">
+              <button onClick={() => { setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)]" title="Ajustes">
+                ⚙️
+              </button>
+              <button onClick={() => { toggleFullscreen(); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)]" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
+                {isFullscreen ? <Minimize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" /> : <Maximize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" />}
+              </button>
+              
+              {/* Billetera */}
+              {walletPubKey ? (
+                <div className="bg-slate-800/80 border border-emerald-500/50 rounded-full px-3 md:px-5 h-12 md:h-16 flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-pixel text-emerald-400 text-[9px] md:text-xs">
+                    {walletPubKey.substring(0, 5)}...{walletPubKey.substring(walletPubKey.length - 4)}
+                  </span>
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    const installed = await isFreighterInstalled();
+                    if (!installed) {
+                      onToastMessage?.("Freighter no está instalado. Redirigiendo...", 'error');
+                      window.open('https://freighter.app', '_blank');
+                      return;
+                    }
+                    const pubKey = await connectFreighter();
+                    if (pubKey) {
+                      setWalletPubKey(pubKey);
+                      onToastMessage?.("Bóveda de Soroban conectada", 'success');
+                      
+                      if (gameSocket && gameSocket.readyState === WebSocket.OPEN) {
+                        gameSocket.send(JSON.stringify({
+                          type: "WALLET_CONNECT",
+                          pubKey: pubKey
+                        }));
+                      }
+                    } else {
+                      onToastMessage?.("Error al conectar Freighter", 'error');
+                    }
+                  }}
+                  className="bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-blue-400 rounded-full px-3 md:px-5 h-12 md:h-16 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 md:gap-2 shadow-lg cursor-pointer"
+                >
+                  <Zap className="w-4 h-4 md:w-5 md:h-5 text-white fill-amber-300 shrink-0" />
+                  <span className="font-pixel text-white text-[9px] md:text-xs tracking-wider hidden sm:inline-block">CONECTAR BOVEDA</span>
+                  <span className="font-pixel text-white text-[9px] tracking-wider sm:hidden">BOVEDA</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Main Content Centered */}
@@ -3164,23 +3185,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             )}
           </div>
 
-          {/* Floating Secondary Buttons */}
-          <div className="absolute top-4 md:top-6 left-4 md:left-6 flex flex-row gap-3 z-20">
-            <button onClick={() => { setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)]">
-              🗡️
-            </button>
-            <button onClick={() => { setActiveModal('rules'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-              📋
-            </button>
-          </div>
-          <div className="absolute top-4 md:top-6 right-4 md:right-6 flex flex-row gap-3 z-20">
-            <button onClick={() => { setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)]" title="Ajustes">
-              ⚙️
-            </button>
-            <button onClick={() => { toggleFullscreen(); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)]" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
-              {isFullscreen ? <Minimize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" /> : <Maximize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" />}
-            </button>
-          </div>
+          {/* (Floating Secondary Buttons moved to TOP NAVIGATION BAR) */}
 
           {/* Modal Overlay */}
           {activeModal && (
