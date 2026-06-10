@@ -420,13 +420,6 @@ export default function HandTracker({
 
         // We use isProcessing to ensure we don't stack multiple inference calls
         if (!isProcessing) {
-          // Limit to ~20 FPS inference maximum (50ms between frames)
-          // This drastically reduces tablet CPU thermal throttling while keeping tracking smooth
-          if (nowMs - lastInferenceTime < 50) {
-            scheduleNextTick();
-            return;
-          }
-
           isProcessing = true;
           lastInferenceTime = nowMs;
           try {

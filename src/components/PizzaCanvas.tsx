@@ -1242,9 +1242,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     // Hand tracking delivers at 20fps -- running the canvas at 60fps wastes ~50% CPU for no visual gain.
     // loopRunner is a stable reference used by updateLoop's self-scheduling rAF call.
     let lastRenderTs = 0;
-    // CRITICAL PHYSICS FIX: Cap mouse mode strictly to 60fps. If left at 0 (uncapped), users with 120Hz/144Hz 
-    // monitors will run the physics loop twice as fast, causing gravity to apply double and making pizzas fall instantly!
-    const RENDER_INTERVAL_MS = controlMode === 'camera' ? 1000 / 30 : 1000 / 60;
+    // CRITICAL PHYSICS FIX: Cap strictly to 60fps. If left at 0 (uncapped), users with 120Hz/144Hz 
+    // monitors will run the physics loop twice as fast, causing gravity to apply double!
+    const RENDER_INTERVAL_MS = 1000 / 60;
     let loopRunner: () => void;
 
     // Main animation frame function
