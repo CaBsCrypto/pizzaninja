@@ -390,6 +390,7 @@ export default function App() {
             isPlaying={isPlaying}
             setIsPlaying={setIsPlaying}
             onToastMessage={showToast}
+            isRegistering={pendingScore !== null}
           />
 
           {/* Retro Arcade Tips Box */}

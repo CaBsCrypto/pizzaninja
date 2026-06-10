@@ -14,9 +14,10 @@ interface PizzaCanvasProps {
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
   onToastMessage?: (message: string, type: 'success' | 'info' | 'error') => void;
+  isRegistering?: boolean;
 }
 
-export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToastMessage }: PizzaCanvasProps) {
+export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToastMessage, isRegistering = false }: PizzaCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastHandTrackedTimeRef = useRef<number[]>([0, 0]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -3049,7 +3050,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         </div>
       )}
 
-      {!isPlaying && (
+      {/* Main Menu Overlay */}
+      {!isPlaying && !isRegistering && (
         <div className={`absolute inset-0 flex flex-col items-center justify-center p-4 select-none overflow-hidden transition-all duration-300 ${
           controlMode === 'camera'
             ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/20 pointer-events-auto')
