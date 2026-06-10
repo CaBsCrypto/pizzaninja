@@ -243,18 +243,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   const [comboMultiplier, setComboMultiplier] = useState(1);
   const [showComboAlert, setShowComboAlert] = useState(false);
   const [ninjaCombo, setNinjaCombo] = useState(1);
-  const [comboDetails, setComboDetails] = useState<{
-    count: number;
-    precision: number;
-    text: string;
-    subtext: string;
-    textColor: string;
-    colorClasses: string;
-    shadowClass: string;
-    scale: number;
-    displayPercent: number;
-    timestamp: number;
-  } | null>(null);
 
   const [activeShake, setActiveShake] = useState<'mild' | 'intense' | null>(null);
   const [damageFlash, setDamageFlash] = useState(false);
@@ -1309,7 +1297,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           stateRef.current.ninjaCombo = 1;
           updateHUD();
           setShowComboAlert(false);
-          setComboDetails(null);
         }
 
         // Generar físicas locales
@@ -1901,27 +1888,27 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         slicedPieces[activePiecesCount++] = piece;
       }
       slicedPieces.length = activePiecesCount;
-      } else {
         // --- MENU / CALIBRATION LOOP ---
         if (countdown === null) {
+          const isMobileStart = width < 600;
           const startX = width / 2;
-          const startY = height / 2 + Math.sin(Date.now() * 0.0025) * 12; // slow hovering
-          const startRadius = 75;
+          const startY = height / 2 + Math.sin(Date.now() * 0.003) * 15; // slow hovering
+          const startRadius = isMobileStart ? 90 : 130;
 
           // Draw rotating pizza vector
           ctx.save();
           ctx.translate(startX, startY);
-          const startRotation = (Date.now() * 0.001) % (Math.PI * 2);
+          const startRotation = (Date.now() * 0.0008) % (Math.PI * 2);
           
           // Draw pizza radial glow
           if (!effectivePerformanceMode) {
-            const fillGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, startRadius * 1.05);
-            fillGrad.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
-            fillGrad.addColorStop(0.35, 'rgba(239, 68, 68, 0.15)');
+            const fillGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, startRadius * 1.2);
+            fillGrad.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+            fillGrad.addColorStop(0.5, 'rgba(239, 68, 68, 0.15)');
             fillGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
             ctx.fillStyle = fillGrad;
             ctx.beginPath();
-            ctx.arc(0, 0, startRadius * 1.05, 0, Math.PI * 2);
+            ctx.arc(0, 0, startRadius * 1.2, 0, Math.PI * 2);
             ctx.fill();
           }
 
@@ -1930,20 +1917,23 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           ctx.restore();
 
           // Draw Start text banner "¡CORTA PARA EMPEZAR!"
-          ctx.beginPath();
-          ctx.arc(startX, startY, startRadius, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(6, 182, 212, 0.8)';
-          ctx.lineWidth = 3;
-          ctx.stroke();
-
-          ctx.fillStyle = '#0ff';
-          ctx.font = '16px "Press Start 2P", cursive';
+          ctx.shadowColor = 'rgba(0,0,0,0.8)';
+          ctx.shadowBlur = 10;
+          ctx.shadowOffsetY = 4;
+          
+          ctx.fillStyle = '#fff';
+          ctx.strokeStyle = '#ea580c'; // orange-600 outline
+          ctx.lineWidth = 6;
+          ctx.font = '32px "Lilita One", sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('¡CORTA PARA EMPEZAR!', startX, startY + startRadius + 30);
+          
+          const textY = startY + startRadius + 45;
+          ctx.strokeText('¡CORTA PARA EMPEZAR!', startX, textY);
+          ctx.fillText('¡CORTA PARA EMPEZAR!', startX, textY);
+          
           ctx.shadowBlur = 0;
+          ctx.shadowOffsetY = 0;
 
           // Check if hand/mouse trail slices this Start Pizza!
           [activeTrail, activeTrail1].forEach(trail => {
@@ -2423,22 +2413,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     }
 
     const combo = stateRef.current.comboCount;
-    if (combo >= 2) {
-      setComboDetails({
-        count: combo,
-        precision: precisionRatio,
-        text: accuracyText,
-        subtext: `${displayPercent}% precisión • x${multiplier} Mult`,
-        textColor: textColor,
-        colorClasses: colorClasses,
-        shadowClass: shadowClass,
-        scale: extraScale,
-        displayPercent: displayPercent,
-        timestamp: Date.now()
-      });
-    } else {
-      setComboDetails(null);
-    }
 
     // Add floating overlay text to the canvas loop near the swipe point (p2)
     if (combo >= 2 && !performanceMode) {
@@ -2962,58 +2936,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       </div>
     )}
 
-      {/* Dynamic accuracy-based Combo Overlay */}
-      <div className="absolute top-[72px] inset-x-0 z-10 flex flex-col items-center pointer-events-none select-none">
-        <AnimatePresence>
-          {comboDetails && (
-            <motion.div
-              key={`${comboDetails.count}-${comboDetails.timestamp}`}
-              initial={{ scale: 0.3, y: -20, opacity: 0 }}
-              animate={{
-                scale: comboDetails.scale,
-                y: 0,
-                opacity: 1,
-              }}
-              exit={{ scale: 0.8, y: 10, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 450, damping: 15 }}
-              className={`flex flex-col items-center justify-center p-3 px-5 rounded-2xl bg-slate-950/92 border border-slate-800/90 ${comboDetails.shadowClass} gap-1 shadow-2xl relative border-t-amber-500/25`}
-              style={{ transformOrigin: "center" }}
-            >
-              {/* Top Precision Badge */}
-              <div className={`text-[10px] sm:text-[11px] font-black font-sans uppercase tracking-widest bg-gradient-to-r ${comboDetails.colorClasses} bg-clip-text text-transparent flex items-center gap-1`}>
-                {comboDetails.text}
-              </div>
-
-              {/* Combo Slices & Multiplier Numbers */}
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-extrabold font-sans text-white tracking-tighter italic select-none drop-shadow-[0_2px_10px_rgba(255,255,255,0.15)]">
-                  {comboDetails.count} <span className="text-xs font-semibold tracking-normal text-slate-400 not-italic uppercase">Cortes</span>
-                </span>
-                <span className={`text-2xl sm:text-3xl font-black font-mono italic tracking-tight bg-gradient-to-r ${comboDetails.colorClasses} bg-clip-text text-transparent drop-shadow-md`}>
-                  x{Math.pow(2, Math.max(1, comboDetails.count - 1))}
-                </span>
-              </div>
-
-              {/* Subtitle / Accuracy info */}
-              <div className="text-[10px] font-extrabold font-mono tracking-wider text-slate-300 flex items-center gap-1.5 uppercase leading-none">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                <span>{comboDetails.subtext}</span>
-              </div>
-
-              {/* Dynamic Precision Progress Bar */}
-              <div className="w-40 sm:w-44 h-1 bg-slate-900 rounded-full mt-1.5 overflow-hidden border border-slate-800/80">
-                <motion.div
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: comboDetails.displayPercent / 100 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  style={{ transformOrigin: 'left' }}
-                  className={`h-full w-full bg-gradient-to-r ${comboDetails.colorClasses}`}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* Dynamic accuracy-based Combo Overlay removed to optimize performance. Replaced by Canvas text. */}
 
       {/* Screen Canvas wrapper to prevent infinite ResizeObserver loops */}
       <div className="relative flex-1 w-full min-h-0 overflow-hidden">
@@ -3135,37 +3058,30 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                     </div>
                   )}
 
-                  {/* Huge Play Buttons */}
-                  <div className="flex flex-col landscape:flex-row w-full gap-3 md:gap-4 mt-4 pointer-events-auto">
+                  {/* Small Control Mode Toggles */}
+                  <div className="flex flex-row gap-4 mt-6 pointer-events-auto z-50">
                     <button
                       type="button"
                       onClick={() => {
                         setControlMode('mouse');
                         playWebSound('splat');
-                        initiateCountdown();
                       }}
-                      className="w-full p-3 md:p-4 rounded-2xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-3 bg-gradient-to-b from-amber-400 to-amber-500 border-x-4 border-t-4 border-amber-300 border-b-[6px] border-b-amber-600 active:border-b-0 active:translate-y-[6px] active:mt-[6px] text-white z-10 shadow-2xl hover:brightness-110"
+                      className={`p-3 rounded-full transition-all duration-150 cursor-pointer shadow-lg flex items-center justify-center ${controlMode === 'mouse' ? 'bg-amber-500 border-2 border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-slate-800/80 border border-slate-600 hover:bg-slate-700'}`}
+                      title="Jugar con Ratón/Táctil"
                     >
-                      <span className="text-2xl md:text-3xl drop-shadow-md">🖱️</span>
-                      <div className="flex flex-col items-start text-left">
-                        <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Jugar con Ratón</span>
-                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-amber-900 uppercase mt-1">Modo Clásico (Táctil)</span>
-                      </div>
+                      <span className="text-2xl">🖱️</span>
                     </button>
-
+                    
                     <button
                       type="button"
                       onClick={() => {
                         setControlMode('camera');
                         playWebSound('splat');
                       }}
-                      className="w-full p-3 md:p-4 rounded-2xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-3 bg-gradient-to-b from-blue-500 to-blue-600 border-x-4 border-t-4 border-blue-400 border-b-[6px] border-b-blue-800 active:border-b-0 active:translate-y-[6px] active:mt-[6px] text-white z-10 shadow-2xl hover:brightness-110"
+                      className={`p-3 rounded-full transition-all duration-150 cursor-pointer shadow-lg flex items-center justify-center ${controlMode === 'camera' ? 'bg-blue-500 border-2 border-blue-200 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-slate-800/80 border border-slate-600 hover:bg-slate-700'}`}
+                      title="Activar Cámara"
                     >
-                      <span className="text-2xl md:text-3xl drop-shadow-md">👁️</span>
-                      <div className="flex flex-col items-start text-left">
-                        <span className="text-lg md:text-xl font-pixel drop-shadow-sm leading-none">Activar Cámara</span>
-                        <span className="text-[9px] md:text-[10px] font-sans font-bold text-blue-100 uppercase mt-1">Juega con tus manos</span>
-                      </div>
+                      <span className="text-2xl">📷</span>
                     </button>
                   </div>
                 </div>
