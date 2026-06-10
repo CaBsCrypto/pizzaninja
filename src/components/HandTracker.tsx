@@ -254,7 +254,7 @@ export default function HandTracker({
     if (isEnabled && cdnStatus === 'loaded' && handsInstanceRef.current) {
       try {
         handsInstanceRef.current.setOptions({
-          maxNumHands: 1,
+          maxNumHands: 2,
           modelComplexity: 0,  // PERF: lite model (0) is 2x faster than full (1)
           minDetectionConfidence: detectionConfidence,
           minTrackingConfidence: 0.65  // PERF: higher = fewer expensive re-detects,
@@ -317,7 +317,7 @@ export default function HandTracker({
         frameIdRef.current = null;
       }
 
-      addLog("Creando nueva instancia de MediaPipe Hands (1 mano)...");
+      addLog("Creando nueva instancia de MediaPipe Hands (2 manos)...");
       const hands = new AnyWindow.Hands({
         locateFile: (file: string) => {
           const resolvedPath = sourceType === 'local' 
@@ -330,7 +330,7 @@ export default function HandTracker({
       });
 
       hands.setOptions({
-        maxNumHands: 1,
+        maxNumHands: 2,
         modelComplexity: 0,  // PERF: lite model (0) is 2x faster than full (1)
         minDetectionConfidence: detectionConfidence,
         minTrackingConfidence: 0.40  // PERF: low threshold = extremely sticky tracking, far fewer expensive re-detects
@@ -338,7 +338,7 @@ export default function HandTracker({
 
       hands.onResults(handleResults);
       handsInstanceRef.current = hands;
-      addLog("Instancia Hands (1 mano) vinculada con éxito.");
+      addLog("Instancia Hands (2 manos) vinculada con éxito.");
 
       // Check for video element
       if (!videoRef.current) {
@@ -424,10 +424,18 @@ export default function HandTracker({
           isProcessing = true;
           lastInferenceTime = nowMs;
           try {
-            // PERF: Send videoElement directly to MediaPipe. 
-            // This allows MediaPipe to pull the frame straight to the GPU via WebGL,
-            // avoiding massive CPU rasterization overhead from a 2D canvas copy.
-            await handsInstanceRef.current.send({ image: videoRef.current });
+            // PERF: On iOS Safari and some tablets, sending videoElement directly to WebGL
+            // causes synchronous CPU decoding stalls that destroy the framerate.
+            // We scale it down to 256x256 first via a 2D canvas drawImage.
+            if (scaleCanvasRef.current && videoRef.current) {
+              const sCtx = scaleCanvasRef.current.getContext('2d', { willReadFrequently: true });
+              if (sCtx) {
+                sCtx.drawImage(videoRef.current, 0, 0, scaleCanvasRef.current.width, scaleCanvasRef.current.height);
+                await handsInstanceRef.current.send({ image: scaleCanvasRef.current });
+              }
+            } else {
+              await handsInstanceRef.current.send({ image: videoRef.current });
+            }
           } catch (sendErr) {
             // Prevent spamming logs on every skipped frame
             console.warn("MediaPipe tick sync skip:", sendErr);
@@ -759,13 +767,9 @@ export default function HandTracker({
           autoPlay
         />
 
-        {/* Cyan Skeleton Overlay */}
-        <canvas
-          ref={overlayCanvasRef}
-          width={320}
-          height={240}
-          className="absolute inset-0 w-full h-full pointer-events-none z-10"
-        />
+        {/* Hidden internal elements */}
+        <canvas ref={scaleCanvasRef} width={256} height={256} className="hidden" />
+        <canvas ref={overlayCanvasRef} width={320} height={240} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
 
         {/* Floating status alert overlaid in both modes */}
         {modelStatus === 'active' && !handDetected && (

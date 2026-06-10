@@ -2738,7 +2738,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
   return (
     <div className="space-y-4 w-full relative max-w-4xl mx-auto">
-      <div ref={containerRef} className={`relative w-full max-w-4xl mx-auto bg-blue-950/50 backdrop-blur-md rounded-3xl shadow-2xl flex flex-col border-4 overflow-hidden transition-colors duration-150 ${
+      <div ref={containerRef} className={`relative w-full max-w-4xl mx-auto bg-slate-950/95 rounded-3xl shadow-2xl flex flex-col border-4 overflow-hidden transition-colors duration-150 ${
         damageFlash ? 'border-red-600 bg-red-950/80 shadow-[0_0_50px_rgba(220,38,38,0.8)]' : 'border-amber-500'
       } ${
         isPlaying 
@@ -3190,7 +3190,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
           {/* Modal Overlay */}
           {activeModal && (
-            <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md pointer-events-auto" onPointerDown={() => setActiveModal(null)}>
+            <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 pointer-events-auto" onPointerDown={() => setActiveModal(null)}>
               <div 
                 className="panel-clash p-5 md:p-6 rounded-3xl w-full max-w-md animate-[bounce-in_0.3s_cubic-bezier(0.175,0.885,0.32,1.275)]"
                 onPointerDown={e => e.stopPropagation()}
