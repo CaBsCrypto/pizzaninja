@@ -957,7 +957,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     const resizeCanvas = () => {
       const parent = canvas.parentElement;
       if (parent) {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2.0x for retina sharpness without 3x lag
+        // Aggressive performance scaling for mobile/tablets: cap resolution to 1.0x to reduce GPU fill rate by 400%
+        const isMobile = Math.min(window.innerWidth, window.innerHeight) < 768;
+        const dpr = isMobile ? 1 : Math.min(window.devicePixelRatio || 1, 2);
         let targetWidth = Math.round(parent.clientWidth * dpr);
         let targetHeight = Math.round((parent.clientHeight || 500) * dpr);
         
@@ -1243,8 +1245,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       if (!canvas || !ctx) return;
       const width = canvas.width;
       const height = canvas.height;
-      // PERF: Camera mode auto-enables performance optimizations (hand tracking is CPU-heavy)
-      const effectivePerformanceMode = performanceMode || controlMode === 'camera';
+      // PERF: Camera mode or Mobile devices auto-enable performance optimizations
+      const isMobileDevice = Math.min(window.innerWidth, window.innerHeight) < 768;
+      const effectivePerformanceMode = performanceMode || controlMode === 'camera' || isMobileDevice;
 
       // Latency detection for hand tracking in camera mode
       // Only auto-pause if game has been running for at least 3s to prevent
