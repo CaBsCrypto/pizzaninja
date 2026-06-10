@@ -195,7 +195,7 @@ export default function App() {
       initial={{ scale: 0.8, opacity: 0, y: 50 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       transition={{ type: "spring", bounce: 0.5 }}
-      className="panel-clash p-4 md:p-6 relative z-50 mx-auto max-w-md w-full max-h-[95%] overflow-y-auto custom-scrollbar flex flex-col"
+      className="panel-clash p-4 md:p-6 relative z-50 mx-auto max-w-xl md:max-w-2xl w-full max-h-[95%] overflow-y-auto custom-scrollbar flex flex-col"
     >
       <div className="absolute top-0 right-0 p-3">
         <Sparkles className="w-8 h-8 text-amber-400 animate-spin" style={{ animationDuration: '4s' }} />
@@ -208,7 +208,9 @@ export default function App() {
         </span>
       </div>
       
-      <div className="bg-blue-900/50 rounded-2xl p-4 border-2 border-blue-800 shadow-inner text-center">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 w-full">
+        {/* Left Column: Score Stats */}
+        <div className="flex-1 bg-blue-900/50 rounded-2xl p-4 border-2 border-blue-800 shadow-inner text-center flex flex-col justify-center">
         <h4 className="text-white font-pixel text-4xl tracking-tight text-stroke-sm drop-shadow-lg">
           {String(pendingScore.score)} <span className="text-xl text-amber-400">PTS</span>
         </h4>
@@ -225,8 +227,10 @@ export default function App() {
         </div>
       </div>
 
-      {walletState.connected ? (
-        <div className="mt-6 space-y-3 bg-amber-100 border-4 border-amber-300 p-4 rounded-2xl text-center shadow-md">
+        {/* Right Column: Save / Register Action */}
+        <div className="flex-1 flex flex-col justify-center">
+          {walletState.connected ? (
+            <div className="space-y-3 bg-amber-100 border-4 border-amber-300 p-4 rounded-2xl text-center shadow-md">
           <span className="text-sm font-pixel text-amber-800 uppercase block mb-2">Firma On-Chain</span>
           <div className="text-blue-900 text-xl font-vt bg-white py-2 px-3 rounded-xl border-2 border-amber-200 truncate shadow-inner">
             👤 {walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 8)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO')}
@@ -286,7 +290,7 @@ export default function App() {
           </div>
         </div>
       ) : (
-        <form onSubmit={handleRegisterScore} className="mt-4 space-y-3">
+            <form onSubmit={handleRegisterScore} className="space-y-3 w-full">
           <div className="bg-blue-900/30 p-3 md:p-4 rounded-2xl border-2 border-blue-800">
             <label htmlFor="chef-name" className="block text-sm font-pixel text-blue-200 mb-2 text-center text-stroke-sm">
               Tu Nombre de Chef:
@@ -320,6 +324,8 @@ export default function App() {
           </button>
         </form>
       )}
+        </div>
+      </div>
     </motion.div>
   );
 
