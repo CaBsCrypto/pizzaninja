@@ -419,7 +419,8 @@ export default function HandTracker({
         const nowMs = Date.now();
 
         // We use isProcessing to ensure we don't stack multiple inference calls
-        if (!isProcessing) {
+        // Cap inference to ~30 FPS (33ms) to free up the main thread for the 60fps Canvas render
+        if (!isProcessing && nowMs - lastInferenceTime > 33) {
           isProcessing = true;
           lastInferenceTime = nowMs;
           try {
