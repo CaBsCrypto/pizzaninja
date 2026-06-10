@@ -195,7 +195,7 @@ export default function App() {
       initial={{ scale: 0.8, opacity: 0, y: 50 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       transition={{ type: "spring", bounce: 0.5 }}
-      className="panel-clash p-6 relative overflow-hidden z-50 mx-auto max-w-md my-8"
+      className="panel-clash p-4 md:p-6 relative z-50 mx-auto max-w-md w-full max-h-[95%] overflow-y-auto custom-scrollbar flex flex-col"
     >
       <div className="absolute top-0 right-0 p-3">
         <Sparkles className="w-8 h-8 text-amber-400 animate-spin" style={{ animationDuration: '4s' }} />
@@ -286,8 +286,8 @@ export default function App() {
           </div>
         </div>
       ) : (
-        <form onSubmit={handleRegisterScore} className="mt-6 space-y-4">
-          <div className="bg-blue-900/30 p-4 rounded-2xl border-2 border-blue-800">
+        <form onSubmit={handleRegisterScore} className="mt-4 space-y-3">
+          <div className="bg-blue-900/30 p-3 md:p-4 rounded-2xl border-2 border-blue-800">
             <label htmlFor="chef-name" className="block text-sm font-pixel text-blue-200 mb-2 text-center text-stroke-sm">
               Tu Nombre de Chef:
             </label>
@@ -304,7 +304,7 @@ export default function App() {
               />
               <button
                 type="submit"
-                className="btn-clash-blue py-3 text-xl w-full flex items-center justify-center gap-2"
+                className="btn-clash-blue py-2.5 md:py-3 text-lg md:text-xl w-full flex items-center justify-center gap-2"
               >
                 <span>GUARDAR RÉCORD</span>
                 <ArrowRight className="w-5 h-5" />
@@ -314,7 +314,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setPendingScore(null)}
-            className="text-sm font-vt font-bold text-blue-300 hover:text-white transition block text-center w-full cursor-pointer underline"
+            className="text-xs md:text-sm font-vt font-bold text-blue-300 hover:text-white transition block text-center w-full cursor-pointer underline mt-2"
           >
             Omitir registro
           </button>
