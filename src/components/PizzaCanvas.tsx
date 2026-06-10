@@ -1375,13 +1375,13 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
             // Push the smooth critically damped coordinate into the visual trail on each frame
             if (curX > 0 && curY > 0) {
-              // PERF: Cap trail at 8 points in camera mode (smaller = fewer stroke ops per pass)
-              const MAX_TRAIL = effectivePerformanceMode ? 8 : 18;
+              // Allow longer visual trails. Max points before popping.
+              const MAX_TRAIL = effectivePerformanceMode ? 25 : 45;
               if (handIdx === 0) {
-                stateRef.current.trail.push({ x: curX, y: curY, age: 320 });
+                stateRef.current.trail.push({ x: curX, y: curY, age: 800 });
                 if (stateRef.current.trail.length > MAX_TRAIL) stateRef.current.trail.shift();
               } else {
-                stateRef.current.trail1.push({ x: curX, y: curY, age: 320 });
+                stateRef.current.trail1.push({ x: curX, y: curY, age: 800 });
                 if (stateRef.current.trail1.length > MAX_TRAIL) stateRef.current.trail1.shift();
               }
             }
@@ -2295,7 +2295,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     const y = rect.height > 0 ? ((e.clientY - rect.top) / rect.height) * canvas.height : 0;
 
     // Track slash trail
-    stateRef.current.trail.push({ x, y, age: 300 }); // trail holds for 300ms
+    stateRef.current.trail.push({ x, y, age: 800 }); // visually beautiful long trail
     stateRef.current.totalSlashes += 1;
 
     // Record normalized slash coordinate for Replay (0 to 1 scaling)
