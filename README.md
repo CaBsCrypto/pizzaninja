@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/ninja_turtle.png" alt="Slash Slice Mascot" width="200"/>
+  <img src="public/slash_slice_banner.png" alt="Slash Slice Epic Banner" width="800" style="border-radius: 12px; margin-bottom: 20px;" />
   
   # 🍕 Slash Slice: Turtle Ninja Edition ⚔️
   
@@ -35,6 +35,69 @@ With a custom 60 FPS physics engine, mathematically rigorous spring-damper rende
 * **AI Vision:** MediaPipe Hands (Lite Model @ 30fps capped for main-thread freedom)
 * **Backend:** Go (WebSockets server) *(Pending Integration / Active Dev)*
 * **Web3/Blockchain:** Soroban (Stellar Network), Freighter Wallet API
+
+---
+
+## 📐 Architecture & Workflows
+
+### 1. High-Level System Architecture
+This diagram illustrates how the Computer Vision AI, the 60FPS Game Engine, and the Web3 integration connect.
+
+```mermaid
+graph TD
+    subgraph Frontend ["React + Vite App (Frontend)"]
+        UI["UI Components & Menus"]
+        Canvas["PizzaCanvas Engine (60 FPS)"]
+    end
+    
+    subgraph AI ["Computer Vision"]
+        Webcam("Webcam Stream")
+        MediaPipe["MediaPipe Hands (30 FPS Cap)"]
+    end
+    
+    subgraph Web3 ["Stellar Blockchain"]
+        Freighter("Freighter Wallet")
+        Soroban["Soroban Smart Contracts"]
+    end
+
+    Webcam -->|Video Frames| MediaPipe
+    MediaPipe -->|X/Y Coordinates (EMA Smoothed)| Canvas
+    Canvas -->|Score & Duration Data| UI
+    UI -->|Connect & Sign| Freighter
+    Freighter -->|Submit Record On-Chain| Soroban
+```
+
+### 2. Game Loop & Performance Flow
+A sequence of how the user interacts with the app, ensuring the main thread is never blocked.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant App as React App
+    participant AI as HandTracker (MediaPipe)
+    participant Engine as PizzaCanvas (Engine)
+
+    User->>App: Clicks "Activar Cámara"
+    App->>AI: Initialize & Load Models
+    AI->>User: Request Camera Permission
+    AI-->>App: Tracking Active
+    App->>Engine: Start Game Countdown
+    
+    loop Inference Loop (33ms / 30fps)
+        AI->>AI: Process Video Frame
+        AI-->>Engine: Send Raw Coordinates
+    end
+
+    loop Render Loop (16ms / 60fps)
+        Engine->>Engine: Interpolate Hand Position (smoothDamp)
+        Engine->>Engine: Calculate Physics & Gravity
+        Engine->>Engine: Check Slicing Collisions
+        Engine->>Engine: Draw Particles & Screen Shake
+    end
+
+    Engine-->>App: Game Over Triggered
+    App->>User: Show Score Popup (z-index 100)
+```
 
 ---
 
