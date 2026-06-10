@@ -3043,19 +3043,19 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             : 'bg-slate-950/20'
         }`}>
           {/* TOP NAVIGATION BAR */}
-          <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-50 pointer-events-none">
+          <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-[60] pointer-events-none">
             {/* Left Icons */}
-            <div className="flex flex-row gap-2 md:gap-3 pointer-events-auto">
-              <button onClick={() => { setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)]">
+            <div className="flex flex-row gap-2 md:gap-3 pointer-events-auto relative z-[60]">
+              <button onClick={() => { setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer">
                 🗡️
               </button>
-              <button onClick={() => { setActiveModal('rules'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+              <button onClick={() => { setActiveModal('rules'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer">
                 📋
               </button>
             </div>
 
             {/* Right Icons + Wallet */}
-            <div className="flex flex-row items-center gap-2 md:gap-3 pointer-events-auto">
+            <div className="flex flex-row items-center gap-2 md:gap-3 pointer-events-auto relative z-[60]">
               <button onClick={() => { setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)]" title="Ajustes">
                 ⚙️
               </button>
@@ -3187,7 +3187,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
           {/* Modal Overlay */}
           {activeModal && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" onClick={() => setActiveModal(null)}>
+            <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md pointer-events-auto" onClick={() => setActiveModal(null)}>
               <div 
                 className="panel-clash p-5 md:p-6 rounded-3xl w-full max-w-md animate-[bounce-in_0.3s_cubic-bezier(0.175,0.885,0.32,1.275)]"
                 onClick={e => e.stopPropagation()}
