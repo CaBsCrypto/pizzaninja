@@ -1863,11 +1863,11 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       slicedPieces.length = activePiecesCount;
     } // End of if (isPlaying)
 
-    // --- MENU / CALIBRATION LOOP (START PIZZA) ---
-      if (countdown === null && !isPlaying) {
+    // --- MENU / CALIBRATION LOOP (START PIZZA ONLY FOR CAMERA MODE) ---
+      if (countdown === null && !isPlaying && controlMode === 'camera' && handDetected) {
         const isMobileStart = width < 600;
         const startX = width / 2;
-        const startY = height / 2 + (isMobileStart ? 0 : 20); // slightly offset to match mascot
+        const startY = height / 2;
         const startRadius = isMobileStart ? 60 : 85;
 
         // Draw floating "Start" Pizza (Golden / special)
@@ -1897,7 +1897,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         ctx.textBaseline = 'middle';
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
         ctx.shadowBlur = 4;
-        ctx.fillText('¡CORTAR PARA', 0, -startRadius - 20);
+        ctx.fillText('¡CORTA PARA', 0, -startRadius - 20);
         ctx.fillText('INICIAR!', 0, -startRadius);
         ctx.restore();
 
@@ -2978,24 +2978,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                   <span className="font-pixel text-white text-[9px] tracking-wider sm:hidden">BOVEDA</span>
                 </button>
               )}
-
-              {/* Elegant Mode Toggles - Moved to Top Nav */}
-              <div className="flex bg-slate-900/80 rounded-full border border-slate-700 p-1 shadow-lg ml-2">
-                <button
-                  onPointerDown={(e) => { e.stopPropagation(); setControlMode('mouse'); playWebSound('splat'); }}
-                  className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all ${controlMode === 'mouse' ? 'bg-amber-500 border border-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'hover:bg-slate-800'}`}
-                  title="Modo Ratón/Táctil"
-                >
-                  <span className="text-xl md:text-2xl">🖱️</span>
-                </button>
-                <button
-                  onPointerDown={(e) => { e.stopPropagation(); setControlMode('camera'); playWebSound('splat'); }}
-                  className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all ${controlMode === 'camera' ? 'bg-blue-500 border border-blue-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'hover:bg-slate-800'}`}
-                  title="Modo Cámara (IA)"
-                >
-                  <span className="text-xl md:text-2xl">📷</span>
-                </button>
-              </div>
             </div>
           </div>
 
@@ -3026,17 +3008,50 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                     </div>
                   )}
 
-                  {/* AAA Play Buttons Removed - Start Pizza logic replaces them */}
+                  {/* AAA Play Buttons */}
+                  <div className="flex flex-col gap-3 mt-6 pointer-events-auto z-50 w-full max-w-xs landscape:max-w-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setControlMode('mouse');
+                        playWebSound('slash');
+                        initiateCountdown();
+                      }}
+                      className="bg-gradient-to-b from-amber-400 to-amber-600 border-[3px] border-amber-200 rounded-2xl py-4 px-6 text-white font-pixel text-xl md:text-2xl uppercase tracking-widest drop-shadow-[0_4px_0_#b45309] active:translate-y-1 active:drop-shadow-[0_0px_0_#b45309] transition-all hover:brightness-110 flex items-center justify-center gap-3 w-full cursor-pointer shadow-2xl"
+                    >
+                      <span className="text-3xl drop-shadow-md">🖱️</span>
+                      <span>JUGAR NORMAL</span>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setControlMode('camera');
+                        playWebSound('slash');
+                      }}
+                      className="bg-gradient-to-b from-blue-500 to-blue-700 border-[3px] border-blue-300 rounded-2xl py-3 px-6 text-white font-pixel text-lg md:text-xl uppercase tracking-widest drop-shadow-[0_4px_0_#1e3a8a] active:translate-y-1 active:drop-shadow-[0_0px_0_#1e3a8a] transition-all hover:brightness-110 flex items-center justify-center gap-3 w-full cursor-pointer shadow-xl opacity-90 hover:opacity-100"
+                    >
+                      <span className="text-2xl drop-shadow-md">📷</span>
+                      <span>JUGAR CÁMARA (IA)</span>
+                    </button>
+                  </div>
                 </div>
               </>
             ) : (
               /* CAMERA MODE WAITING UI */
-              <div className="flex flex-col items-center justify-center text-center mt-[-4rem] pointer-events-none w-full max-w-sm">
+              <div className="flex flex-col items-center justify-center text-center mt-auto mb-10 pointer-events-none w-full max-w-sm absolute bottom-10 left-1/2 -translate-x-1/2">
                 {!handDetected && (
-                  <h2 className="text-xl md:text-2xl font-pixel text-white text-stroke-title drop-shadow-xl animate-pulse bg-blue-900/50 p-4 rounded-xl border border-blue-500/50">
-                    📷 BUSCANDO TU MANO...
+                  <h2 className="text-xl md:text-2xl font-pixel text-white text-stroke-title drop-shadow-xl animate-pulse bg-blue-900/80 p-4 rounded-xl border border-blue-500/50 shadow-2xl">
+                    📷 ACERCA TU MANO A LA CÁMARA...
                   </h2>
                 )}
+                
+                <button 
+                  onClick={() => { setControlMode('mouse'); playWebSound('splat'); }}
+                  className="mt-4 px-6 py-2 bg-slate-800/90 border-2 border-slate-600 rounded-full text-slate-300 font-pixel text-xs uppercase tracking-widest hover:bg-slate-700 hover:text-white hover:border-slate-500 transition-all pointer-events-auto shadow-lg"
+                >
+                  ◀ VOLVER AL RATÓN
+                </button>
               </div>
             )}
           </div>
