@@ -3007,7 +3007,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                       className="bg-gradient-to-b from-blue-500 to-blue-700 border-[3px] border-blue-300 rounded-2xl py-3 px-6 text-white font-pixel text-lg md:text-xl uppercase tracking-widest drop-shadow-[0_4px_0_#1e3a8a] active:translate-y-1 active:drop-shadow-[0_0px_0_#1e3a8a] transition-all hover:brightness-110 flex items-center justify-center gap-3 w-full cursor-pointer shadow-xl opacity-90 hover:opacity-100"
                     >
                       <span className="text-2xl drop-shadow-md">📷</span>
-                      <span>JUGAR CÁMARA (IA)</span>
+                      <span>JUGAR CÁMARA</span>
                     </button>
                   </div>
                 </div>
