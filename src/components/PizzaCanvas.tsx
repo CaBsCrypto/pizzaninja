@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Play, RotateCcw, Volume2, VolumeX, ShieldAlert, Zap, Flame, CalendarClock, Trophy, Music, Volume1, Maximize2, Minimize2 } from 'lucide-react';
+import { Play, RotateCcw, Volume2, VolumeX, ShieldAlert, Zap, Flame, CalendarClock, Trophy, Music, Volume1, Maximize2, Minimize2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PizzaType, PizzaState, GameItem, Particle, SlicedPiece, TrailPoint, SlashReplayPoint } from '../types';
 import HandTracker from './HandTracker';
