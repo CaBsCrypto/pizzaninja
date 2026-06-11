@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Shield, Fingerprint, Key, Zap, CheckCircle2, XCircle } from 'lucide-react';
-import { connectWallet, kit } from '../services/stellarWallet';
+import { Shield, Fingerprint, Key, Zap, CheckCircle2, XCircle, Mail } from 'lucide-react';
+import { connectWallet, kit, initWeb3Auth, connectGmailWallet } from '../services/stellarWallet';
 
 export interface StellarWalletState {
   connected: boolean;
   publicKey: string | null;
-  walletType: 'freighter' | 'passkey' | null;
+  walletType: 'freighter' | 'passkey' | 'gmail' | null;
 }
 
 interface StellarHubProps {
@@ -16,6 +16,27 @@ interface StellarHubProps {
 
 export default function StellarHub({ walletState, setWalletState, onToastMessage }: StellarHubProps) {
   const [isConnecting, setIsConnecting] = useState(false);
+
+  React.useEffect(() => {
+    initWeb3Auth();
+  }, []);
+
+  const handleConnectGmail = async () => {
+    setIsConnecting(true);
+    try {
+      const publicKey = await connectGmailWallet();
+      if (publicKey) {
+        setWalletState({ connected: true, publicKey, walletType: 'gmail' });
+        onToastMessage("Cuenta creada y conectada con Gmail", 'success');
+      } else {
+        onToastMessage("Fallo al conectar con Google", 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      onToastMessage("Error en el login de Gmail", 'error');
+    }
+    setIsConnecting(false);
+  };
 
   const handleConnectWallet = async () => {
     setIsConnecting(true);
@@ -135,6 +156,25 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
             </div>
             <Key className="w-5 h-5 text-purple-400 group-hover:text-purple-300 relative z-10" />
           </button>
+
+          {/* Gmail / Web3Auth Button */}
+          <button
+            onClick={handleConnectGmail}
+            disabled={isConnecting}
+            className="w-full bg-gradient-to-r from-red-900 to-rose-900 hover:from-red-800 hover:to-rose-800 border-2 border-red-500 text-white rounded-2xl p-4 flex items-center justify-between transition-all group shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer disabled:opacity-50 relative overflow-hidden"
+          >
+            <div className="absolute -left-4 -top-4 w-16 h-16 bg-red-500/20 rounded-full blur-xl group-hover:scale-150 transition-transform" />
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="bg-red-500/30 p-2 rounded-xl group-hover:scale-110 transition-transform">
+                <Mail className="w-6 h-6 text-red-300" />
+              </div>
+              <div className="text-left">
+                <h4 className="font-pixel text-xs text-red-100">Crear Billetera Instantánea</h4>
+                <span className="font-sans text-[10px] text-red-300 block mt-0.5">Ingresar con Gmail / Google</span>
+              </div>
+            </div>
+            <Zap className="w-5 h-5 text-red-400 group-hover:text-red-300 relative z-10" />
+          </button>
         </>
       ) : (
         <div className="bg-slate-900 rounded-2xl p-4 border border-slate-700 shadow-inner">
@@ -147,7 +187,7 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
             <div>
               <h4 className="font-pixel text-sm text-white">Conectado a Stellar</h4>
               <span className="font-sans text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                {walletState.walletType === 'freighter' ? 'Vía Freighter' : 'Vía Passkey Smart Wallet'}
+                {walletState.walletType === 'freighter' ? 'Vía Freighter' : walletState.walletType === 'gmail' ? 'Vía Cuenta de Google' : 'Vía Passkey Smart Wallet'}
               </span>
             </div>
           </div>
