@@ -1,7 +1,7 @@
 import { StellarWalletsKit, WalletNetwork, allowAllModules } from '@creit.tech/stellar-wallets-kit';
 import { Web3Auth } from "@web3auth/modal";
 import { CHAIN_NAMESPACES } from "@web3auth/base";
-import { OpenloginAdapter } from "@web3auth/openlogin-adapter";
+import { AuthAdapter } from "@web3auth/auth-adapter";
 import { Keypair } from "@stellar/stellar-sdk";
 import { Buffer } from "buffer";
 
@@ -28,12 +28,12 @@ export const web3auth = new Web3Auth({
   },
 });
 
-const openloginAdapter = new OpenloginAdapter({
+const authAdapter = new AuthAdapter({
   adapterSettings: {
     uxMode: "popup",
   },
 });
-web3auth.configureAdapter(openloginAdapter);
+web3auth.configureAdapter(authAdapter);
 
 export const initWeb3Auth = async () => {
   try {
