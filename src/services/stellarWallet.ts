@@ -1,9 +1,8 @@
-import { StellarWalletsKit, allowAllModules } from '@creit-tech/stellar-wallets-kit';
+import { StellarWalletsKit } from '@creit-tech/stellar-wallets-kit';
 
 export const kit = new StellarWalletsKit({
   network: 'TESTNET' as any,
   selectedWalletId: 'freighter',
-  modules: allowAllModules(),
 });
 
 export const connectWallet = async (): Promise<string | null> => {
