@@ -1,7 +1,8 @@
 import { StellarWalletsKit, WalletNetwork, allowAllModules } from '@creit.tech/stellar-wallets-kit';
 import { Web3Auth } from "@web3auth/modal";
-import { CHAIN_NAMESPACES } from "@web3auth/base";
+import { CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/base";
 import { AuthAdapter } from "@web3auth/auth-adapter";
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import { Keypair } from "@stellar/stellar-sdk";
 import { Buffer } from "buffer";
 
@@ -14,18 +15,24 @@ export const kit = new StellarWalletsKit({
 // Web3Auth Initialization
 const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiIQKQweLAHDshKpYGLm0k7D2v3mD2K9N_A-c"; // Default Sapphire Devnet Client ID
 
+const chainConfig = {
+  chainNamespace: CHAIN_NAMESPACES.EIP155,
+  chainId: "0x1",
+  rpcTarget: "https://rpc.ankr.com/eth",
+  displayName: "Ethereum Mainnet",
+  blockExplorerUrl: "https://etherscan.io",
+  ticker: "ETH",
+  tickerName: "Ethereum",
+};
+
+const privateKeyProvider = new EthereumPrivateKeyProvider({
+  config: { chainConfig }
+});
+
 export const web3auth = new Web3Auth({
   clientId,
-  web3AuthNetwork: "sapphire_devnet",
-  chainConfig: {
-    chainNamespace: CHAIN_NAMESPACES.OTHER,
-    chainId: "testnet",
-    rpcTarget: "https://horizon-testnet.stellar.org",
-    displayName: "Stellar Testnet",
-    blockExplorerUrl: "https://stellar.expert/explorer/testnet",
-    ticker: "XLM",
-    tickerName: "Stellar Lumens",
-  },
+  web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
+  privateKeyProvider,
 });
 
 const authAdapter = new AuthAdapter({
