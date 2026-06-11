@@ -2850,7 +2850,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           {/* Fullscreen Toggler */}
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               toggleFullscreen();
               playWebSound('splat');
             }}
@@ -2921,20 +2922,20 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-[60]">
             {/* Left Icons */}
             <div className="flex flex-row gap-2 md:gap-3 pointer-events-auto relative z-[60]">
-              <button onPointerDown={(e) => { e.stopPropagation(); setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer">
+              <button onClick={(e) => { e.stopPropagation(); setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer">
                 🗡️
               </button>
-              <button onPointerDown={(e) => { e.stopPropagation(); setActiveModal('rules'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer">
+              <button onClick={(e) => { e.stopPropagation(); setActiveModal('rules'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer">
                 📋
               </button>
             </div>
 
             {/* Right Icons + Wallet */}
             <div className="flex flex-row items-center gap-2 md:gap-3 pointer-events-auto relative z-[60]">
-              <button onPointerDown={(e) => { e.stopPropagation(); setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)] cursor-pointer" title="Ajustes">
+              <button onClick={(e) => { e.stopPropagation(); setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)] cursor-pointer" title="Ajustes">
                 ⚙️
               </button>
-              <button onPointerDown={(e) => { e.stopPropagation(); toggleFullscreen(); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)] cursor-pointer" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
+              <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)] cursor-pointer" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
                 {isFullscreen ? <Minimize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" /> : <Maximize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" />}
               </button>
               
@@ -2948,7 +2949,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                 </div>
               ) : (
                 <button
-                  onPointerDown={async (e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
                     const installed = await isFreighterInstalled();
                     if (!installed) {
