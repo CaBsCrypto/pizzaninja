@@ -2663,7 +2663,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
   return (
     <div className="space-y-4 w-full relative max-w-4xl mx-auto">
-      <div ref={containerRef} className={`relative w-full max-w-4xl mx-auto bg-slate-950/95 rounded-3xl shadow-2xl flex flex-col border-4 overflow-hidden transition-colors duration-150 ${
+      <div ref={containerRef} className={`relative w-full max-w-4xl mx-auto bg-slate-950/95 rounded-3xl shadow-2xl flex flex-col border-4 overflow-hidden transform-gpu transition-colors duration-150 ${
         damageFlash ? 'border-red-600 bg-red-950/80 shadow-[0_0_50px_rgba(220,38,38,0.8)]' : 'border-amber-500'
       } ${
         isPlaying 
@@ -2879,7 +2879,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       {/* Dynamic accuracy-based Combo Overlay removed to optimize performance. Replaced by Canvas text. */}
 
       {/* Screen Canvas wrapper to prevent infinite ResizeObserver loops */}
-      <div className="relative flex-1 w-full min-h-0 overflow-hidden">
+      <div className="relative flex-1 w-full min-h-0 overflow-hidden rounded-3xl">
         <canvas
           ref={canvasRef}
           onPointerDown={handlePointerDown}
@@ -2902,7 +2902,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       {/* Main Menu Overlay */}
       {!isPlaying && !isRegistering && (
-        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-4 select-none overflow-hidden transition-all duration-300 ${
+        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-4 select-none overflow-hidden rounded-3xl transition-all duration-300 ${
           controlMode === 'camera'
             ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/20 pointer-events-auto')
             : 'bg-slate-950/20 pointer-events-auto'
