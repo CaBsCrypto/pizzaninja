@@ -364,7 +364,7 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   // Track active mode tab selection
-  const [activeTab, setActiveTab] = useState<'arcade' | 'classic' | 'zen'>('arcade');
+  const [activeTab, setActiveTab] = useState<'arcade' | 'classic'>('arcade');
 
   // Filter scores by active mode (fallback missing modes to 'arcade' default)
   const filteredScores = scores.filter(record => {
@@ -405,8 +405,8 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
 
         {/* Game Mode Tabs Selector */}
         <div className="flex bg-blue-900/10 border-2 border-blue-900/20 p-1.5 rounded-2xl mb-4 font-vt text-lg gap-1 shadow-inner">
-          {(['arcade', 'classic', 'zen'] as const).map((mode) => {
-            const label = mode === 'classic' ? 'Clásico' : mode === 'zen' ? 'Zen' : 'Arena';
+          {(['arcade', 'classic'] as const).map((mode) => {
+            const label = mode === 'classic' ? 'Clásico' : 'Arena';
             const active = activeTab === mode;
             return (
               <button

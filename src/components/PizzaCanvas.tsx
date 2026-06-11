@@ -7,7 +7,7 @@ import { gameSocket } from '../services/websocket';
 import { connectFreighter, isFreighterInstalled } from '../services/stellarWallet';
 import { getSpriteCache, drawCachedPizzaSlice } from '../graphics/PizzaSpriteCache';
 
-export type GameMode = 'arcade' | 'classic' | 'zen';
+export type GameMode = 'arcade' | 'classic';
 
 interface PizzaCanvasProps {
   onGameOver: (score: number, duration: number, slashes: number, slashHistory: SlashReplayPoint[], gameStartTimestamp?: number, gameMode?: string) => void;
@@ -66,7 +66,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   
   const [gameMode, setGameMode] = useState<GameMode>(() => {
     const saved = localStorage.getItem('ninja_game_mode');
-    return (saved === 'classic' || saved === 'zen') ? saved : 'arcade';
+    return (saved === 'classic') ? saved : 'arcade';
   });
 
   const selectGameMode = (mode: GameMode) => {
@@ -510,7 +510,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       const gainNode = ctx.createGain();
 
       // Implement dynamic resonance filter (intensity) for high combos (>5) or splash intensity
-      if (comboFactor > 5 && (type === 'slash' || type === 'splat')) {
+      if (comboFactor > 5 && (type === 'slash' | 'splat')) {
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
         // Sweep frequency upwards based on intensity
@@ -614,8 +614,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     const prev = stateRef.current;
     stateRef.current = {
       score: 0,
-      lives: gameMode === 'zen' ? 999 : 3,
-      timeLeft: gameMode === 'zen' ? 999999 : 45,
+      lives: 3,
+      timeLeft: 45,
       gameMode: gameMode,
       items: [],
       particles: [],
@@ -1087,8 +1087,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       const id = stateRef.current.nextId++;
       
       const rand = Math.random();
-      // In Zen mode, we filter out Pineapple and Burnt pizzas (obstacles)
-      const adjustedRand = stateRef.current.gameMode === 'zen' ? rand * 0.74 : rand;
+      const adjustedRand = rand;
       let type = PizzaType.Pepperoni;
       let color = '#ef4444'; // default red
       let points = 10;
@@ -1352,7 +1351,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         }
       }
 
-      // Update and draw sword slash trails
+      // Update and Draw sword slash trails
       const trail = stateRef.current.trail;
       if (!isPaused) {
         let activeCount = 0;
@@ -1467,9 +1466,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             const maxSparksCount = tipDist > 20 ? 3 : 1;
 
             for (let s = 0; s < maxSparksCount; s++) {
-              if (mode === 'zen') {
-                customGravity = 0.012; // slow elegant float
-              } else if (mode === 'classic') {
+              if (mode === 'classic') {
                 customGravity = -0.015; // upward drift
               } else {
                 customGravity = 0.05; // classic arcade bounce
@@ -2700,32 +2697,22 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           </div>
 
           {/* Lives list pill */}
-          {gameMode !== 'zen' ? (
-            <div className="bg-slate-900/95 border-4 border-red-500 px-4 py-2 rounded-2xl shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center gap-2">
-              {[1, 2, 3].map((pizzaLifeId) => (
-                <span
-                  key={pizzaLifeId}
-                  id={`hud-life-${pizzaLifeId}`}
-                  className={`transition-all duration-300 text-2xl ${
-                    stateRef.current.lives >= pizzaLifeId 
-                      ? 'opacity-100 scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'
-                      : 'opacity-30 grayscale scale-75'
-                  }`}
-                  title={`Vida ${pizzaLifeId}`}
-                >
-                  🍕
-                </span>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-green-500/90 border-2 border-green-400 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg border-b-4 border-green-800 text-white font-pixel text-sm text-stroke-sm">
-              <span className="flex h-2 w-2 relative shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+          <div className="bg-slate-900/95 border-4 border-red-500 px-4 py-2 rounded-2xl shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center gap-2">
+            {[1, 2, 3].map((pizzaLifeId) => (
+              <span
+                key={pizzaLifeId}
+                id={`hud-life-${pizzaLifeId}`}
+                className={`transition-all duration-300 text-2xl ${
+                  stateRef.current.lives >= pizzaLifeId 
+                    ? 'opacity-100 scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'
+                    : 'opacity-30 grayscale scale-75'
+                }`}
+                title={`Vida ${pizzaLifeId}`}
+              >
+                🍕
               </span>
-              <span>MODO ZEN</span>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
 
         {/* Right indicators: Audio & Timer */}
@@ -3126,11 +3113,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                       {/* Game Mode */}
                       <div>
                         <h3 className="font-pixel text-[10px] text-blue-300 uppercase mb-3">Modo de Juego</h3>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           {[
                             { id: 'arcade', label: 'Árcade', icon: '⏱️' },
-                            { id: 'classic', label: 'Clásico', icon: '💖' },
-                            { id: 'zen', label: 'Zen', icon: '🧘' }
+                            { id: 'classic', label: 'Clásico', icon: '💖' }
                           ].map(mode => (
                             <button
                               key={mode.id}
