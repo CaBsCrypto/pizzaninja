@@ -365,6 +365,8 @@ export default function App() {
               setIsPlaying={setIsPlaying}
               onToastMessage={showToast}
               isRegistering={pendingScore !== null}
+              walletPublicKey={walletState.publicKey}
+              onOpenWallet={() => setIsWalletOpen(true)}
             />
           </div>
 
