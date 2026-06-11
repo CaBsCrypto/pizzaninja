@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, Fingerprint, Key, Zap, CheckCircle2, XCircle } from 'lucide-react';
-import { connectFreighter, isFreighterInstalled } from '../services/stellarWallet';
+import { connectWallet, kit } from '../services/stellarWallet';
 
 export interface StellarWalletState {
   connected: boolean;
@@ -17,26 +17,25 @@ interface StellarHubProps {
 export default function StellarHub({ walletState, setWalletState, onToastMessage }: StellarHubProps) {
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const handleConnectFreighter = async () => {
+  const handleConnectWallet = async () => {
     setIsConnecting(true);
     try {
-      const installed = await isFreighterInstalled();
-      if (!installed) {
-        onToastMessage("Freighter no está instalado. Redirigiendo...", 'error');
-        window.open('https://freighter.app', '_blank');
-        setIsConnecting(false);
-        return;
-      }
-      
-      const pubKey = await connectFreighter();
-      if (pubKey) {
-        setWalletState({ connected: true, publicKey: pubKey, walletType: 'freighter' });
-        onToastMessage("Bóveda de Freighter conectada", 'success');
-      } else {
-        onToastMessage("Conexión rechazada o fallida", 'error');
-      }
+      // openModal is handled by our service wrapper, but it opens the official SDK UI
+      kit.openModal({
+        onWalletSelected: async (option) => {
+          try {
+            kit.setWallet(option.id);
+            const { address } = await kit.getAddress();
+            setWalletState({ connected: true, publicKey: address, walletType: 'freighter' }); // Using 'freighter' as general wallet type for now
+            onToastMessage(`Bóveda conectada: ${option.name}`, 'success');
+          } catch (e) {
+            console.error(e);
+            onToastMessage("Conexión rechazada", 'error');
+          }
+        }
+      });
     } catch (e) {
-      onToastMessage("Error al conectar Freighter", 'error');
+      onToastMessage("Error al abrir selector de wallets", 'error');
     }
     setIsConnecting(false);
   };
@@ -60,6 +59,7 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
           },
           pubKeyCredParams: [{ type: "public-key", alg: -7 }], // ES256
           authenticatorSelection: {
+            authenticatorAttachment: "platform",
             userVerification: "preferred"
           },
           timeout: 60000,
@@ -97,9 +97,9 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
             Inicia sesión en el ecosistema Stellar de forma segura para registrar tus puntuaciones en el ledger.
           </p>
 
-          {/* Freighter Button */}
+          {/* Multi-Wallet Button */}
           <button
-            onClick={handleConnectFreighter}
+            onClick={handleConnectWallet}
             disabled={isConnecting}
             className="w-full bg-slate-900 hover:bg-slate-800 border-2 border-blue-500 text-white rounded-2xl p-4 flex items-center justify-between transition-all group shadow-lg cursor-pointer disabled:opacity-50"
           >
@@ -108,8 +108,8 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
                 <Shield className="w-6 h-6 text-blue-400" />
               </div>
               <div className="text-left">
-                <h4 className="font-pixel text-xs text-blue-100">Freighter Wallet</h4>
-                <span className="font-sans text-[10px] text-blue-300 block mt-0.5">Billetera de extensión web</span>
+                <h4 className="font-pixel text-xs text-blue-100">Billeteras Web3</h4>
+                <span className="font-sans text-[10px] text-blue-300 block mt-0.5">Albedo, Freighter, xBull...</span>
               </div>
             </div>
             <Zap className="w-5 h-5 text-blue-500 group-hover:text-blue-400" />
