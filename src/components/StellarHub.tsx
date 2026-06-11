@@ -56,10 +56,11 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
             id: new Uint8Array(16),
             name: "ninja@slashslice.com",
             displayName: "Pizza Ninja"
-          },
-          pubKeyCredParams: [{ type: "public-key", alg: -7 }], // ES256
+          pubKeyCredParams: [
+            { type: "public-key", alg: -7 },   // ES256
+            { type: "public-key", alg: -257 }  // RS256 (Windows Hello)
+          ],
           authenticatorSelection: {
-            authenticatorAttachment: "platform",
             userVerification: "preferred"
           },
           timeout: 60000,
