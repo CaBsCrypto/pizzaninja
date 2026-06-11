@@ -1861,88 +1861,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         slicedPieces[activePiecesCount++] = piece;
       }
       slicedPieces.length = activePiecesCount;
-        // --- MENU / CALIBRATION LOOP ---
-        if (countdown === null) {
-          const isMobileStart = width < 600;
-          const startX = width / 2;
-          const startY = height / 2 + Math.sin(Date.now() * 0.003) * 15; // slow hovering
-          const startRadius = isMobileStart ? 90 : 130;
-
-          // Draw rotating pizza vector
-          ctx.save();
-          ctx.translate(startX, startY);
-          const startRotation = (Date.now() * 0.0008) % (Math.PI * 2);
-          
-          // Draw pizza radial glow
-          if (!effectivePerformanceMode) {
-            const fillGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, startRadius * 1.2);
-            fillGrad.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
-            fillGrad.addColorStop(0.5, 'rgba(239, 68, 68, 0.15)');
-            fillGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = fillGrad;
-            ctx.beginPath();
-            ctx.arc(0, 0, startRadius * 1.2, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          // Draw the pizza itself (pepperoni whole pizza)
-          drawPizzaVector(ctx, PizzaType.Pepperoni, PizzaState.Whole, startRadius, startRotation, 0);
-          ctx.restore();
-
-          // Draw Start text banner "¡CORTA PARA EMPEZAR!"
-          ctx.shadowColor = 'rgba(0,0,0,0.8)';
-          ctx.shadowBlur = 10;
-          ctx.shadowOffsetY = 4;
-          
-          ctx.fillStyle = '#fff';
-          ctx.strokeStyle = '#ea580c'; // orange-600 outline
-          ctx.lineWidth = 6;
-          ctx.font = '32px "Lilita One", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          
-          const textY = startY + startRadius + 45;
-          ctx.strokeText('¡CORTA PARA EMPEZAR!', startX, textY);
-          ctx.fillText('¡CORTA PARA EMPEZAR!', startX, textY);
-          
-          ctx.shadowBlur = 0;
-          ctx.shadowOffsetY = 0;
-
-          // Check if hand/mouse trail slices this Start Pizza!
-          [activeTrail, activeTrail1].forEach(trail => {
-            if (trail.length > 1) {
-              const p1 = trail[trail.length - 2];
-              const p2 = trail[trail.length - 1];
-              const hit = checkLineCircleCollision(p1.x, p1.y, p2.x, p2.y, startX, startY, startRadius);
-              if (hit > 0) {
-                // Play slice sounds!
-                playWebSound('splat');
-                playWebSound('slash');
-                
-                // Spawn splash sparkles particle explosion!
-                const numSparks = 20;
-                for (let s = 0; s < numSparks; s++) {
-                  const sAngle = Math.random() * Math.PI * 2;
-                  const sSpeed = 3.5 + Math.random() * 5;
-                  stateRef.current.particles.push({
-                    x: startX,
-                    y: startY,
-                    vx: Math.cos(sAngle) * sSpeed,
-                    vy: Math.sin(sAngle) * sSpeed - 2,
-                    color: '#f43f5e',
-                    alpha: 1.0,
-                    size: Math.random() * 3 + 1.5,
-                    gravity: 0.15,
-                  });
-                }
-                
-                // Start the game with countdown!
-                initiateCountdown();
-              }
-            }
-          });
-        }
-      }
+        // The "Start Pizza" mechanic was removed in favor of explicit Play buttons in the UI.
 
       // 6. Update and Draw Crumb particles and Shockwaves
       // Performance Optimization: Scale max particles based on screen size to prevent mobile rendering lag
@@ -3016,45 +2935,68 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                     </div>
                   )}
 
-                  {/* Small Control Mode Toggles */}
-                  <div className="flex flex-row gap-4 mt-6 pointer-events-auto z-50">
+                  {/* AAA Play Buttons */}
+                  <div className="flex flex-col gap-3 mt-6 pointer-events-auto z-50 w-full max-w-xs landscape:max-w-sm">
                     <button
                       type="button"
                       onClick={() => {
                         setControlMode('mouse');
-                        playWebSound('splat');
+                        playWebSound('slash');
+                        initiateCountdown();
                       }}
-                      className={`p-3 rounded-full transition-all duration-150 cursor-pointer shadow-lg flex items-center justify-center ${controlMode === 'mouse' ? 'bg-amber-500 border-2 border-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-slate-800/80 border border-slate-600 hover:bg-slate-700'}`}
-                      title="Jugar con Ratón/Táctil"
+                      className="bg-gradient-to-b from-amber-400 to-amber-600 border-[3px] border-amber-200 rounded-2xl py-4 px-6 text-white font-pixel text-xl md:text-2xl uppercase tracking-widest drop-shadow-[0_4px_0_#b45309] active:translate-y-1 active:drop-shadow-[0_0px_0_#b45309] transition-all hover:brightness-110 flex items-center justify-center gap-3 w-full cursor-pointer shadow-2xl"
                     >
-                      <span className="text-2xl">🖱️</span>
+                      <span className="text-3xl drop-shadow-md">🖱️</span>
+                      <span>JUGAR NORMAL</span>
                     </button>
                     
                     <button
                       type="button"
                       onClick={() => {
                         setControlMode('camera');
-                        playWebSound('splat');
+                        playWebSound('slash');
                       }}
-                      className={`p-3 rounded-full transition-all duration-150 cursor-pointer shadow-lg flex items-center justify-center ${controlMode === 'camera' ? 'bg-blue-500 border-2 border-blue-200 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-slate-800/80 border border-slate-600 hover:bg-slate-700'}`}
-                      title="Activar Cámara"
+                      className="bg-gradient-to-b from-blue-500 to-blue-700 border-[3px] border-blue-300 rounded-2xl py-3 px-6 text-white font-pixel text-lg md:text-xl uppercase tracking-widest drop-shadow-[0_4px_0_#1e3a8a] active:translate-y-1 active:drop-shadow-[0_0px_0_#1e3a8a] transition-all hover:brightness-110 flex items-center justify-center gap-3 w-full cursor-pointer shadow-xl opacity-90 hover:opacity-100"
                     >
-                      <span className="text-2xl">📷</span>
+                      <span className="text-2xl drop-shadow-md">📷</span>
+                      <span>JUGAR CÁMARA (IA)</span>
                     </button>
                   </div>
                 </div>
               </>
             ) : (
-              /* CAMERA MODE WAITING UI - Clear the center so Start Pizza is visible */
-              <div className="flex flex-col items-center justify-center text-center -mt-32 pointer-events-none">
-                <h2 className="text-3xl md:text-4xl font-pixel text-white text-stroke-title drop-shadow-2xl animate-pulse">
-                  {handDetected ? "¡CORTA LA PIZZA!" : "BUSCANDO TU MANO..."}
+              /* CAMERA MODE WAITING UI */
+              <div className="flex flex-col items-center justify-center text-center mt-4 pointer-events-none w-full max-w-sm">
+                <div className="relative group animate-[fade-in-up_0.5s_ease-out] shrink-0 mb-4">
+                  <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-cyan-500/20 rounded-full blur-2xl animate-pulse" />
+                  <div className="w-32 h-32 md:w-48 md:h-48 bg-slate-900 border-4 border-blue-500 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.4)] relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                    <span className="text-6xl md:text-8xl animate-pulse">📷</span>
+                  </div>
+                </div>
+                
+                <h2 className="text-2xl md:text-3xl font-pixel text-white text-stroke-title drop-shadow-xl animate-pulse">
+                  {handDetected ? "¡MANO DETECTADA!" : "BUSCANDO TU MANO..."}
                 </h2>
+                
+                {handDetected ? (
+                  <button 
+                    onClick={() => { playWebSound('slash'); initiateCountdown(); }}
+                    className="mt-6 px-8 py-4 w-full bg-gradient-to-b from-emerald-400 to-emerald-600 border-[3px] border-emerald-200 rounded-2xl text-white font-pixel text-xl md:text-2xl uppercase tracking-widest hover:brightness-110 active:translate-y-1 active:drop-shadow-[0_0px_0_#047857] drop-shadow-[0_4px_0_#047857] transition-all pointer-events-auto shadow-2xl animate-[bounce-in_0.5s]"
+                  >
+                    ▶️ INICIAR PARTIDA
+                  </button>
+                ) : (
+                  <div className="mt-6 px-8 py-4 w-full border-[3px] border-slate-600/50 border-dashed rounded-2xl text-slate-400 font-pixel text-lg uppercase tracking-widest">
+                    Mueve la mano a la cámara
+                  </div>
+                )}
+                
                 <button 
                   onClick={() => { setControlMode('mouse'); playWebSound('splat'); }}
-                  className="mt-6 px-6 py-2 bg-slate-800/80 border border-slate-600 rounded-full text-slate-300 font-sans text-xs uppercase tracking-widest hover:bg-slate-700 hover:text-white transition-all pointer-events-auto"
+                  className="mt-4 px-6 py-2 bg-slate-800/90 border-2 border-slate-600 rounded-full text-slate-300 font-pixel text-xs uppercase tracking-widest hover:bg-slate-700 hover:text-white hover:border-slate-500 transition-all pointer-events-auto shadow-lg"
                 >
-                  Volver al Modo Ratón
+                  ◀ VOLVER AL RATÓN
                 </button>
               </div>
             )}
