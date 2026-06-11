@@ -15,9 +15,11 @@ interface PizzaCanvasProps {
   setIsPlaying: (playing: boolean) => void;
   onToastMessage?: (message: string, type: 'success' | 'info' | 'error') => void;
   isRegistering?: boolean;
+  walletPublicKey?: string | null;
+  onOpenWallet?: () => void;
 }
 
-export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToastMessage, isRegistering = false }: PizzaCanvasProps) {
+export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToastMessage, isRegistering = false, walletPublicKey = null, onOpenWallet }: PizzaCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastHandTrackedTimeRef = useRef<number[]>([0, 0]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -2940,37 +2942,22 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               </button>
               
               {/* Billetera */}
-              {walletPubKey ? (
-                <div className="bg-slate-800/80 border border-emerald-500/50 rounded-full px-3 md:px-5 h-12 md:h-16 flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+              {/* Billetera */}
+              {walletPublicKey ? (
+                <div 
+                  onClick={(e) => { e.stopPropagation(); onOpenWallet?.(); }}
+                  className="bg-slate-800/80 border border-emerald-500/50 rounded-full px-3 md:px-5 h-12 md:h-16 flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] cursor-pointer hover:bg-slate-700 transition"
+                >
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="font-pixel text-emerald-400 text-[9px] md:text-xs">
-                    {walletPubKey.substring(0, 5)}...{walletPubKey.substring(walletPubKey.length - 4)}
+                    {walletPublicKey.substring(0, 5)}...{walletPublicKey.substring(walletPublicKey.length - 4)}
                   </span>
                 </div>
               ) : (
                 <button
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
-                    const installed = await isFreighterInstalled();
-                    if (!installed) {
-                      onToastMessage?.("Freighter no está instalado. Redirigiendo...", 'error');
-                      window.open('https://freighter.app', '_blank');
-                      return;
-                    }
-                    const pubKey = await connectFreighter();
-                    if (pubKey) {
-                      setWalletPubKey(pubKey);
-                      onToastMessage?.("Bóveda de Soroban conectada", 'success');
-                      
-                      if (gameSocket && gameSocket.readyState === WebSocket.OPEN) {
-                        gameSocket.send(JSON.stringify({
-                          type: "WALLET_CONNECT",
-                          pubKey: pubKey
-                        }));
-                      }
-                    } else {
-                      onToastMessage?.("Error al conectar Freighter", 'error');
-                    }
+                    onOpenWallet?.();
                   }}
                   className="bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-blue-400 rounded-full px-3 md:px-5 h-12 md:h-16 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 md:gap-2 shadow-lg cursor-pointer"
                 >

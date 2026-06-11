@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import PizzaCanvas from './components/PizzaCanvas';
 import Leaderboard from './components/Leaderboard';
 import { ScoreRecord, SlashReplayPoint } from './types';
-import SolanaWalletConnector, { SolanaWalletState } from './components/SolanaWalletConnector';
+import StellarHub, { StellarWalletState } from './components/StellarHub';
 
 // Web audio API Helper to make nice sound effects for menu
 function playWebSound(type: 'coin' | 'register') {
@@ -58,17 +58,11 @@ export default function App() {
   // Leaderboard lists
   const [scores, setScores] = useState<ScoreRecord[]>([]);
 
-  // Solana Wallet Adapter global state
-  const [walletState, setWalletState] = useState<SolanaWalletState>(() => {
-    return {
-      connected: false,
-      publicKey: null,
-      domainName: null,
-      balance: 0,
-      isSimulated: false,
-      network: 'sandbox',
-      providerName: null
-    };
+  // Stellar Wallet global state
+  const [walletState, setWalletState] = useState<StellarWalletState>({
+    connected: false,
+    publicKey: null,
+    walletType: null
   });
 
   // Mobile lateral drawer visibility state
@@ -479,17 +473,17 @@ export default function App() {
         className={`fixed right-0 top-1/3 -translate-y-1/2 z-40 py-4 px-2 rounded-l-2xl border-y-4 border-l-4 transition-all duration-200 cursor-pointer flex flex-col items-center gap-2 hover:pl-3 shadow-xl ${
           walletState.connected
             ? 'bg-blue-500 border-blue-700 text-white'
-            : 'bg-red-500 border-red-700 text-white'
+            : 'bg-purple-600 border-purple-800 text-white'
         }`}
-        title="Ver Solana Wallet"
+        title="Ver Stellar Wallet"
       >
         <Wallet className="w-6 h-6 text-white drop-shadow-md animate-bounce" />
         <span className="text-xs font-pixel tracking-wider uppercase select-none [writing-mode:vertical-lr] scale-90 text-stroke-sm">
-          {walletState.connected ? 'WALLET OK' : 'SOLANA'}
+          {walletState.connected ? 'WALLET OK' : 'STELLAR'}
         </span>
       </button>
 
-      {/* Solana Wallet Slide-out Side Drawer ("Drop Bar Lateral") */}
+      {/* Stellar Wallet Slide-out Side Drawer ("Drop Bar Lateral") */}
       <AnimatePresence>
         {isWalletOpen && (
           <>
@@ -517,7 +511,7 @@ export default function App() {
                     <Wallet className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-pixel text-lg text-blue-900 tracking-tight text-stroke-sm text-white">Solana Hub</h3>
+                    <h3 className="font-pixel text-lg text-blue-900 tracking-tight text-stroke-sm text-white">Stellar Hub</h3>
                     <p className="text-sm font-vt text-blue-600 uppercase font-bold leading-none">CONEXIÓN & RÉCORDS</p>
                   </div>
                 </div>
@@ -532,7 +526,7 @@ export default function App() {
 
               {/* Wallet Connector inside the Drawer */}
               <div className="flex-1 overflow-y-auto pr-0.5 space-y-4 scrollbar-thin">
-                <SolanaWalletConnector 
+                <StellarHub 
                   walletState={walletState} 
                   setWalletState={setWalletState} 
                   onToastMessage={showToast} 
@@ -540,9 +534,9 @@ export default function App() {
                 
                 {/* Additional web3 information / records helper to make the drawer look extremely premium */}
                 <div className="bg-slate-900/40 border border-slate-900 p-3 rounded-xl text-[10px] text-slate-400 leading-normal space-y-2">
-                  <span className="font-bold font-sans text-[9px] text-white block uppercase tracking-wider">🎯 Récords On-Chain de Solana</span>
+                  <span className="font-bold font-sans text-[9px] text-white block uppercase tracking-wider">🎯 Récords On-Chain de Stellar</span>
                   <p className="text-[8.5px] text-slate-400 leading-relaxed">
-                    Al conectar tu billetera Solana, tus puntuaciones se guardan de forma inmutable en el ledger descentralizado, vinculadas permanentemente a tu clave pública.
+                    Al conectar tu billetera Stellar, tus puntuaciones se guardan de forma inmutable en el ledger descentralizado de Soroban, vinculadas permanentemente a tu clave pública o Smart Wallet.
                   </p>
                   <div className="flex items-center gap-1.5 text-[8px] font-mono text-indigo-400 font-bold bg-indigo-950/20 border border-indigo-900/35 p-1 rounded-lg">
                     <Star className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '6s' }} />

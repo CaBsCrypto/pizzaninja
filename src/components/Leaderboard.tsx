@@ -473,7 +473,7 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
                         <div className="flex items-center gap-1.5 text-xs text-slate-200 font-mono font-bold tracking-wider uppercase">
                           {record.pubkey ? (
                             <div className="flex items-center gap-1">
-                              <span className="text-purple-400 font-black text-[10px] tracking-wide" title="Cuenta Solana On-Chain">⚡</span>
+                              <span className="text-purple-400 font-black text-[10px] tracking-wide" title="Cuenta Stellar Soroban">🚀</span>
                               <span className="text-cyan-400 font-black hover:text-cyan-300" title={record.pubkey}>
                                 {record.domain || `${record.pubkey.slice(0, 6)}...${record.pubkey.slice(-4)}`}
                               </span>
@@ -562,25 +562,25 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
                             slashHistory={record.slashHistory}
                           />
 
-                          {/* Solana Verification signature details */}
+                          {/* Stellar Verification signature details */}
                           {record.pubkey && (
-                            <div className="bg-purple-950/20 border border-purple-900/40 rounded-xl p-2.5 flex items-center justify-between text-[10px] font-mono mt-3">
-                              <div className="flex items-center gap-2 text-purple-300">
-                                <ShieldCheck className="w-4 h-4 text-purple-400 shrink-0" />
+                            <div className="bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-2.5 flex items-center justify-between text-[10px] font-mono mt-3">
+                              <div className="flex items-center gap-2 text-indigo-300">
+                                <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
                                 <div className="flex flex-col">
-                                  <span className="text-[8px] text-purple-400 font-bold uppercase tracking-widest leading-none">Firma On-Chain</span>
-                                  <span className="text-[9px] text-slate-300 leading-none mt-1 truncate max-w-[170px]" title={record.txHash || 'SlashSliceProgram_Approved'}>
-                                    Tx: {record.txHash || 'SlashSliceProgram_Approved'}
+                                  <span className="text-[8px] text-indigo-400 font-bold uppercase tracking-widest leading-none">Firma On-Chain</span>
+                                  <span className="text-[9px] text-slate-300 leading-none mt-1 truncate max-w-[170px]" title={record.txHash || 'Soroban_Contract_Invoked'}>
+                                    Tx: {record.txHash || 'Soroban_Contract_Invoked'}
                                   </span>
                                 </div>
                               </div>
                               <a
-                                href={`https://explorer.solana.com/address/${record.pubkey}`}
+                                href={`https://stellar.expert/explorer/testnet/account/${record.pubkey}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg px-2 py-1 text-[8px] font-bold text-purple-300 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                                className="bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 rounded-lg px-2 py-1 text-[8px] font-bold text-indigo-300 transition-all flex items-center gap-1 cursor-pointer shrink-0"
                               >
-                                <span>Ver Explorer</span>
+                                <span>Ver en Stellar</span>
                                 <ExternalLink className="w-2.5 h-2.5" />
                               </a>
                             </div>
