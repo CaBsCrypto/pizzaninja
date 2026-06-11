@@ -1,7 +1,7 @@
-import { StellarWalletsKit, WalletNetwork, allowAllModules } from '@creit-tech/stellar-wallets-kit';
+import { StellarWalletsKit, allowAllModules } from '@creit-tech/stellar-wallets-kit';
 
 export const kit = new StellarWalletsKit({
-  network: WalletNetwork.TESTNET,
+  network: 'TESTNET' as any,
   selectedWalletId: 'freighter',
   modules: allowAllModules(),
 });
