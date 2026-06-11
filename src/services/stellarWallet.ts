@@ -37,7 +37,9 @@ web3auth.configureAdapter(openloginAdapter);
 
 export const initWeb3Auth = async () => {
   try {
-    await web3auth.initModal();
+    if (web3auth.status !== "ready" && web3auth.status !== "connected") {
+      await web3auth.initModal();
+    }
   } catch (error) {
     console.error("Web3Auth init failed", error);
   }
