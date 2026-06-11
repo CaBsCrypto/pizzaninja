@@ -2,6 +2,22 @@
 
 Este documento define la visión a largo plazo y las próximas iteraciones para **Slash Slice Arena**. El objetivo es tener una guía de alto nivel que evite la "ceguera de taller" y mantenga el desarrollo enfocado en hitos (milestones) claros y medibles.
 
+## Flujo de Desarrollo
+
+```mermaid
+graph TD
+    A[Fase 1: Consolidación PoC<br>UI/UX, MediaPipe, Web3 Sim] --> B[Fase 2: Integración Web3 Real<br>Rust, Soroban, NFTs Reales]
+    B --> C[Fase 3: Economía & Jugabilidad<br>Token $SLICE, Jefes, Tienda]
+    C --> D[Fase 4: Multijugador & PvP<br>Backend Go, Batallas 1v1]
+    D --> E[Fase 5: Escalamiento<br>PWA, Optimización, Analíticas]
+
+    style A fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
+    style B fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff
+    style C fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
+    style D fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff
+    style E fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff
+```
+
 ---
 
 ## Fase 1: Consolidación del PoC (Prueba de Concepto) 🟢 *[Completado / Actual]*
