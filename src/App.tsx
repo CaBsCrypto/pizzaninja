@@ -345,30 +345,28 @@ export default function App() {
         
         <div className="space-y-4">
           
-          <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl">
-            {/* Score Registry Popup overlay INSIDE the game container */}
-            <AnimatePresence>
-              {pendingScore !== null && !isPlaying && (
-                <motion.div 
-                  initial={{ opacity: 0 }} 
-                  animate={{ opacity: 1 }} 
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-4"
-                >
-                  {scoreRegistrationCard}
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <PizzaCanvas
-              onGameOver={handleGameOver}
-              isPlaying={isPlaying}
-              setIsPlaying={setIsPlaying}
-              onToastMessage={showToast}
-              isRegistering={pendingScore !== null}
-              walletPublicKey={walletState.publicKey}
-              onOpenWallet={() => setIsWalletOpen(true)}
-            />
-          </div>
+          {/* Score Registry Popup overlay INSIDE the game container */}
+          <AnimatePresence>
+            {pendingScore !== null && !isPlaying && (
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-4 rounded-3xl"
+              >
+                {scoreRegistrationCard}
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <PizzaCanvas
+            onGameOver={handleGameOver}
+            isPlaying={isPlaying}
+            setIsPlaying={setIsPlaying}
+            onToastMessage={showToast}
+            isRegistering={pendingScore !== null}
+            walletPublicKey={walletState.publicKey}
+            onOpenWallet={() => setIsWalletOpen(true)}
+          />
 
           {/* Retro Arcade Tips Box */}
           <div className="panel-clash p-5 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
