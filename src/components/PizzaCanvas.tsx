@@ -1861,7 +1861,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         slicedPieces[activePiecesCount++] = piece;
       }
       slicedPieces.length = activePiecesCount;
-        // The "Start Pizza" mechanic was removed in favor of explicit Play buttons in the UI.
+      } // End of if (isPlaying)
+
+      // The "Start Pizza" mechanic was removed in favor of explicit Play buttons in the UI.
 
       // 6. Update and Draw Crumb particles and Shockwaves
       // Performance Optimization: Scale max particles based on screen size to prevent mobile rendering lag
