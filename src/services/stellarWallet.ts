@@ -1,7 +1,6 @@
 import { StellarWalletsKit, WalletNetwork, allowAllModules } from '@creit.tech/stellar-wallets-kit';
 import { Web3Auth } from "@web3auth/modal";
 import { CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/base";
-import { AuthAdapter } from "@web3auth/auth-adapter";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import { Keypair } from "@stellar/stellar-sdk";
 import { Buffer } from "buffer";
@@ -33,19 +32,20 @@ export const web3auth = new Web3Auth({
   clientId,
   web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
   privateKeyProvider,
-});
-
-const authAdapter = new AuthAdapter({
-  adapterSettings: {
+  uiConfig: {
     uxMode: "popup",
-  },
+  }
 });
-web3auth.configureAdapter(authAdapter);
 
 export const initWeb3Auth = async () => {
   try {
+    console.log("initWeb3Auth called. Status:", web3auth.status);
     if (web3auth.status !== "ready" && web3auth.status !== "connected") {
+      console.log("Calling web3auth.initModal()...");
       await web3auth.initModal();
+      console.log("initModal() finished! Status:", web3auth.status);
+    } else {
+      console.log("Web3Auth already initialized. Status:", web3auth.status);
     }
   } catch (error) {
     console.error("Web3Auth init failed", error);
@@ -56,10 +56,15 @@ export let web3AuthKeypair: Keypair | null = null;
 
 export const connectGmailWallet = async (): Promise<string | null> => {
   try {
+    console.log("connectGmailWallet called. Current connected:", web3auth.connected);
     if (!web3auth.connected) {
+      console.log("Calling web3auth.connect()...");
       await web3auth.connect();
+      console.log("web3auth.connect() finished! Connected:", web3auth.connected);
     }
+    console.log("Requesting private_key...");
     const privateKeyHex = await web3auth.provider?.request({ method: "private_key" }) as string;
+    console.log("Private key retrieved:", !!privateKeyHex);
     if (privateKeyHex) {
       const seedHex = privateKeyHex.padStart(64, '0').slice(0, 64);
       const seedBytes = new Uint8Array(seedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
