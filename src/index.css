@@ -146,3 +146,7 @@ div:-ms-fullscreen {
   @apply bg-gradient-to-b from-blue-50 to-blue-100 border-4 border-blue-900 rounded-3xl shadow-[0_8px_0_rgba(30,58,138,1)];
 }
 
+#w3a-modal {
+  z-index: 999999 !important;
+}
+

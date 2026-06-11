@@ -17,19 +17,26 @@ interface StellarHubProps {
 export default function StellarHub({ walletState, setWalletState, onToastMessage }: StellarHubProps) {
   const [isConnecting, setIsConnecting] = useState(false);
 
+  const [isWeb3AuthReady, setIsWeb3AuthReady] = useState(false);
+
   React.useEffect(() => {
-    initWeb3Auth();
+    initWeb3Auth().then(() => setIsWeb3AuthReady(true)).catch(() => setIsWeb3AuthReady(true));
   }, []);
 
   const handleConnectGmail = async () => {
+    if (!isWeb3AuthReady) {
+      onToastMessage("Inicializando Web3Auth, espera un segundo...", 'info');
+      return;
+    }
     setIsConnecting(true);
+    onToastMessage("Abriendo ventana de Google...", 'info');
     try {
       const publicKey = await connectGmailWallet();
       if (publicKey) {
         setWalletState({ connected: true, publicKey, walletType: 'gmail' });
         onToastMessage("Cuenta creada y conectada con Gmail", 'success');
       } else {
-        onToastMessage("Fallo al conectar con Google", 'error');
+        onToastMessage("Fallo al conectar con Google (revisa si se bloqueó el popup)", 'error');
       }
     } catch (e) {
       console.error(e);
