@@ -1031,11 +1031,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
-    // PERF: Do not run the heavy physics and rendering loop if we are not playing.
-    // This stops the canvas from burning CPU/battery behind the main menu (loading screen lag fix).
-    if (!isPlaying) return;
-
+    // Canvas now must render even when !isPlaying because the Start Pizza is drawn inside the canvas loop itself.
     let animationFrameId: number;
 
     // Get the prepared OffscreenCanvas instances for the game
