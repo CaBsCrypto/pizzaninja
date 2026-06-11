@@ -2922,8 +2922,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       {!isPlaying && !isRegistering && (
         <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-4 select-none overflow-hidden transition-all duration-300 ${
           controlMode === 'camera'
-            ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/20 pointer-events-auto')
-            : 'bg-slate-950/20 pointer-events-auto'
+            ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/20 pointer-events-none')
+            : 'bg-slate-950/20 pointer-events-none'
         }`}>
           {/* TOP NAVIGATION BAR */}
           <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-[60]">
