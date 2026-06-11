@@ -2915,8 +2915,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       {!isPlaying && !isRegistering && (
         <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-4 select-none overflow-hidden transition-all duration-300 ${
           controlMode === 'camera'
-            ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/20 pointer-events-none')
-            : 'bg-slate-950/20 pointer-events-none'
+            ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/20 pointer-events-auto')
+            : 'bg-slate-950/20 pointer-events-auto'
         }`}>
           {/* TOP NAVIGATION BAR */}
           <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-[60]">
@@ -3061,10 +3061,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
           {/* Modal Overlay */}
           {activeModal && (
-            <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 pointer-events-auto" onPointerDown={() => setActiveModal(null)}>
+            <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 pointer-events-auto" onClick={() => setActiveModal(null)}>
               <div 
                 className="panel-clash p-5 md:p-6 rounded-3xl w-full max-w-md animate-[bounce-in_0.3s_cubic-bezier(0.175,0.885,0.32,1.275)]"
-                onPointerDown={e => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
               >
                 <div className="flex justify-between items-center mb-6 border-b-2 border-blue-200/20 pb-4">
                   <h2 className="text-xl font-pixel text-white text-stroke-sm">
@@ -3072,7 +3072,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                     {activeModal === 'rules' && '📋 Tutorial'}
                     {activeModal === 'settings' && '⚙️ Ajustes'}
                   </h2>
-                  <button onPointerDown={() => setActiveModal(null)} className="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full transition-colors cursor-pointer">
+                  <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full transition-colors cursor-pointer">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
@@ -3091,7 +3091,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                         ].map((item) => (
                           <button
                             key={item.id}
-                            onPointerDown={() => { setBladeStyle(item.id as any); playWebSound('splat'); setActiveModal(null); }}
+                            onClick={() => { setBladeStyle(item.id as any); playWebSound('splat'); setActiveModal(null); }}
                             className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 border-b-4 border-2 transition-all cursor-pointer ${
                               bladeStyle === item.id 
                                 ? `bg-gradient-to-b ${item.color} ${item.border} border-b-0 translate-y-[4px] text-white shadow-inner` 
