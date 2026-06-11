@@ -1,148 +1,51 @@
-<div align="center">
-  <img src="public/slash_slice_banner.png" alt="Slash Slice Epic Banner" width="800" style="border-radius: 12px; margin-bottom: 20px;" />
-  
-  # 🍕 Slash Slice: Turtle Ninja Edition ⚔️
-  
-  **An AI-powered, 60fps, Web3-enabled pizza slashing game built with React, Go, and Soroban.**
-  
-  [Play Now (Vercel)](https://slashslice.spicycrust.com) | [Report Bug](#) | [Request Feature](#)
-</div>
+# 🍕 Slash Slice Arena - Turtle Ninja Edition
 
-<br />
+![Slash Slice Arena Banner](https://slashslice.spicycrust.com/bg-dark.webp)
 
-## 🌟 Overview
+**Slash Slice Arena** es una Prueba de Concepto (PoC) técnica que combina visión artificial (Computer Vision), interfaces modernas y tecnologías Web3, todo ejecutándose fluidamente dentro del navegador. 
 
-**Slash Slice: Turtle Ninja Edition** is a modern, high-performance web game inspired by arcade classics like Fruit Ninja. It utilizes **Google's MediaPipe** to allow players to use their bare hands via a webcam to slice pizzas on the screen in real-time. 
+Los jugadores asumen el rol de un Ninja Cortador de Pizzas, usando sus propias manos frente a la cámara web para rebanar ingredientes que vuelan por el aire, simulando un juego arcade clásico, pero con físicas modernas y registro de puntuaciones inmutable en la blockchain.
 
-With a custom 60 FPS physics engine, mathematically rigorous spring-damper rendering, and Web3 integration for saving records directly to the **Stellar blockchain (Soroban)**, this game pushes the limits of what's possible in the browser.
+## 🚀 Tecnologías Clave (Stack)
 
----
+Esta PoC demuestra la integración fluida de 3 pilares tecnológicos fundamentales:
 
-## 🚀 Features
+### 1. Visión Artificial en Tiempo Real (Edge AI)
+- **MediaPipe (Google):** Procesamiento de imágenes en el cliente.
+- Detecta y mapea en 3D los 21 puntos clave de la mano humana a 60 FPS directamente en el navegador, sin necesidad de servidores externos.
+- **Detección de Colisiones 2D:** El dedo índice (Landmark 8) se usa como el punto de la espada, calculando trayectorias (slashes) interpoladas matemáticamente para cortar objetos en movimiento en un canvas HTML5.
 
-- **👐 AI Hand Tracking:** Play using your webcam. MediaPipe tracks your index finger to cast a glowing neon sword trail.
-- **🖱️ Classic Mode:** Full support for mouse and mobile touch-screens.
-- **⚡ 60 FPS Canvas Engine:** A custom requestAnimationFrame loop with `smoothDamp` interpolation ensures butter-smooth gameplay without destroying mobile CPUs.
-- **🛡️ Web3 Wallet Integration:** Connect your **Freighter Wallet** to immortalize your high scores securely on the Stellar blockchain.
-- **🎵 Dynamic Audio Context:** Immersive synthwave/Italian cooking ambient drones generated natively via Web Audio API.
-- **🎨 AAA Aesthetics:** Glassmorphism UI, custom pixel fonts (Lilita One, VT323), and satisfying hit-stop screen shake.
+### 2. Autenticación Web3 "Invisible" (Fricción Cero)
+- **Web3Auth v9:** Tecnología de computación multiparte (MPC) que permite la creación de billeteras criptográficas (Stellar) usando un simple login social (Gmail).
+- **Stellar Network (Soroban):** Las billeteras generadas son compatibles con la red Stellar. En esta PoC, se simula el minteo de registros de puntuación como Smart Contracts (NFTs) en la red Soroban, demostrando cómo una capa blockchain puede añadir inmutabilidad y propiedad (Ownership) a los récords y objetos cosméticos de un juego.
+- **Abstracción de Bóveda:** Los jugadores no necesitan saber qué es una "frase semilla" ni instalar extensiones. Entran con Google y ya están en la Web3.
 
----
+### 3. Interfaz de Usuario AAA (React + Tailwind)
+- **React 18 & TypeScript:** Tipado estricto y gestión de estado escalable.
+- **Tailwind CSS & Framer Motion:** Diseño "Glassmorphism" con temáticas arcade. Animaciones fluidas, bordes brillantes y modales responsivos que imitan la retención y la calidad visual de juegos móviles Top Grossing (estilo Supercell).
 
-## 🛠️ Technology Stack
+## 🎮 Cómo Jugar
 
-* **Frontend:** React 18, Vite, TypeScript, Tailwind CSS, Framer Motion, Lucide React
-* **AI Vision:** MediaPipe Hands (Lite Model @ 30fps capped for main-thread freedom)
-* **Backend:** Go (WebSockets server) *(Pending Integration / Active Dev)*
-* **Web3/Blockchain:** Soroban (Stellar Network), Freighter Wallet API
+1. Inicia el juego con `npm run dev`.
+2. Selecciona tu "Banda Sonora" y "Estilo de Espada" (Cosméticos).
+3. Entra en modo **Cámara**: Aléjate un poco, levanta la mano, y usa tu dedo índice como sable láser.
+4. **Modo Clásico**: 3 vidas, las piñas (bombas) te quitan una vida.
+5. **Modo Árcade**: 60 segundos de tiempo libre para hacer combos gigantes, las piñas quitan tiempo.
+6. ¡Rompe el récord y registra tu puntuación en la "Blockchain"!
 
----
+## 🛠 Instalación y Desarrollo Local
 
-## 📐 Architecture & Workflows
+```bash
+# 1. Clona el repositorio
+git clone https://github.com/CaBsCrypto/pizzaninja.git
+cd pizzaninja
 
-### 1. High-Level System Architecture
-This diagram illustrates how the Computer Vision AI, the 60FPS Game Engine, and the Web3 integration connect.
+# 2. Instala las dependencias
+npm install
 
-```mermaid
-graph TD
-    subgraph Frontend ["React + Vite App (Frontend)"]
-        UI["UI Components & Menus"]
-        Canvas["PizzaCanvas Engine (60 FPS)"]
-    end
-    
-    subgraph AI ["Computer Vision"]
-        Webcam("Webcam Stream")
-        MediaPipe["MediaPipe Hands (30 FPS Cap)"]
-    end
-    
-    subgraph Web3 ["Stellar Blockchain"]
-        Freighter("Freighter Wallet")
-        Soroban["Soroban Smart Contracts"]
-    end
-
-    Webcam -->|Video Frames| MediaPipe
-    MediaPipe -->|X/Y Coordinates (EMA Smoothed)| Canvas
-    Canvas -->|Score & Duration Data| UI
-    UI -->|Connect & Sign| Freighter
-    Freighter -->|Submit Record On-Chain| Soroban
-```
-
-### 2. Game Loop & Performance Flow
-A sequence of how the user interacts with the app, ensuring the main thread is never blocked.
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant App as React App
-    participant AI as HandTracker (MediaPipe)
-    participant Engine as PizzaCanvas (Engine)
-
-    User->>App: Clicks "Activar Cámara"
-    App->>AI: Initialize & Load Models
-    AI->>User: Request Camera Permission
-    AI-->>App: Tracking Active
-    App->>Engine: Start Game Countdown
-    
-    loop Inference Loop (33ms / 30fps)
-        AI->>AI: Process Video Frame
-        AI-->>Engine: Send Raw Coordinates
-    end
-
-    loop Render Loop (16ms / 60fps)
-        Engine->>Engine: Interpolate Hand Position (smoothDamp)
-        Engine->>Engine: Calculate Physics & Gravity
-        Engine->>Engine: Check Slicing Collisions
-        Engine->>Engine: Draw Particles & Screen Shake
-    end
-
-    Engine-->>App: Game Over Triggered
-    App->>User: Show Score Popup (z-index 100)
+# 3. Levanta el servidor de desarrollo en localhost:5173
+npm run dev
 ```
 
 ---
-
-## 💻 Running Locally
-
-### Prerequisites
-* Node.js (v18+ recommended)
-* Go (1.20+) *(Optional for backend features)*
-* A webcam (Required for Camera mode)
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/CaBsCrypto/pizzaninja.git
-   cd pizzaninja
-   ```
-
-2. **Install frontend dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
-   *The app will be available at `http://localhost:5173`.*
-
----
-
-## 🎮 How to Play
-
-1. **Select your mode:** Choose "Activar Cámara" to play with your hands or "Jugar con Ratón" for classic touch/mouse gameplay.
-2. **Slice Pizzas:** Swipe across flying pizzas before they drop!
-3. **Avoid the Pineapples:** Slicing a pineapple will cost you a life!
-4. **Build Combos:** Slice multiple pizzas in a single fluid motion to rack up combo multipliers and earn more points.
-5. **Save your Record:** Once the game ends, connect your Freighter wallet and save your record permanently.
-
----
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
-<div align="center">
-  <i>Construido con ❤️ para verdaderos chefs guerreros.</i>
-</div>
+*Construido como Prueba de Concepto Técnica. Las transacciones mostradas al finalizar la partida en esta versión son simulaciones visuales del comportamiento planificado en Soroban.*

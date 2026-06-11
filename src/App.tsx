@@ -58,6 +58,13 @@ export default function App() {
   // Leaderboard lists
   const [scores, setScores] = useState<ScoreRecord[]>([]);
 
+  // Onboarding PoC
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Web3 PoC Simulation state
+  const [isMinting, setIsMinting] = useState(false);
+  const [mintedTx, setMintedTx] = useState<string | null>(null);
+
   // Stellar Wallet global state
   const [walletState, setWalletState] = useState<StellarWalletState>({
     connected: false,
@@ -132,6 +139,12 @@ export default function App() {
       ];
       setScores(seeds);
       localStorage.setItem('slash_slice_scores_v2', JSON.stringify(seeds));
+    }
+    
+    // Check Onboarding
+    const hasSeenOnboarding = localStorage.getItem('slash_slice_poc_onboarding');
+    if (!hasSeenOnboarding) {
+      setShowOnboarding(true);
     }
   }, []);
 
@@ -221,31 +234,49 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                const pseudoHash = 'SorobanTx' + Math.random().toString(36).substring(2, 10).toUpperCase() + 'Sig';
-                const newRecord: ScoreRecord = {
-                  name: walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO'),
-                  score: pendingScore.score,
-                  timestamp: Date.now(),
-                  duration: pendingScore.duration,
-                  slashes: pendingScore.slashes,
-                  slashHistory: pendingScore.slashHistory,
-                  pubkey: walletState.publicKey || undefined,
-                  domain: walletState.domainName || undefined,
-                  txHash: pseudoHash,
-                  verified: true,
-                  mode: pendingScore.gameMode || 'arcade',
-                };
-                const updated = [newRecord, ...scores];
-                setScores(updated);
-                localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
-                setPendingScore(null);
-                playWebSound('register');
-                showToast('🔥 ¡Récord Épico Guardado!', 'success');
+                setIsMinting(true);
+                playWebSound('coin');
+                
+                // Simulate blockchain delay (2.5 seconds)
+                setTimeout(() => {
+                  const pseudoHash = 'SorobanTx' + Math.random().toString(36).substring(2, 10).toUpperCase() + 'Sig';
+                  const newRecord: ScoreRecord = {
+                    name: walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO'),
+                    score: pendingScore.score,
+                    timestamp: Date.now(),
+                    duration: pendingScore.duration,
+                    slashes: pendingScore.slashes,
+                    slashHistory: pendingScore.slashHistory,
+                    pubkey: walletState.publicKey || undefined,
+                    domain: walletState.domainName || undefined,
+                    txHash: pseudoHash,
+                    verified: true,
+                    mode: pendingScore.gameMode || 'arcade',
+                  };
+                  const updated = [newRecord, ...scores];
+                  setScores(updated);
+                  localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
+                  setPendingScore(null);
+                  setIsMinting(false);
+                  setMintedTx(pseudoHash);
+                  playWebSound('register');
+                  showToast('🔥 ¡Récord Inmortalizado en Stellar!', 'success');
+                }, 2500);
               }}
-              className="w-full btn-clash-gold py-3 text-lg flex items-center justify-center gap-2 mt-2"
+              disabled={isMinting}
+              className={`w-full py-3 text-lg flex items-center justify-center gap-2 mt-2 transition-all ${isMinting ? 'bg-slate-400 cursor-not-allowed text-white rounded-2xl' : 'btn-clash-gold'}`}
             >
-              <Star className="w-5 h-5 fill-white" />
-              <span>INMORTALIZAR RÉCORD</span>
+              {isMinting ? (
+                <>
+                  <div className="w-5 h-5 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="font-pixel animate-pulse">FIRMANDO CONTRATO...</span>
+                </>
+              ) : (
+                <>
+                  <Star className="w-5 h-5 fill-white" />
+                  <span>INMORTALIZAR RÉCORD</span>
+                </>
+              )}
             </button>
             <div className="flex justify-between items-center text-xs text-amber-700 pt-2 font-vt">
               <button type="button" onClick={() => setWalletState(prev => ({...prev, connected: false, publicKey: null, domainName: null}))} className="hover:text-amber-900 transition underline cursor-pointer">
@@ -344,7 +375,76 @@ export default function App() {
       <main className="relative max-w-4xl mx-auto px-6 mt-8 z-40">
         
         <div className="space-y-4">
+
+          {/* Onboarding Modal */}
+          <AnimatePresence>
+            {showOnboarding && !isPlaying && (
+              <motion.div 
+                initial={{ opacity: 0, y: 50 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: 50 }}
+                className="absolute inset-0 z-[120] flex items-center justify-center bg-slate-950/95 p-4 rounded-3xl"
+              >
+                <div className="panel-clash p-6 rounded-3xl w-full max-w-md shadow-2xl relative overflow-hidden border-2 border-blue-500/50">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl" />
+                  <h2 className="text-2xl font-pixel text-white mb-4 text-stroke-sm text-center">⚔️ Bienvenido a la Arena ⚔️</h2>
+                  
+                  <div className="space-y-4 font-sans text-sm text-blue-100">
+                    <div className="bg-slate-900/60 p-3 rounded-xl border border-blue-500/30">
+                      <strong className="text-amber-400 block mb-1">🎮 Juega con tu Cuerpo</strong>
+                      Activa la <b>CÁMARA</b> y agita las manos frente a la pantalla para cortar pizzas en el aire. ¡Cuidado con no golpear la piña!
+                    </div>
+                    <div className="bg-slate-900/60 p-3 rounded-xl border border-emerald-500/30">
+                      <strong className="text-emerald-400 block mb-1">💎 Web3 Invisible</strong>
+                      Conecta tu cuenta de Gmail usando la bóveda. Cuando rompas tu récord, se guardará como un <b>NFT Inmutable</b> en la blockchain de Stellar.
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      setShowOnboarding(false);
+                      localStorage.setItem('slash_slice_poc_onboarding', 'true');
+                      playWebSound('splat');
+                    }} 
+                    className="btn-clash-gold w-full py-4 mt-6 text-lg tracking-wider"
+                  >
+                    ¡ENTENDIDO, A JUGAR!
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           
+          {/* Web3 Minted Success Modal Simulation */}
+          <AnimatePresence>
+            {mintedTx && !isPlaying && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }} 
+                animate={{ opacity: 1, scale: 1 }} 
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="absolute inset-0 z-[110] flex items-center justify-center bg-slate-950/95 p-4 rounded-3xl"
+              >
+                <div className="panel-clash p-8 rounded-3xl w-full max-w-md text-center shadow-[0_0_50px_rgba(16,185,129,0.3)] relative overflow-hidden">
+                  <div className="absolute top-0 inset-x-0 h-2 bg-emerald-500 animate-pulse" />
+                  <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-emerald-400">
+                    <Sparkles className="w-10 h-10 text-emerald-500" />
+                  </div>
+                  <h2 className="text-3xl font-pixel text-white mb-2 text-stroke-sm">¡NFT Minteado!</h2>
+                  <p className="font-vt text-blue-200 text-lg mb-6 leading-tight">
+                    Tu récord ha sido guardado de forma inmutable en un Smart Contract de la red Stellar Soroban.
+                  </p>
+                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 mb-6">
+                    <span className="text-xs font-mono text-slate-400 block mb-1">Hash de Transacción</span>
+                    <span className="text-emerald-400 font-mono text-sm break-all">{mintedTx}</span>
+                  </div>
+                  <button onClick={() => setMintedTx(null)} className="btn-clash-blue w-full py-3">
+                    VOLVER A LA ARENA
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Score Registry Popup overlay INSIDE the game container */}
           <AnimatePresence>
             {pendingScore !== null && !isPlaying && (
