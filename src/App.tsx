@@ -221,7 +221,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                const pseudoHash = 'SlashSliceTx' + Math.random().toString(36).substring(2, 10).toUpperCase() + 'Sig';
+                const pseudoHash = 'SorobanTx' + Math.random().toString(36).substring(2, 10).toUpperCase() + 'Sig';
                 const newRecord: ScoreRecord = {
                   name: walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO'),
                   score: pendingScore.score,
