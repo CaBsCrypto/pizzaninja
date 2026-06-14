@@ -2787,7 +2787,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       {/* HUD Header */}
       {isPlaying && (
-        <div className="absolute top-0 inset-x-0 z-10 px-4 py-4 flex justify-between items-center bg-gradient-to-b from-blue-900/80 to-transparent pointer-events-none select-none">
+        <div className="absolute top-0 inset-x-0 z-40 px-4 py-4 flex justify-between items-center bg-gradient-to-b from-blue-900/80 to-transparent pointer-events-none select-none">
         
         {/* Left indicators: Score & Lives */}
         <div className="flex items-center gap-3 pointer-events-auto">
