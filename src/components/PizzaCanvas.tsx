@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PizzaType, PizzaState, GameItem, Particle, SlicedPiece, TrailPoint, SlashReplayPoint } from '../types';
 import HandTracker from './HandTracker';
 import { gameSocket } from '../services/websocket';
+import GameScene3D from './GameScene3D';
 import { connectFreighter, isFreighterInstalled } from '../services/stellarWallet';
 import { getSpriteCache, drawCachedPizzaSlice } from '../graphics/PizzaSpriteCache';
 
@@ -17,9 +18,10 @@ interface PizzaCanvasProps {
   isRegistering?: boolean;
   walletPublicKey?: string | null;
   onOpenWallet?: () => void;
+  activeBladeColor?: string;
 }
 
-export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToastMessage, isRegistering = false, walletPublicKey = null, onOpenWallet }: PizzaCanvasProps) {
+export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToastMessage, isRegistering = false, walletPublicKey = null, onOpenWallet, activeBladeColor = '#ffffff' }: PizzaCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastHandTrackedTimeRef = useRef<number[]>([0, 0]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1052,6 +1054,16 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       itemCtx.rotate(rotation);
 
       const effectivePerformanceMode = performanceMode || controlMode === 'camera';
+      
+      if (!effectivePerformanceMode) {
+        if (type === PizzaType.Golden) {
+          itemCtx.shadowColor = '#f59e0b';
+          itemCtx.shadowBlur = 20;
+        } else if (type === PizzaType.Clock) {
+          itemCtx.shadowColor = '#60a5fa';
+          itemCtx.shadowBlur = 15;
+        }
+      }
 
       if (type === PizzaType.Pineapple && cache.pineappleWarning && !effectivePerformanceMode) {
          // Draw glow behind pineapple
@@ -1067,6 +1079,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       
       if (sprite) {
         itemCtx.drawImage(sprite, -radius, -radius, radius * 2, radius * 2);
+      }
+      
+      if (!effectivePerformanceMode) {
+        itemCtx.shadowBlur = 0; // reset
       }
       itemCtx.restore();
     };
@@ -1103,21 +1119,31 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         color = '#22c55e';
         points = 10;
         label = 'Vegetariana';
-      } else if (adjustedRand < 0.75) {
+      } else if (adjustedRand < 0.70) {
         type = PizzaType.FourCheese;
         color = '#fbbf24';
         points = 10;
         label = 'Cuatro Quesos';
-      } else if (adjustedRand < 0.88) {
+      } else if (adjustedRand < 0.85) {
         type = PizzaType.Pineapple;
         color = '#facc15';
         points = 5; // tiny warning points
         label = 'Piña';
-      } else {
+      } else if (adjustedRand < 0.95) {
         type = PizzaType.Burnt;
         color = '#4b5563';
         points = 0;
         label = 'Pizza Quemada';
+      } else if (adjustedRand < 0.98) {
+        type = PizzaType.Golden;
+        color = '#f59e0b'; // Amber-500
+        points = 50; // Mass points
+        label = 'Frenesí Dorado';
+      } else {
+        type = PizzaType.Clock;
+        color = '#3b82f6'; // Blue-500
+        points = 0; // Gives time instead
+        label = 'Tiempo Extra';
       }
 
       // Launcher position and speed
@@ -1149,9 +1175,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // Gravity scaled by height so pacing feels identical across all devices
       const gravity = (height * 0.00025) * expSpeedMult * expSpeedMult; 
 
-      // Escala dinámica basada en la resolución para que se vean proporcionales (más grandes en tablets/PC)
+      // Escala dinámica basada en la resolución, reducida en un 20% total según solicitud
       const scaleFactor = Math.max(1.0, width / 700); 
-      const radius = (Math.random() * 15 + 50) * scaleFactor;
+      const radius = ((Math.random() * 15 + 50) * 0.8) * scaleFactor;
 
       // Random state: complete pizzas or a la mitad!
       const state = Math.random() < 0.65 ? PizzaState.Whole : PizzaState.Half;
@@ -1248,10 +1274,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       ctx.save();
 
-      // 1. Fast solid color clear for maximum performance
-      // Using a dark slate color to match the synthwave aesthetic without GPU texture overhead
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, width, height);
+      // 1. Transparent clear for 2.5D integration (3D renders behind)
+      ctx.clearRect(0, 0, width, height);
 
       // 2. Spawn mechanism and combo logic (only active during gameplay)
       const now = Date.now();
@@ -1656,7 +1680,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                   vy: item.vy * 0.85 - 1.8,
                   radius: item.radius,
                   isSliced: false,
-                  sliceAngle: 0,
+                  sliceAngle: swipeAngle,
                   rotation: splitAngle1,
                   rotationSpeed: (-0.06 - Math.random() * 0.04) * (item.gravity ? Math.sqrt(item.gravity / 0.28) : 1),
                   color: item.color,
@@ -1677,7 +1701,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                   vy: item.vy * 0.85 - 1.8,
                   radius: item.radius,
                   isSliced: false,
-                  sliceAngle: 0,
+                  sliceAngle: swipeAngle,
                   rotation: splitAngle1 + Math.PI,
                   rotationSpeed: (0.06 + Math.random() * 0.04) * (item.gravity ? Math.sqrt(item.gravity / 0.28) : 1),
                   color: item.color,
@@ -1708,7 +1732,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
           if (keepItem && isOutOfScreen) {
             // If good pizza falls unsliced
-            if (!item.isSliced && !item.isPreSlicing && item.type !== PizzaType.Pineapple && item.type !== PizzaType.Burnt) {
+            if (!item.isSliced && !item.isPreSlicing && item.type !== PizzaType.Pineapple && item.type !== PizzaType.Burnt && item.type !== PizzaType.Golden && item.type !== PizzaType.Clock) {
               if (stateRef.current.gameMode === 'classic') {
                 stateRef.current.lives = Math.max(0, stateRef.current.lives - 1);
                 updateHUD();
@@ -1815,7 +1839,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           ctx.lineTo(item.radius * 1.35, 0);
           ctx.stroke();
 
-          ctx.strokeStyle = '#22d3ee'; // vivid cyan blade border
+          ctx.strokeStyle = activeBladeColor; // vivid blade border
           ctx.lineWidth = 1.8 * drawProgress;
           ctx.stroke();
 
@@ -2434,6 +2458,82 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       return;
     }
 
+    // 2. Power-Ups instantly trigger on a single cut
+    if (item.type === PizzaType.Golden || item.type === PizzaType.Clock) {
+      item.isSliced = true;
+      item.sliceAngle = swipeAngle;
+      
+      if (item.type === PizzaType.Golden) {
+        const scoreGain = 50 * multiplier;
+        stateRef.current.score += scoreGain;
+        playWebSound('splat');
+        addSplatParticles(item.x, item.y, '#facc15', 30, item.type, speedRatio);
+        
+        // Add floating text for 50 pts
+        stateRef.current.comboTexts.push({
+          id: stateRef.current.nextId++,
+          x: cutPointX,
+          y: cutPointY - 10,
+          text: '+50 ORO!',
+          subtext: '',
+          color: '#f59e0b',
+          alpha: 1.0,
+          scale: 0.8,
+          rotation: (Math.random() - 0.5) * 0.2,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: -2,
+          maxAge: 40,
+          age: 0,
+        });
+
+      } else if (item.type === PizzaType.Clock) {
+        if (stateRef.current.gameMode === 'classic') {
+          stateRef.current.lives = Math.min(3, stateRef.current.lives + 1);
+          setLives(stateRef.current.lives);
+          // Add floating text
+          stateRef.current.comboTexts.push({
+            id: stateRef.current.nextId++,
+            x: cutPointX,
+            y: cutPointY - 10,
+            text: '+1 VIDA',
+            subtext: '',
+            color: '#ef4444',
+            alpha: 1.0,
+            scale: 0.8,
+            rotation: 0,
+            vx: 0,
+            vy: -2,
+            maxAge: 40,
+            age: 0,
+          });
+        } else {
+          // Arcade mode
+          stateRef.current.timeLeft += 10;
+          setTimeLeft(stateRef.current.timeLeft);
+          // Add floating text
+          stateRef.current.comboTexts.push({
+            id: stateRef.current.nextId++,
+            x: cutPointX,
+            y: cutPointY - 10,
+            text: '+10 SEGS',
+            subtext: '',
+            color: '#3b82f6',
+            alpha: 1.0,
+            scale: 0.8,
+            rotation: 0,
+            vx: 0,
+            vy: -2,
+            maxAge: 40,
+            age: 0,
+          });
+        }
+        playWebSound('splat');
+        addSplatParticles(item.x, item.y, '#60a5fa', 30, item.type, speedRatio);
+      }
+      updateHUD();
+      return;
+    }
+
     // 4. Handle Whole vs Half Slicing Progression with accumulated cuts
     item.cutsMade = (item.cutsMade || 0) + 1;
 
@@ -2496,10 +2596,14 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
   const handlePointerUp = () => {
     stateRef.current.isMousePressed = false;
+    stateRef.current.trail = [];
+    stateRef.current.trail1 = [];
   };
 
   const handlePointerLeave = () => {
     stateRef.current.isMousePressed = false;
+    stateRef.current.trail = [];
+    stateRef.current.trail1 = [];
   };
 
   const handleHandCoordsTracked = (normX: number, normY: number, handIdx: number, isEngaged: boolean) => {
@@ -2883,8 +2987,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       {/* Screen Canvas wrapper to prevent infinite ResizeObserver loops */}
       <div className="relative flex-1 w-full min-h-0 overflow-hidden rounded-3xl">
+        <div className="absolute inset-0 z-0">
+          <GameScene3D gameStateRef={stateRef} />
+        </div>
         <canvas
           ref={canvasRef}
+          className="relative z-10 w-full h-full pointer-events-none"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

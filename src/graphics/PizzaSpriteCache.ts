@@ -137,6 +137,94 @@ const drawProceduralPizza = (
     return;
   }
 
+  if (type === PizzaType.Clock) {
+    // 1. Draw a glowing Glassmorphic Stopwatch
+    const isHalf = state === PizzaState.Half;
+    
+    if (isHalf) {
+      // Draw shattered/cut clock
+      itemCtx.beginPath();
+      itemCtx.arc(0, 0, radius * 0.9, -Math.PI / 2, Math.PI / 2);
+      itemCtx.fillStyle = 'rgba(59, 130, 246, 0.4)'; // blue glass
+      itemCtx.fill();
+      
+      itemCtx.strokeStyle = '#93c5fd';
+      itemCtx.lineWidth = 3;
+      itemCtx.stroke();
+      
+      // Draw cut jagged line
+      itemCtx.beginPath();
+      itemCtx.moveTo(0, -radius * 0.9);
+      itemCtx.lineTo(radius * 0.2, -radius * 0.4);
+      itemCtx.lineTo(-radius * 0.1, 0);
+      itemCtx.lineTo(radius * 0.2, radius * 0.4);
+      itemCtx.lineTo(0, radius * 0.9);
+      itemCtx.strokeStyle = '#bfdbfe';
+      itemCtx.stroke();
+      return;
+    }
+
+    // Stopwatch body
+    const clockGrad = itemCtx.createRadialGradient(0, -radius * 0.2, 5, 0, 0, radius);
+    clockGrad.addColorStop(0, '#60a5fa');
+    clockGrad.addColorStop(0.8, '#2563eb');
+    clockGrad.addColorStop(1, '#1e3a8a');
+    
+    itemCtx.beginPath();
+    itemCtx.arc(0, 0, radius * 0.85, 0, Math.PI * 2);
+    itemCtx.fillStyle = clockGrad;
+    itemCtx.fill();
+
+    // Metallic rim
+    itemCtx.strokeStyle = '#bfdbfe';
+    itemCtx.lineWidth = radius * 0.12;
+    itemCtx.stroke();
+
+    // Top button
+    itemCtx.fillStyle = '#94a3b8';
+    itemCtx.fillRect(-radius * 0.15, -radius * 1.05, radius * 0.3, radius * 0.2);
+    itemCtx.fillStyle = '#cbd5e1';
+    itemCtx.fillRect(-radius * 0.2, -radius * 1.15, radius * 0.4, radius * 0.1);
+
+    // Inner dial details
+    itemCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    itemCtx.lineWidth = 2;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i * Math.PI) / 6;
+      const innerR = i % 3 === 0 ? radius * 0.5 : radius * 0.65;
+      itemCtx.beginPath();
+      itemCtx.moveTo(Math.cos(angle) * innerR, Math.sin(angle) * innerR);
+      itemCtx.lineTo(Math.cos(angle) * radius * 0.75, Math.sin(angle) * radius * 0.75);
+      itemCtx.stroke();
+    }
+
+    // Glowing Hands
+    itemCtx.strokeStyle = '#fbbf24'; // gold hand
+    itemCtx.lineWidth = 4;
+    itemCtx.lineCap = 'round';
+    itemCtx.beginPath();
+    itemCtx.moveTo(0, 0);
+    // Minute hand
+    itemCtx.lineTo(radius * 0.45 * Math.cos(-Math.PI / 4), radius * 0.45 * Math.sin(-Math.PI / 4));
+    itemCtx.stroke();
+    
+    itemCtx.strokeStyle = '#ffffff';
+    itemCtx.lineWidth = 3;
+    itemCtx.beginPath();
+    itemCtx.moveTo(0, 0);
+    // Hour hand
+    itemCtx.lineTo(radius * 0.3 * Math.cos(Math.PI), radius * 0.3 * Math.sin(Math.PI));
+    itemCtx.stroke();
+
+    // Center dot
+    itemCtx.fillStyle = '#ffffff';
+    itemCtx.beginPath();
+    itemCtx.arc(0, 0, 5, 0, Math.PI * 2);
+    itemCtx.fill();
+
+    return;
+  }
+
   // 1. Toasted Crust
   itemCtx.beginPath();
   if (isHalf) {
@@ -149,6 +237,10 @@ const drawProceduralPizza = (
   if (type === PizzaType.Burnt) {
     itemCtx.fillStyle = '#27272a';
     itemCtx.strokeStyle = '#09090b';
+  } else if (type === PizzaType.Golden) {
+    // Glowing golden crust
+    itemCtx.fillStyle = '#f59e0b';
+    itemCtx.strokeStyle = '#b45309';
   } else {
     itemCtx.fillStyle = '#ca8a04';
     itemCtx.strokeStyle = '#78350f';
@@ -166,7 +258,13 @@ const drawProceduralPizza = (
   } else {
     itemCtx.arc(0, 0, sauceRadius, 0, Math.PI * 2);
   }
-  itemCtx.fillStyle = type === PizzaType.Burnt ? '#18181b' : '#b91c1c';
+  if (type === PizzaType.Burnt) {
+    itemCtx.fillStyle = '#18181b';
+  } else if (type === PizzaType.Golden) {
+    itemCtx.fillStyle = '#fbbf24'; // bright gold base
+  } else {
+    itemCtx.fillStyle = '#b91c1c';
+  }
   itemCtx.fill();
 
   // 3. Gourmet Creamy Melted Cheese
@@ -185,6 +283,8 @@ const drawProceduralPizza = (
     itemCtx.fillStyle = '#fef08a';
   } else if (type === PizzaType.Veggie) {
     itemCtx.fillStyle = '#fffbeb';
+  } else if (type === PizzaType.Golden) {
+    itemCtx.fillStyle = '#fef08a'; // brilliant light gold cheese
   } else {
     itemCtx.fillStyle = '#fde047';
   }
@@ -285,6 +385,44 @@ const drawProceduralPizza = (
       const sprDist = (0.2 + 0.45 * Math.random()) * radius;
       itemCtx.fillRect(Math.cos(sprAngle) * sprDist, Math.sin(sprAngle) * sprDist, 2.5, 2.5);
     }
+  } else if (type === PizzaType.Golden) {
+    // 5. Draw diamond-shaped golden ingots/pepperonis and star sparkles
+    itemCtx.fillStyle = '#d97706';
+    itemCtx.strokeStyle = '#b45309';
+    itemCtx.lineWidth = 2;
+    
+    const ingots = isHalf 
+      ? [{ r: radius * 0.4, a: -0.2 }, { r: radius * 0.5, a: 0.8 }]
+      : [{ r: radius * 0.35, a: 0 }, { r: radius * 0.45, a: 1.2 }, { r: radius * 0.4, a: 2.5 }, { r: radius * 0.5, a: 4.0 }];
+      
+    ingots.forEach(p => {
+      const px = Math.cos(p.a) * p.r;
+      const py = Math.sin(p.a) * p.r;
+      
+      // Draw shiny star/diamond
+      itemCtx.save();
+      itemCtx.translate(px, py);
+      itemCtx.rotate(p.a);
+      itemCtx.beginPath();
+      itemCtx.moveTo(0, -radius * 0.15);
+      itemCtx.lineTo(radius * 0.08, 0);
+      itemCtx.lineTo(0, radius * 0.15);
+      itemCtx.lineTo(-radius * 0.08, 0);
+      itemCtx.closePath();
+      itemCtx.fill();
+      itemCtx.stroke();
+      itemCtx.restore();
+    });
+
+    // Sparkles
+    itemCtx.fillStyle = '#ffffff';
+    for(let i=0; i< (isHalf ? 3 : 6); i++) {
+       const sa = Math.random() * Math.PI * 2;
+       const sr = Math.random() * radius * 0.7;
+       itemCtx.beginPath();
+       itemCtx.arc(Math.cos(sa)*sr, Math.sin(sa)*sr, 2, 0, Math.PI*2);
+       itemCtx.fill();
+    }
   }
 
   // 6. Dashed line highlighting perfect slice cuts
@@ -358,7 +496,7 @@ export const getSpriteCache = (): SpriteCacheMap => {
   wctx.fill();
   map.pineappleWarning = warningCanvas;
 
-  const types = [PizzaType.Pepperoni, PizzaType.Veggie, PizzaType.FourCheese, PizzaType.Pineapple, PizzaType.Burnt];
+  const types = [PizzaType.Pepperoni, PizzaType.Veggie, PizzaType.FourCheese, PizzaType.Pineapple, PizzaType.Burnt, PizzaType.Golden, PizzaType.Clock];
 
   types.forEach(t => {
     // Whole

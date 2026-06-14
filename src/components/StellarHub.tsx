@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Fingerprint, Key, Zap, CheckCircle2, XCircle, Mail } from 'lucide-react';
-import { connectWallet, kit, initWeb3Auth, connectGmailWallet } from '../services/stellarWallet';
+import { kit, setPrivyKeypair } from '../services/stellarWallet';
+import { usePrivy } from '@privy-io/react-auth';
+import { Keypair } from '@stellar/stellar-sdk';
+import { Buffer } from 'buffer';
 
 export interface StellarWalletState {
   connected: boolean;
@@ -16,33 +19,63 @@ interface StellarHubProps {
 
 export default function StellarHub({ walletState, setWalletState, onToastMessage }: StellarHubProps) {
   const [isConnecting, setIsConnecting] = useState(false);
+  const { login, ready, authenticated, user, logout } = usePrivy();
 
-  const [isWeb3AuthReady, setIsWeb3AuthReady] = useState(false);
+  // Sync Privy state with our game's StellarWalletState
+  useEffect(() => {
+    if (ready && authenticated && user) {
+      // Privy generates EVM embedded wallets by default. To use with Stellar, we can derive a deterministic 
+      // Stellar keypair from the Privy user ID as a hackathon workaround, or use their raw signatures.
+      // For this PoC, we will deterministically generate a Stellar Keypair using the Privy DID so they always get the same wallet.
+      const deriveStellarKey = async () => {
+        try {
+          const encoder = new TextEncoder();
+          const data = encoder.encode(user.id + "_slashslice_privy_salt");
+          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+          const hashArray = new Uint8Array(hashBuffer);
+          const keypair = Keypair.fromRawEd25519Seed(Buffer.from(hashArray));
+          const pubKey = keypair.publicKey();
+          setPrivyKeypair(keypair); // Save the keypair locally for signing transactions later
+          
+          if (walletState.publicKey !== pubKey) {
+            setWalletState({ connected: true, publicKey: pubKey, walletType: 'gmail' });
+            onToastMessage("Billetera Instantánea cargada vía Privy", 'success');
+            
+            // Try funding if it's new
+            try {
+              await fetch(`https://friendbot.stellar.org?addr=${pubKey}`);
+            } catch(e) {}
+          }
+        } catch (e) {
+          console.error("Error deriving Stellar key from Privy", e);
+        }
+      };
+      deriveStellarKey();
+    } else if (ready && !authenticated && walletState.walletType === 'gmail') {
+      // If Privy is logged out but our state says gmail, clear it
+      setWalletState({ connected: false, publicKey: null, walletType: null });
+    }
+  }, [ready, authenticated, user]);
 
-  React.useEffect(() => {
-    initWeb3Auth().then(() => setIsWeb3AuthReady(true)).catch(() => setIsWeb3AuthReady(true));
-  }, []);
+  const handleConnectGmail = () => {
+    // If we're using the dummy App ID and the domain isn't localhost, Privy will fail.
+    const appId = import.meta.env.VITE_PRIVY_APP_ID || "cmqags31f002m0cl17tx8719m";
+    if (appId === "clp2u2k2c000kmt08y8r7u03q" && window.location.hostname !== 'localhost') {
+      onToastMessage("⚠️ Debes configurar tu Privy App ID en Vercel para que funcione en producción", 'error');
+      // Let it try anyway so they see the console error
+    }
 
-  const handleConnectGmail = async () => {
-    if (!isWeb3AuthReady) {
-      onToastMessage("Inicializando Web3Auth, espera un segundo...", 'info');
+    if (!ready) {
+      onToastMessage("Privy todavía está cargando (o el App ID es inválido)...", 'info');
       return;
     }
-    setIsConnecting(true);
-    onToastMessage("Abriendo ventana de Google...", 'info');
+    
     try {
-      const publicKey = await connectGmailWallet();
-      if (publicKey) {
-        setWalletState({ connected: true, publicKey, walletType: 'gmail' });
-        onToastMessage("Cuenta creada y conectada con Gmail", 'success');
-      } else {
-        onToastMessage("Fallo al conectar con Google (revisa si se bloqueó el popup)", 'error');
-      }
+      login();
     } catch (e) {
-      console.error(e);
-      onToastMessage("Error en el login de Gmail", 'error');
+      console.error("Privy login error:", e);
+      onToastMessage("Error al abrir Privy", 'error');
     }
-    setIsConnecting(false);
   };
 
   const handleConnectWallet = async () => {
@@ -114,7 +147,10 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
     setIsConnecting(false);
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
+    if (walletState.walletType === 'gmail' && ready && authenticated) {
+      await logout();
+    }
     setWalletState({ connected: false, publicKey: null, walletType: null });
     onToastMessage("Billetera desconectada", 'info');
   };

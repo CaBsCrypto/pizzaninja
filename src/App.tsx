@@ -5,6 +5,9 @@ import PizzaCanvas from './components/PizzaCanvas';
 import Leaderboard from './components/Leaderboard';
 import { ScoreRecord, SlashReplayPoint } from './types';
 import StellarHub, { StellarWalletState } from './components/StellarHub';
+import { isConnected, requestAccess } from "@stellar/freighter-api";
+import { useSorobanBalance } from './hooks/useSorobanBalance';
+import Shop, { ShopItem, SHOP_ITEMS } from './components/Shop';
 
 // Web audio API Helper to make nice sound effects for menu
 function playWebSound(type: 'coin' | 'register') {
@@ -72,8 +75,42 @@ export default function App() {
     walletType: null
   });
 
-  // Mobile lateral drawer visibility state
-  const [isWalletOpen, setIsWalletOpen] = useState(false);
+  // Fetch Soroban Balance
+  const { balance: sliceBalance, loading: balanceLoading, refetch: refetchBalance } = useSorobanBalance(walletState.publicKey);
+
+  // Shop State
+  const [showShop, setShowShop] = useState(false);
+  const [unlockedItems, setUnlockedItems] = useState<string[]>(() => {
+    const saved = localStorage.getItem('slash_slice_unlocked');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [spentSlice, setSpentSlice] = useState<number>(() => {
+    const saved = localStorage.getItem('slash_slice_spent');
+    return saved ? parseInt(saved) : 0;
+  });
+  
+  // Effective Balance (Real Balance - Local Spent)
+  const effectiveBalance = Math.max(0, sliceBalance - spentSlice);
+
+  // Derive active blade color from the latest unlocked shop item
+  const activeBladeColor = unlockedItems.length > 0 
+    ? SHOP_ITEMS.find(i => i.id === unlockedItems[unlockedItems.length - 1])?.color || '#ffffff'
+    : '#ffffff';
+
+  const handlePurchase = (item: ShopItem) => {
+    if (effectiveBalance >= item.price) {
+      const newUnlocked = [...unlockedItems, item.id];
+      const newSpent = spentSlice + item.price;
+      
+      setUnlockedItems(newUnlocked);
+      setSpentSlice(newSpent);
+      
+      localStorage.setItem('slash_slice_unlocked', JSON.stringify(newUnlocked));
+      localStorage.setItem('slash_slice_spent', newSpent.toString());
+      
+      showToast(`¡Compraste ${item.name}! ✨`, 'success');
+    }
+  };
 
   // Dynamic toast toaster notifications
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -188,6 +225,48 @@ export default function App() {
     setScores(updated);
     localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
     setPendingScore(null);
+
+    // Soroban Minting Integration
+    if (walletState.connected && walletState.publicKey && pendingScore.score > 0) {
+      showToast('🍕 Acuñando $SLICE en Soroban...', 'info');
+      fetch('/api/mint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerAddress: walletState.publicKey,
+          score: pendingScore.score
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showToast(`¡Recibiste ${data.amount} $SLICE en tu billetera! 🪙`, 'success');
+          // Update the balance after a short delay to allow network propagation
+          setTimeout(refetchBalance, 3000);
+          
+          // NFT Trigger Logic
+          if (pendingScore.score >= 100 && !localStorage.getItem('slash_slice_nft_minted')) {
+            showToast('¡Puntaje legendario! Minteando NFT exclusivo...', 'info');
+            fetch('/api/mint_nft', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ playerAddress: walletState.publicKey })
+            }).then(r => r.json()).then(nftData => {
+              if (nftData.success) {
+                localStorage.setItem('slash_slice_nft_minted', 'true');
+                showToast('¡Oven NFT desbloqueado y guardado en tu Wallet! 🖼️', 'success');
+              }
+            });
+          }
+        } else {
+          showToast(`Error al mintear: ${data.error}`, 'error');
+        }
+      })
+      .catch(err => {
+        console.error("Mint error:", err);
+        showToast('Error de conexión con Soroban.', 'error');
+      });
+    }
   };
 
   const handleClearScores = () => {
@@ -233,13 +312,27 @@ export default function App() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                setIsMinting(true);
+              onClick={async () => {
                 playWebSound('coin');
-                
-                // Simulate blockchain delay (2.5 seconds)
-                setTimeout(() => {
-                  const pseudoHash = 'SorobanTx' + Math.random().toString(36).substring(2, 10).toUpperCase() + 'Sig';
+                setIsMinting(true);
+                try {
+                  if (!(await isConnected())) {
+                    alert("Por favor instala la extensión Freighter (Stellar) para conectar tu bóveda Web3 de Soroban.");
+                    setIsMinting(false);
+                    return;
+                  }
+                  
+                  const access = await requestAccess();
+                  if (access.error) {
+                    alert("Conexión rechazada: " + access.error);
+                    setIsMinting(false);
+                    return;
+                  }
+                  
+                  // Simulating contract network delay
+                  await new Promise((resolve) => setTimeout(resolve, 2500));
+                  
+                  const pseudoHash = 'Tx' + Math.random().toString(36).substring(2, 10).toUpperCase() + access.address.slice(0, 4) + 'Sig';
                   const newRecord: ScoreRecord = {
                     name: walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO'),
                     score: pendingScore.score,
@@ -253,15 +346,19 @@ export default function App() {
                     verified: true,
                     mode: pendingScore.gameMode || 'arcade',
                   };
-                  const updated = [newRecord, ...scores];
+                  const updated = [newRecord, ...scores].sort((a,b) => b.score - a.score).slice(0, 50);
                   setScores(updated);
                   localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
                   setPendingScore(null);
-                  setIsMinting(false);
-                  setMintedTx(pseudoHash);
                   playWebSound('register');
+                  setMintedTx(pseudoHash);
                   showToast('🔥 ¡Récord Inmortalizado en Stellar!', 'success');
-                }, 2500);
+                } catch (e) {
+                  console.error(e);
+                  alert("Error interactuando con la bóveda Soroban.");
+                } finally {
+                  setIsMinting(false);
+                }
               }}
               disabled={isMinting}
               className={`w-full py-3 text-lg flex items-center justify-center gap-2 mt-2 transition-all ${isMinting ? 'bg-slate-400 cursor-not-allowed text-white rounded-2xl' : 'btn-clash-gold'}`}
@@ -345,10 +442,14 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 text-sm bg-blue-900/40 border-2 border-blue-300/30 px-4 py-2 rounded-2xl text-white font-vt text-xl shadow-inner">
-            <Star className="w-5 h-5 text-amber-400 fill-amber-400 drop-shadow-md" />
-            <span>Mouse o Táctil</span>
-          </div>
+          {/* Botón de Tienda */}
+          <button
+            onClick={() => setShowShop(true)}
+            className="flex items-center gap-2 text-sm px-4 py-3 cursor-pointer text-xl uppercase btn-clash-yellow"
+          >
+            <ShoppingCart className="w-5 h-5 text-amber-900" />
+            <span className="font-pixel text-sm mt-1 text-amber-900 hidden sm:inline">Tienda</span>
+          </button>
 
           <button
             onClick={() => setIsWalletOpen(true)}
@@ -359,13 +460,20 @@ export default function App() {
             }`}
           >
             <Wallet className={`w-5 h-5 shrink-0 ${walletState.connected ? 'text-blue-100' : 'text-red-100'}`} />
-            <span className="font-pixel text-sm mt-1">
-              {walletState.connected
-                ? walletState.domainName || `${walletState.publicKey?.slice(0, 4)}...${walletState.publicKey?.slice(-4)}`
-                : 'Wallet'}
+            <span className="font-pixel text-sm mt-1 flex flex-col items-start">
+              <span>
+                {walletState.connected
+                  ? walletState.domainName || `${walletState.publicKey?.slice(0, 4)}...${walletState.publicKey?.slice(-4)}`
+                  : 'Wallet'}
+              </span>
+              {walletState.connected && (
+                <span className="text-[10px] text-amber-300 font-sans tracking-wide">
+                  {balanceLoading ? '...' : effectiveBalance.toFixed(0)} $SLICE
+                </span>
+              )}
             </span>
             {walletState.connected && (
-              <span className="h-2 w-2 bg-emerald-400 rounded-full border border-emerald-700" />
+              <span className="h-2 w-2 bg-emerald-400 rounded-full border border-emerald-700 ml-1" />
             )}
           </button>
         </div>
@@ -375,6 +483,18 @@ export default function App() {
       <main className="relative max-w-4xl mx-auto px-6 mt-8 z-40">
         
         <div className="space-y-4">
+
+          {/* Tienda Overlay */}
+          <AnimatePresence>
+            {showShop && !isPlaying && (
+              <Shop 
+                onClose={() => setShowShop(false)} 
+                balance={effectiveBalance} 
+                onPurchase={handlePurchase} 
+                unlockedItems={unlockedItems} 
+              />
+            )}
+          </AnimatePresence>
 
           {/* Onboarding Modal */}
           <AnimatePresence>
@@ -459,6 +579,7 @@ export default function App() {
             )}
           </AnimatePresence>
           <PizzaCanvas
+            activeBladeColor={activeBladeColor}
             onGameOver={handleGameOver}
             isPlaying={isPlaying}
             setIsPlaying={setIsPlaying}

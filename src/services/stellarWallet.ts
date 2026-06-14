@@ -1,9 +1,15 @@
 import { StellarWalletsKit, WalletNetwork, allowAllModules } from '@creit.tech/stellar-wallets-kit';
-import { Web3Auth } from "@web3auth/modal";
-import { CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/base";
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-import { Keypair } from "@stellar/stellar-sdk";
-import { Buffer } from "buffer";
+import { Keypair } from '@stellar/stellar-sdk';
+import { Buffer } from 'buffer';
+
+// Ensure buffer is available globally
+if (typeof window !== 'undefined') {
+  window.Buffer = window.Buffer || Buffer;
+}
+
+// -----------------------------------------------------
+// 1. OFFICIAL STELLAR WALLET KIT (Freighter, Albedo, etc.)
+// -----------------------------------------------------
 
 export const kit = new StellarWalletsKit({
   network: WalletNetwork.TESTNET,
@@ -11,82 +17,16 @@ export const kit = new StellarWalletsKit({
   modules: allowAllModules(),
 });
 
-// Web3Auth Initialization
-const clientId = "BPi5PB_UiIZ-cPz1GtV5i1I2iOSOHuimiXBI0e-Oe_u6X3oVAbCiIQKQweLAHDshKpYGLm0k7D2v3mD2K9N_A-c"; // Default Sapphire Devnet Client ID
+// -----------------------------------------------------
+// 2. PRIVY (GMAIL SEAMLESS ONBOARDING)
+// Note: Login is handled entirely within StellarHub via usePrivy.
+// We keep a local reference to the deterministic keypair if needed for signing.
+// -----------------------------------------------------
 
-const chainConfig = {
-  chainNamespace: CHAIN_NAMESPACES.EIP155,
-  chainId: "0x1",
-  rpcTarget: "https://rpc.ankr.com/eth",
-  displayName: "Ethereum Mainnet",
-  blockExplorerUrl: "https://etherscan.io",
-  ticker: "ETH",
-  tickerName: "Ethereum",
-};
+export let web3AuthKeypair: Keypair | null = null; // Reusing this name for the deterministic Privy-Stellar keypair to avoid refactoring everywhere
 
-const privateKeyProvider = new EthereumPrivateKeyProvider({
-  config: { chainConfig }
-});
-
-export const web3auth = new Web3Auth({
-  clientId,
-  web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
-  privateKeyProvider,
-  uiConfig: {
-    uxMode: "popup",
-  }
-});
-
-export const initWeb3Auth = async () => {
-  try {
-    console.log("initWeb3Auth called. Status:", web3auth.status);
-    if (web3auth.status !== "ready" && web3auth.status !== "connected") {
-      console.log("Calling web3auth.initModal()...");
-      await web3auth.initModal();
-      console.log("initModal() finished! Status:", web3auth.status);
-    } else {
-      console.log("Web3Auth already initialized. Status:", web3auth.status);
-    }
-  } catch (error) {
-    console.error("Web3Auth init failed", error);
-  }
-};
-
-export let web3AuthKeypair: Keypair | null = null;
-
-export const connectGmailWallet = async (): Promise<string | null> => {
-  try {
-    console.log("connectGmailWallet called. Current connected:", web3auth.connected);
-    if (!web3auth.connected) {
-      console.log("Calling web3auth.connect()...");
-      await web3auth.connect();
-      console.log("web3auth.connect() finished! Connected:", web3auth.connected);
-    }
-    console.log("Requesting private_key...");
-    const privateKeyHex = await web3auth.provider?.request({ method: "private_key" }) as string;
-    console.log("Private key retrieved:", !!privateKeyHex);
-    if (privateKeyHex) {
-      const seedHex = privateKeyHex.padStart(64, '0').slice(0, 64);
-      const seedBytes = new Uint8Array(seedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-      web3AuthKeypair = Keypair.fromRawEd25519Seed(Buffer.from(seedBytes));
-      
-      const publicKey = web3AuthKeypair.publicKey();
-      
-      // Auto-fund new account on Testnet using Friendbot
-      try {
-        console.log("Funding account with Friendbot...");
-        await fetch(`https://friendbot.stellar.org?addr=${publicKey}`);
-      } catch (e) {
-        console.warn("Friendbot funding failed (maybe already funded)");
-      }
-      
-      return publicKey;
-    }
-    return null;
-  } catch (error) {
-    console.error("Gmail connect error:", error);
-    return null;
-  }
+export const setPrivyKeypair = (keypair: Keypair) => {
+  web3AuthKeypair = keypair;
 };
 
 export const signWithGmailWallet = async (xdr: string, network: string = 'TESTNET'): Promise<string | null> => {

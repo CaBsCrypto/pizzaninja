@@ -4,6 +4,8 @@ export enum PizzaType {
   FourCheese = 'Cuatro Quesos',
   Pineapple = 'Piña', // Obstacle
   Burnt = 'Pizza Quemada', // Obstacle
+  Golden = 'Golden Pizza', // Power-up (Extra Points)
+  Clock = 'Reloj de Arena', // Power-up (Extra Time / Life)
 }
 
 export enum PizzaState {
