@@ -1,38 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Play, RotateCcw, Volume2, VolumeX, ShieldAlert, Zap, Flame, CalendarClock, Trophy, Music, Volume1, Maximize2, Minimize2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useUser, usePrivy } from '@privy-io/react-auth';
-import { claimTokens, getTokenBalance } from '../services/tokenService';
-import { getAssetConfig } from '../services/contractConfig';
 import { PizzaType, PizzaState, GameItem, Particle, SlicedPiece, TrailPoint, SlashReplayPoint } from '../types';
 import HandTracker from './HandTracker';
 import { gameSocket } from '../services/websocket';
-import GameScene3D from './GameScene3D';
 import { connectFreighter, isFreighterInstalled } from '../services/stellarWallet';
 import { getSpriteCache, drawCachedPizzaSlice } from '../graphics/PizzaSpriteCache';
-
-// Simple ErrorBoundary to prevent 3D WebGL crashes from taking down the whole 2D game
-class WebGLErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
-  constructor(props: {children: React.ReactNode}) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(error: any, errorInfo: any) {
-    console.warn("3D WebGL Engine crashed. Falling back to 2D Mode natively.", error);
-  }
-  render() {
-    if (this.state.hasError) {
-      return null; // Render nothing, let 2D canvas be the sole visual
-    }
-    return this.props.children;
-  }
-}
-
-// Ensure proper Math mapping for random generation
-const MathUtils = {};
 
 export type GameMode = 'arcade' | 'classic';
 
@@ -3017,21 +2990,13 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       {/* Screen Canvas wrapper to prevent infinite ResizeObserver loops */}
       <div className="relative flex-1 w-full min-h-0 overflow-hidden rounded-3xl bg-slate-900">
-        <div className="absolute inset-0 z-0">
-          <WebGLErrorBoundary>
-            <React.Suspense fallback={null}>
-              <GameScene3D gameStateRef={stateRef} />
-            </React.Suspense>
-          </WebGLErrorBoundary>
-        </div>
         <canvas
           ref={canvasRef}
-          className="relative z-10 w-full h-full pointer-events-none"
+          className="absolute inset-0 w-full h-full cursor-crosshair touch-none z-10 pointer-events-auto"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerLeave}
-          className="absolute inset-0 w-full h-full cursor-crosshair touch-none"
         />
       </div>
 
