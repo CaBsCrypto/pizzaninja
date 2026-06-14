@@ -74,6 +74,7 @@ export default function App() {
     publicKey: null,
     walletType: null
   });
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
 
   // Fetch Soroban Balance
   const { balance: sliceBalance, loading: balanceLoading, refetch: refetchBalance } = useSorobanBalance(walletState.publicKey);
