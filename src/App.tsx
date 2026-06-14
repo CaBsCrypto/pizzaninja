@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Trophy, Award, Trash2, ArrowRight, User, Sparkles, Star, Swords, Clock, Wallet, X } from 'lucide-react';
+import { Flame, Trophy, Award, Trash2, ArrowRight, User, Sparkles, Star, Swords, Clock, Wallet, X, ShoppingCart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import PizzaCanvas from './components/PizzaCanvas';
 import Leaderboard from './components/Leaderboard';
