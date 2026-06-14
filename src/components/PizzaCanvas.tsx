@@ -3019,7 +3019,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       <div className="relative flex-1 w-full min-h-0 overflow-hidden rounded-3xl bg-slate-900">
         <div className="absolute inset-0 z-0">
           <WebGLErrorBoundary>
-            <GameScene3D gameStateRef={stateRef} />
+            <React.Suspense fallback={null}>
+              <GameScene3D gameStateRef={stateRef} />
+            </React.Suspense>
           </WebGLErrorBoundary>
         </div>
         <canvas
