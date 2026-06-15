@@ -254,7 +254,7 @@ export default function HandTracker({
     if (isEnabled && cdnStatus === 'loaded' && handsInstanceRef.current) {
       try {
         handsInstanceRef.current.setOptions({
-          maxNumHands: 2,
+          maxNumHands: 1,
           modelComplexity: 0,  // PERF: lite model (0) is 2x faster than full (1)
           minDetectionConfidence: detectionConfidence,
           minTrackingConfidence: 0.65  // PERF: higher = fewer expensive re-detects,
@@ -330,7 +330,7 @@ export default function HandTracker({
       });
 
       hands.setOptions({
-        maxNumHands: 2,
+        maxNumHands: 1,
         modelComplexity: 0,  // PERF: lite model (0) is 2x faster than full (1)
         minDetectionConfidence: detectionConfidence,
         minTrackingConfidence: 0.40  // PERF: low threshold = extremely sticky tracking, far fewer expensive re-detects
@@ -562,21 +562,9 @@ export default function HandTracker({
       const landmarks = results.multiHandLandmarks[handIdx];
       const indexTip = landmarks[8]; // INDEX_FINGER_TIP
 
-      // Use handedness classification to assign hand index consistently if available
-      // MediaPipe labels Right/Left from the model's perspective (mirrored)
-      let preferredIdx = handIdx;
-      if (results.multiHandedness && results.multiHandedness[handIdx]) {
-        // 'Right' from MediaPipe = user's Left hand (camera mirror) -> idx 0
-        // 'Left'  from MediaPipe = user's Right hand (camera mirror) -> idx 1
-        const label = results.multiHandedness[handIdx].label;
-        preferredIdx = label === 'Right' ? 0 : 1;
-      }
-
-      // Ensure unique index per frame (avoid two hands fighting for index 0 or 1)
-      let assignedHandIdx = preferredIdx;
-      if (activeIndices.has(assignedHandIdx)) {
-        assignedHandIdx = assignedHandIdx === 0 ? 1 : 0; // fallback to the other slot
-      }
+      // Forzamos que cualquier mano detectada (sea izquierda o derecha) sea siempre el jugador 1 (índice 0)
+      // para evitar que aparezcan espadas fantasmas al cambiar de mano o por errores de clasificación de la IA.
+      let assignedHandIdx = 0;
       activeIndices.add(assignedHandIdx);
 
       let normX = indexTip.x;
