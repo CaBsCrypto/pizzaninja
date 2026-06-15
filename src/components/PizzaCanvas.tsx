@@ -90,8 +90,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   const [showSoundSettings, setShowSoundSettings] = useState(false);
   const [showFullConsole, setShowFullConsole] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
-  const handDetectedRef = useRef(false); // Ref so the canvas render loop can read real-time value (avoids stale closure)
-  const setHandDetectedWithRef = (v: boolean) => { handDetectedRef.current = v; setHandDetected(v); };
+  const handDetectedRef = useRef(false);
+  const setHandDetectedWithRef = useCallback((v: boolean) => { handDetectedRef.current = v; setHandDetected(v); }, []);
   const [activeModal, setActiveModal] = useState<'knives' | 'rules' | 'settings' | null>(null);
   const [countdown, setCountdown] = useState<number | 'GO' | null>(null);
   const countdownActiveRef = useRef(false);
@@ -1275,8 +1275,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       ctx.save();
 
-      // 1. Transparent background (reveals wrapper bg or camera feed below)
-      ctx.clearRect(0, 0, width, height);
+      // 1. Solid dark slate background
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, width, height);
 
       // If we want 2.5D, we can let GameScene3D cover the background and clear the 2D canvas transparently.
       // But since GameScene3D has a transparent background (no clear color), we need a background anyway!
@@ -2984,7 +2985,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       <div className="relative flex-1 w-full min-h-0 overflow-hidden rounded-3xl bg-slate-950">
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full cursor-crosshair touch-none z-20 pointer-events-auto"
+          className="absolute inset-0 w-full h-full cursor-crosshair touch-none z-10 pointer-events-auto"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -3317,10 +3318,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             transition={{ type: 'spring', damping: 25, stiffness: 180 }}
             className={
               (isPlaying || (controlMode === 'camera' && handDetected))
-                ? "absolute bottom-4 right-4 z-10 w-28 sm:w-40 aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border border-slate-800"
+                ? "absolute bottom-4 right-4 z-30 w-28 sm:w-40 aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border border-slate-800"
                 : showFullConsole 
-                  ? "w-full max-w-4xl mx-auto mt-6 bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl z-10"
-                  : "absolute inset-0 m-auto z-10 w-64 sm:w-80 aspect-[4/3] rounded-3xl overflow-hidden shadow-[0_0_20px_rgba(16,185,129,0.25)] border border-emerald-500 bg-slate-950 flex flex-col scale-[0.85] landscape:scale-[0.8] md:scale-100"
+                  ? "w-full max-w-4xl mx-auto mt-6 bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl"
+                  : "absolute inset-0 m-auto z-45 w-64 sm:w-80 aspect-[4/3] rounded-3xl overflow-hidden shadow-[0_0_20px_rgba(16,185,129,0.25)] border border-emerald-500 bg-slate-950 flex flex-col scale-[0.85] landscape:scale-[0.8] md:scale-100"
             }
           >
             <HandTracker
