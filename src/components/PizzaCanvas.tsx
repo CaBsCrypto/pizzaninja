@@ -1902,15 +1902,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         ctx.save();
         ctx.translate(startX, startY);
         ctx.scale(pulse, pulse);
-        
-        // Draw golden glow
-        ctx.beginPath();
-        const glow = ctx.createRadialGradient(0, 0, startRadius * 0.8, 0, 0, startRadius * 1.5);
-        glow.addColorStop(0, 'rgba(251, 191, 36, 0.4)');
-        glow.addColorStop(1, 'rgba(251, 191, 36, 0)');
-        ctx.fillStyle = glow;
-        ctx.arc(0, 0, startRadius * 1.5, 0, Math.PI * 2);
-        ctx.fill();
 
         // Draw the pizza itself
         drawPizzaVector(ctx, FoodType.Pizza, PizzaState.Whole, startRadius, Date.now() * 0.001, 0);
@@ -1921,7 +1912,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 4;
+        ctx.shadowBlur = 0; // Removed blur for maximum crispness
         ctx.fillText('¡CORTA PARA', 0, -startRadius - 20);
         ctx.fillText('INICIAR!', 0, -startRadius);
         ctx.restore();
@@ -3010,12 +3001,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       )}
 
       {/* Main Menu Overlay */}
-      {!isPlaying && !isRegistering && (
-        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-4 select-none overflow-hidden rounded-3xl transition-all duration-300 ${
-          controlMode === 'camera'
-            ? (handDetected ? 'opacity-0 pointer-events-none' : 'bg-slate-950/20 pointer-events-auto')
-            : 'bg-slate-950/20 pointer-events-auto'
-        }`}>
+      {!isPlaying && !isRegistering && !(controlMode === 'camera' && handDetected) && (
+        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-4 select-none overflow-hidden rounded-3xl transition-all duration-300 bg-slate-950/20 pointer-events-auto`}>
           {/* TOP NAVIGATION BAR */}
           <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-[60]">
             {/* Left Icons */}
