@@ -90,6 +90,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   const [showSoundSettings, setShowSoundSettings] = useState(false);
   const [showFullConsole, setShowFullConsole] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
+  const handDetectedRef = useRef(false); // Ref so the canvas render loop can read real-time value (avoids stale closure)
+  const setHandDetectedWithRef = (v: boolean) => { handDetectedRef.current = v; setHandDetected(v); };
   const [activeModal, setActiveModal] = useState<'knives' | 'rules' | 'settings' | null>(null);
   const [countdown, setCountdown] = useState<number | 'GO' | null>(null);
   const countdownActiveRef = useRef(false);
@@ -1889,7 +1891,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     } // End of if (isPlaying)
 
     // --- MENU / CALIBRATION LOOP (START PIZZA ONLY FOR CAMERA MODE) ---
-      if (countdown === null && !isPlaying && controlMode === 'camera' && handDetected) {
+      if (countdown === null && !isPlaying && controlMode === 'camera' && handDetectedRef.current) {
         const isMobileStart = width < 600;
         const startX = width / 2;
         const startY = isMobileStart ? height * 0.35 : height / 2; // Más arriba en celulares para no tapar la cámara
@@ -3327,7 +3329,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               canvasWidth={canvasRef.current?.width || 800}
               canvasHeight={canvasRef.current?.height || 450}
               isEnabled={controlMode === 'camera'}
-              onHandPresenceChange={setHandDetected}
+              onHandPresenceChange={setHandDetectedWithRef}
               onFallbackToMouse={() => {
                 setControlMode('mouse');
                 onToastMessage?.("Se restableció el control por Ratón/Táctil.", "info");
