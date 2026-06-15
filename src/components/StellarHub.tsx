@@ -5,6 +5,12 @@ import { usePrivy } from '@privy-io/react-auth';
 import { Keypair } from '@stellar/stellar-sdk';
 import { Buffer } from 'buffer';
 
+// Helper para leer cookies compartidas de SpicyCrust
+export function getWalletCookie(): string | null {
+  const match = document.cookie.match(new RegExp('(^| )stellar_wallet=([^;]+)'));
+  return match ? match[2] : null;
+}
+
 export interface StellarWalletState {
   connected: boolean;
   publicKey: string | null;
@@ -21,16 +27,23 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
   const [isConnecting, setIsConnecting] = useState(false);
   const { login, ready, authenticated, user, logout } = usePrivy();
 
-  // Sync Privy state with our game's StellarWalletState
+  // Sync Privy state and Global Cookie with our game's StellarWalletState
   useEffect(() => {
-    if (ready && authenticated && user) {
-      // Privy generates EVM embedded wallets by default. To use with Stellar, we can derive a deterministic 
-      // Stellar keypair from the Privy user ID as a hackathon workaround, or use their raw signatures.
-      // For this PoC, we will deterministically generate a Stellar Keypair using the Privy DID so they always get the same wallet.
+    // 1. Fast-track via global cookie if available (SSO)
+    const activeAddress = getWalletCookie();
+    if (activeAddress && !walletState.connected) {
+      console.log("Sesión activa detectada en Stellar:", activeAddress);
+      setWalletState({ connected: true, publicKey: activeAddress, walletType: 'gmail' }); // Representa la sesión compartida
+      onToastMessage("Sesión global de SpicyCrust detectada y activa", 'success');
+      return; // Skip Privy derivation since we already have the identity
+    }
+
+    if (ready && authenticated && user && !activeAddress) {
+      // 2. Derive deterministic Stellar Keypair from Privy DID as the definitive global identity
       const deriveStellarKey = async () => {
         try {
           const encoder = new TextEncoder();
-          const data = encoder.encode(user.id + "_slashslice_privy_salt");
+          const data = encoder.encode(user.id + "_spicycrust_privy_shared_salt_2026");
           const hashBuffer = await crypto.subtle.digest('SHA-256', data);
           const hashArray = new Uint8Array(hashBuffer);
           const keypair = Keypair.fromRawEd25519Seed(Buffer.from(hashArray));
@@ -38,21 +51,32 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
           setPrivyKeypair(keypair); // Save the keypair locally for signing transactions later
           
           if (walletState.publicKey !== pubKey) {
+            // Guardar la sesión en la Cookie del dominio compartido (.spicycrust.com)
+            const isProd = window.location.hostname.endsWith('spicycrust.com');
+            const domain = isProd ? '; domain=.spicycrust.com' : '';
+            document.cookie = `stellar_wallet=${pubKey}${domain}; path=/; max-age=86400; Secure; SameSite=Lax`;
+
             setWalletState({ connected: true, publicKey: pubKey, walletType: 'gmail' });
-            onToastMessage("Billetera Instantánea cargada vía Privy", 'success');
+            onToastMessage("Sesión compartida de SpicyCrust iniciada", 'success');
             
             // Try funding if it's new
             try {
               await fetch(`https://friendbot.stellar.org?addr=${pubKey}`);
             } catch(e) {}
+
+            // Redirect back to lobby if requested
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('redirect') === 'lobby') {
+              window.location.href = isProd ? 'https://spicycrust.com' : 'http://localhost:5173';
+            }
           }
         } catch (e) {
           console.error("Error deriving Stellar key from Privy", e);
         }
       };
       deriveStellarKey();
-    } else if (ready && !authenticated && walletState.walletType === 'gmail') {
-      // If Privy is logged out but our state says gmail, clear it
+    } else if (ready && !authenticated && walletState.walletType === 'gmail' && !activeAddress) {
+      // If Privy is logged out and no cookie exists, clean up
       setWalletState({ connected: false, publicKey: null, walletType: null });
     }
   }, [ready, authenticated, user]);
@@ -148,11 +172,23 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
   };
 
   const handleDisconnect = async () => {
-    if (walletState.walletType === 'gmail' && ready && authenticated) {
-      await logout();
+    // Clear global cookie
+    const isProd = window.location.hostname.endsWith('spicycrust.com');
+    const domain = isProd ? '; domain=.spicycrust.com' : '';
+    document.cookie = `stellar_wallet=; path=/; max-age=0${domain}; Secure; SameSite=Lax`;
+
+    try {
+      await kit.disconnect();
+    } catch(e) {}
+    
+    if (walletState.walletType === 'gmail') {
+      try {
+        await logout();
+      } catch (e) {}
     }
+    
     setWalletState({ connected: false, publicKey: null, walletType: null });
-    onToastMessage("Billetera desconectada", 'info');
+    onToastMessage("Bóveda desconectada y sesión global cerrada", 'info');
   };
 
   return (

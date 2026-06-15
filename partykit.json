@@ -1,0 +1,5 @@
+{
+  "name": "slashslice-multiplayer",
+  "main": "party/server.ts",
+  "compatibilityDate": "2026-06-15"
+}

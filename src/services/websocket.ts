@@ -1,6 +1,8 @@
+import PartySocket from "partysocket";
+
 export class GameWebSocket {
     private static instance: GameWebSocket;
-    public ws: WebSocket | null = null;
+    public ws: PartySocket | null = null;
     private listeners: ((data: any) => void)[] = [];
     public isConnected = false;
 
@@ -16,28 +18,36 @@ export class GameWebSocket {
     }
 
     private connect() {
-        // Usa variable de entorno para la nube o localhost como fallback
-        const url = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws";
+        // PartySocket auto-handles localhost (1999) vs production magically if configured,
+        // or we can pass a specific host. In dev, PartyKit runs on localhost:1999.
+        const host = import.meta.env.VITE_PARTYKIT_HOST || "127.0.0.1:1999";
+        
         try {
-            this.ws = new WebSocket(url);
-            this.ws.onopen = () => {
-                console.log("Conectado de forma segura al motor autoritativo de Go");
+            this.ws = new PartySocket({
+                host: host,
+                room: "slashslice-global", // Single global room for the MMO experience
+            });
+            
+            this.ws.addEventListener("open", () => {
+                console.log("Conectado al Edge Server de PartyKit");
                 this.isConnected = true;
-            };
-            this.ws.onmessage = (event) => {
+            });
+            
+            this.ws.addEventListener("message", (event) => {
                 const data = JSON.parse(event.data);
                 this.listeners.forEach(fn => fn(data));
-            };
-            this.ws.onerror = () => {
-                console.warn(`Go Backend no detectado en ${url}`);
+            });
+            
+            this.ws.addEventListener("error", () => {
+                console.warn(`PartyKit backend no detectado en ${host}`);
                 this.isConnected = false;
-            };
-            this.ws.onclose = () => {
+            });
+            
+            this.ws.addEventListener("close", () => {
                 this.isConnected = false;
-                // Reconnect logic could be added here
-            };
+            });
         } catch (e) {
-            console.error("Error inicializando WebSocket", e);
+            console.error("Error inicializando PartySocket", e);
         }
     }
 
@@ -49,6 +59,7 @@ export class GameWebSocket {
     }
 
     public send(data: any) {
+        // PartySocket uses OPEN from native WebSocket
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
         }
