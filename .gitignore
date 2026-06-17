@@ -12,3 +12,5 @@ coverage/
 .vercel
 venv/
 .venv/
+.vercel
+.env*.local
