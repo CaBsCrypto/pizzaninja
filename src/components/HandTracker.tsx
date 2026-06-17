@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Terminal,
   RefreshCcw,
+  Video,
 } from 'lucide-react';
 
 import { gameSocket } from '../services/websocket';
