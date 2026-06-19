@@ -5,6 +5,7 @@ import PizzaCanvas from './components/PizzaCanvas';
 import Leaderboard from './components/Leaderboard';
 import { ScoreRecord, SlashReplayPoint } from './types';
 import StellarHub, { StellarWalletState } from './components/StellarHub';
+import { buildAndSignSubmitScoreTx } from './services/stellarWallet';
 import { isConnected, requestAccess } from "@stellar/freighter-api";
 import { useSorobanBalance } from './hooks/useSorobanBalance';
 import Shop, { ShopItem, SHOP_ITEMS } from './components/Shop';
@@ -127,57 +128,80 @@ export default function App() {
     }
   }, [toast]);
 
-  // Trigger loading initial leaderboard entries from LocalStorage (backward-compatible) or seed defaults
+  // Trigger loading initial leaderboard entries from Vercel KV or LocalStorage fallback
   useEffect(() => {
-    let saved = localStorage.getItem('slash_slice_scores_v2');
-    if (!saved) {
-      saved = localStorage.getItem('pizza_ninja_scores_v2');
-    }
-    if (saved) {
-      try {
-        setScores(JSON.parse(saved));
-      } catch (err) {
-        console.error(err);
+    const loadLocalBackup = () => {
+      let saved = localStorage.getItem('slash_slice_scores_v2');
+      if (!saved) {
+        saved = localStorage.getItem('pizza_ninja_scores_v2');
       }
-    } else {
-      // Seed some dummy records matching Slash Slice retro theme
-      const seeds: ScoreRecord[] = [
-        {
-          name: 'CHEF_MARIO',
-          score: 410,
-          timestamp: Date.now() - 3605 * 1000 * 3, // 3 hours ago
-          duration: 45,
-          slashes: 154,
-          mode: 'arcade',
-        },
-        {
-          name: 'NINJA_SLICE',
-          score: 350,
-          timestamp: Date.now() - 3605 * 1000 * 12,
-          duration: 45,
-          slashes: 125,
-          mode: 'arcade',
-        },
-        {
-          name: 'EL_CORTE_RAPIDO',
-          score: 280,
-          timestamp: Date.now() - 3605 * 1000 * 24,
-          duration: 45,
-          slashes: 89,
-          mode: 'arcade',
-        },
-        {
-          name: 'PEPERONI_PRO',
-          score: 180,
-          timestamp: Date.now() - 3605 * 1000 * 48,
-          duration: 30,
-          slashes: 45,
-          mode: 'arcade',
-        },
-      ];
-      setScores(seeds);
-      localStorage.setItem('slash_slice_scores_v2', JSON.stringify(seeds));
-    }
+      if (saved) {
+        try {
+          setScores(JSON.parse(saved));
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        // Seed some dummy records matching Slash Slice retro theme
+        const seeds: ScoreRecord[] = [
+          {
+            name: 'CHEF_MARIO',
+            score: 410,
+            timestamp: Date.now() - 3605 * 1000 * 3, // 3 hours ago
+            duration: 45,
+            slashes: 154,
+            mode: 'arcade',
+          },
+          {
+            name: 'NINJA_SLICE',
+            score: 350,
+            timestamp: Date.now() - 3605 * 1000 * 12,
+            duration: 45,
+            slashes: 125,
+            mode: 'arcade',
+          },
+          {
+            name: 'EL_CORTE_RAPIDO',
+            score: 280,
+            timestamp: Date.now() - 3605 * 1000 * 24,
+            duration: 45,
+            slashes: 89,
+            mode: 'arcade',
+          },
+          {
+            name: 'PEPERONI_PRO',
+            score: 180,
+            timestamp: Date.now() - 3605 * 1000 * 48,
+            duration: 30,
+            slashes: 45,
+            mode: 'arcade',
+          },
+        ];
+        setScores(seeds);
+        localStorage.setItem('slash_slice_scores_v2', JSON.stringify(seeds));
+      }
+    };
+
+    // Load from database (Vercel KV)
+    fetch('/api/score')
+      .then(res => {
+        if (!res.ok) throw new Error("Leaderboard API returned status " + res.status);
+        return res.json();
+      })
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          // Sort descending by score
+          const sorted = data.sort((a: any, b: any) => Number(b.score) - Number(a.score));
+          setScores(sorted);
+          localStorage.setItem('slash_slice_scores_v2', JSON.stringify(sorted));
+        } else {
+          loadLocalBackup();
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching global scores, falling back to local:", err);
+        loadLocalBackup();
+      });
     
     // Check Onboarding
     const hasSeenOnboarding = localStorage.getItem('slash_slice_poc_onboarding');
@@ -317,23 +341,32 @@ export default function App() {
                 playWebSound('coin');
                 setIsMinting(true);
                 try {
-                  if (!(await isConnected())) {
-                    alert("Por favor instala la extensión Freighter (Stellar) para conectar tu bóveda Web3 de Soroban.");
-                    setIsMinting(false);
-                    return;
+                  // 1. Build and sign transaction call to submit_score if wallet is connected and not mock
+                  let signedXdr: string | null = null;
+                  const isMockWallet = !walletState.publicKey || walletState.publicKey.length < 56 || walletState.publicKey.substring(1, 5) === 'MOCK' || walletState.publicKey.substring(1, 5) === 'PASS';
+                  
+                  if (walletState.connected && walletState.publicKey && !isMockWallet) {
+                    showToast('📝 Generando firma del smart contract...', 'info');
+                    // Leaderboard contract ID
+                    const contractId = import.meta.env.VITE_LEADERBOARD_CONTRACT_ID || 'CBCX2IOM53YQZEHC24TCZ4VOYZXKVKB6NOH52LIL4GQDRDIL2026LEADER';
+                    
+                    const trimmedName = (walletState.domainName || walletState.publicKey.slice(0, 6) + '...' + walletState.publicKey.slice(-4)).toUpperCase();
+
+                    signedXdr = await buildAndSignSubmitScoreTx(
+                      walletState.publicKey,
+                      trimmedName,
+                      pendingScore.score,
+                      contractId,
+                      walletState.walletType || 'gmail'
+                    );
+
+                    if (signedXdr) {
+                      showToast('⛽ Patrocinando comisiones de gas...', 'info');
+                    } else {
+                      showToast('⚠️ No se pudo generar la firma del contrato. Guardando localmente...', 'info');
+                    }
                   }
-                  
-                  const access = await requestAccess();
-                  if (access.error) {
-                    alert("Conexión rechazada: " + access.error);
-                    setIsMinting(false);
-                    return;
-                  }
-                  
-                  // Simulating contract network delay
-                  await new Promise((resolve) => setTimeout(resolve, 2500));
-                  
-                  const pseudoHash = 'Tx' + Math.random().toString(36).substring(2, 10).toUpperCase() + access.address.slice(0, 4) + 'Sig';
+
                   const newRecord: ScoreRecord = {
                     name: walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO'),
                     score: pendingScore.score,
@@ -343,20 +376,34 @@ export default function App() {
                     slashHistory: pendingScore.slashHistory,
                     pubkey: walletState.publicKey || undefined,
                     domain: walletState.domainName || undefined,
-                    txHash: pseudoHash,
                     verified: true,
                     mode: pendingScore.gameMode || 'arcade',
+                    signedXdr: signedXdr || undefined
                   };
-                  const updated = [newRecord, ...scores].sort((a,b) => b.score - a.score).slice(0, 50);
-                  setScores(updated);
-                  localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
-                  setPendingScore(null);
-                  playWebSound('register');
-                  setMintedTx(pseudoHash);
-                  showToast('🔥 ¡Récord Inmortalizado en Stellar!', 'success');
+
+                  // Send to database (Vercel KV) with gas abstraction simulation on the server
+                  const res = await fetch('/api/score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newRecord)
+                  });
+                  const data = await res.json();
+
+                  if (data.success) {
+                    const recordWithHash = { ...newRecord, txHash: data.txHash };
+                    const updated = [recordWithHash, ...scores].sort((a,b) => b.score - a.score).slice(0, 50);
+                    setScores(updated);
+                    localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
+                    setPendingScore(null);
+                    playWebSound('register');
+                    setMintedTx(data.txHash);
+                    showToast('🔥 ¡Récord Inmortalizado en Stellar!', 'success');
+                  } else {
+                    alert("Error al registrar el récord: " + data.error);
+                  }
                 } catch (e) {
                   console.error(e);
-                  alert("Error interactuando con la bóveda Soroban.");
+                  alert("Error de conexión al registrar récord en Stellar.");
                 } finally {
                   setIsMinting(false);
                 }

@@ -61,7 +61,7 @@ export default async function handler(req: Request) {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const assembledTx = rpc.assembleTransaction(tx, simulation);
+    const assembledTx = rpc.assembleTransaction(tx, simulation).build();
     assembledTx.sign(adminKeypair);
 
     const sendResponse = await rpcServer.sendTransaction(assembledTx);

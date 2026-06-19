@@ -73,7 +73,7 @@ export default async function handler(req: Request) {
     }
 
     // 4. Ensamblar la transacción final
-    const assembledTx = rpc.assembleTransaction(tx, simulation);
+    const assembledTx = rpc.assembleTransaction(tx, simulation).build();
     
     // 5. Firmar
     assembledTx.sign(adminKeypair);

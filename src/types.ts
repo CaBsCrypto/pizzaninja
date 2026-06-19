@@ -101,5 +101,6 @@ export interface ScoreRecord {
   txHash?: string;
   verified?: boolean;
   mode?: string;
+  signedXdr?: string;
 }
 
