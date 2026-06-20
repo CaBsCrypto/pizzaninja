@@ -8,6 +8,7 @@ import StellarHub, { StellarWalletState } from './components/StellarHub';
 import { buildAndSignSubmitScoreTx } from './services/stellarWallet';
 import { isConnected, requestAccess } from "@stellar/freighter-api";
 import { useSorobanBalance } from './hooks/useSorobanBalance';
+import { useSorobanNFTBalance } from './hooks/useSorobanNFTBalance';
 import Shop, { ShopItem, SHOP_ITEMS } from './components/Shop';
 
 // Web audio API Helper to make nice sound effects for menu
@@ -79,6 +80,7 @@ export default function App() {
 
   // Fetch Soroban Balance
   const { balance: sliceBalance, loading: balanceLoading, refetch: refetchBalance } = useSorobanBalance(walletState.publicKey);
+  const { hasNFT: hasOvenNFT, refetch: refetchNFTBalance } = useSorobanNFTBalance(walletState.publicKey);
 
   // Shop State
   const [showShop, setShowShop] = useState(false);
@@ -94,9 +96,18 @@ export default function App() {
   // Effective Balance (Real Balance - Local Spent)
   const effectiveBalance = Math.max(0, sliceBalance - spentSlice);
 
+  // Merge locally purchased items with NFT-unlocked ones
+  const allUnlockedItems = React.useMemo(() => {
+    const list = [...unlockedItems];
+    if (hasOvenNFT && !list.includes('blade_gold')) {
+      list.push('blade_gold');
+    }
+    return list;
+  }, [unlockedItems, hasOvenNFT]);
+
   // Derive active blade color from the latest unlocked shop item
-  const activeBladeColor = unlockedItems.length > 0 
-    ? SHOP_ITEMS.find(i => i.id === unlockedItems[unlockedItems.length - 1])?.color || '#ffffff'
+  const activeBladeColor = allUnlockedItems.length > 0 
+    ? SHOP_ITEMS.find(i => i.id === allUnlockedItems[allUnlockedItems.length - 1])?.color || '#ffffff'
     : '#ffffff';
 
   const handlePurchase = (item: ShopItem) => {
@@ -280,6 +291,7 @@ export default function App() {
               if (nftData.success) {
                 localStorage.setItem('slash_slice_nft_minted', 'true');
                 showToast('¡Oven NFT desbloqueado y guardado en tu Wallet! 🖼️', 'success');
+                setTimeout(refetchNFTBalance, 3000);
               }
             });
           }
@@ -539,7 +551,8 @@ export default function App() {
                 onClose={() => setShowShop(false)} 
                 balance={effectiveBalance} 
                 onPurchase={handlePurchase} 
-                unlockedItems={unlockedItems} 
+                unlockedItems={allUnlockedItems} 
+                hasOvenNFT={hasOvenNFT}
               />
             )}
           </AnimatePresence>

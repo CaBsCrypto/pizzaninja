@@ -22,9 +22,10 @@ interface ShopProps {
   balance: number;
   onPurchase: (item: ShopItem) => void;
   unlockedItems: string[];
+  hasOvenNFT?: boolean;
 }
 
-export default function Shop({ onClose, balance, onPurchase, unlockedItems }: ShopProps) {
+export default function Shop({ onClose, balance, onPurchase, unlockedItems, hasOvenNFT = false }: ShopProps) {
   return (
     <div className="absolute inset-0 z-[150] flex items-center justify-center bg-slate-950/90 p-4 rounded-3xl backdrop-blur-sm">
       <div className="panel-clash p-6 rounded-3xl w-full max-w-lg shadow-2xl relative border-2 border-emerald-500/50 max-h-[80vh] overflow-y-auto">
@@ -49,6 +50,7 @@ export default function Shop({ onClose, balance, onPurchase, unlockedItems }: Sh
         <div className="space-y-4">
           {SHOP_ITEMS.map((item) => {
             const isUnlocked = unlockedItems.includes(item.id);
+            const isNFTUnlock = item.id === 'blade_gold' && hasOvenNFT;
             const canAfford = balance >= item.price;
 
             return (
@@ -56,15 +58,34 @@ export default function Shop({ onClose, balance, onPurchase, unlockedItems }: Sh
                 <div className="flex items-center gap-4">
                   <div className="text-3xl bg-slate-800 p-2 rounded-xl">{item.icon}</div>
                   <div>
-                    <h3 className="font-pixel text-lg text-white">{item.name}</h3>
+                    <h3 className="font-pixel text-lg text-white flex items-center gap-1.5">
+                      {item.name}
+                      {isNFTUnlock && (
+                        <span className="text-[9px] text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.2 rounded-full font-pixel uppercase tracking-wide">
+                          NFT
+                        </span>
+                      )}
+                    </h3>
                     <p className="font-sans text-xs text-slate-400">{item.description}</p>
+                    {item.id === 'blade_gold' && !isUnlocked && (
+                      <p className="font-pixel text-[9px] text-blue-400 mt-1 flex items-center gap-1">
+                        🎁 ¡Gratis si tienes Oven NFT!
+                      </p>
+                    )}
                   </div>
                 </div>
                 
                 {isUnlocked ? (
-                  <div className="px-4 py-2 bg-blue-900/40 text-blue-300 font-pixel text-sm rounded-xl border border-blue-500/30">
-                    ADQUIRIDO
-                  </div>
+                  isNFTUnlock ? (
+                    <div className="px-3 py-1.5 bg-gradient-to-r from-amber-500/20 to-blue-500/20 text-amber-300 font-pixel text-[9px] rounded-xl border border-amber-500/30 flex flex-col items-center leading-normal">
+                      <span>✨ DETECTOR</span>
+                      <span className="text-[8px] text-blue-300">OVEN NFT</span>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-2 bg-blue-900/40 text-blue-300 font-pixel text-sm rounded-xl border border-blue-500/30">
+                      ADQUIRIDO
+                    </div>
+                  )
                 ) : (
                   <button 
                     onClick={() => canAfford && onPurchase(item)}

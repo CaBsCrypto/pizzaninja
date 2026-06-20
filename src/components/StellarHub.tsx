@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Fingerprint, Key, Zap, CheckCircle2, XCircle, Mail } from 'lucide-react';
+import { Shield, Fingerprint, Key, Zap, CheckCircle2, XCircle, Mail, Award, Loader2 } from 'lucide-react';
 import { kit, setPrivyKeypair } from '../services/stellarWallet';
 import { usePrivy } from '@privy-io/react-auth';
 import { Keypair } from '@stellar/stellar-sdk';
 import { Buffer } from 'buffer';
+import { useSorobanNFTBalance } from '../hooks/useSorobanNFTBalance';
 
 // Helper para leer cookies compartidas de SpicyCrust
 export function getWalletCookie(): string | null {
@@ -26,6 +27,7 @@ interface StellarHubProps {
 export default function StellarHub({ walletState, setWalletState, onToastMessage }: StellarHubProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const { login, ready, authenticated, user, logout } = usePrivy();
+  const { hasNFT, loading: nftLoading } = useSorobanNFTBalance(walletState.publicKey);
 
   // Sync Privy state and Global Cookie with our game's StellarWalletState
   useEffect(() => {
@@ -275,6 +277,37 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
             <span className="font-mono text-[10px] text-slate-300 select-all">
               {walletState.publicKey}
             </span>
+          </div>
+
+          {/* Sección de Coleccionables (NFTs) */}
+          <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 mb-4">
+            <h5 className="font-pixel text-[9px] text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-amber-500" />
+              Coleccionables (NFTs)
+            </h5>
+            
+            <div className="flex items-center justify-between bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🍕</span>
+                <div className="text-left text-stroke-none">
+                  <span className="font-pixel text-[9px] text-white block">Oven Collectible</span>
+                  <span className="font-sans text-[8px] text-slate-500 block">Utilidad en Spicy Crust</span>
+                </div>
+              </div>
+              
+              {nftLoading ? (
+                <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+              ) : hasNFT ? (
+                <span className="flex items-center gap-1 text-[8px] text-emerald-400 font-pixel bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                  POSEÍDO
+                </span>
+              ) : (
+                <span className="text-[8px] text-slate-500 font-sans italic">
+                  No detectado
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-between items-center text-xs">

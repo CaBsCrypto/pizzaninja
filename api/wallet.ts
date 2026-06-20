@@ -11,13 +11,15 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  const client = kv as any;
+
   try {
     if (req.method === 'GET') {
       const { wallet } = req.query;
       if (!wallet) return res.status(400).json({ error: 'Wallet required' });
 
       // Get user data from KV
-      const data = await kv.hgetall(`slashslice:wallet:${wallet}`);
+      const data = await client.hgetall(`slashslice:wallet:${wallet}`);
       return res.status(200).json(data || { ingredients: 0, items: [] });
     }
     
