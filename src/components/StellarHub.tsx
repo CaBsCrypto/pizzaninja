@@ -85,7 +85,7 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
 
   const handleConnectGmail = () => {
     // If we're using the dummy App ID and the domain isn't localhost, Privy will fail.
-    const appId = import.meta.env.VITE_PRIVY_APP_ID || "cmqags31f002m0cl17tx8719m";
+    const appId = import.meta.env.VITE_PRIVY_APP_ID || "cmqdk627p00na0cjsi6ioszjx";
     if (appId === "clp2u2k2c000kmt08y8r7u03q" && window.location.hostname !== 'localhost') {
       onToastMessage("⚠️ Debes configurar tu Privy App ID en Vercel para que funcione en producción", 'error');
       // Let it try anyway so they see the console error
