@@ -56,6 +56,22 @@ export interface Particle {
   isGlow?: boolean;    // Custom glowing shockwave ring indicator
   maxSize?: number;   // Maximum scale radius of expanding shockwave
   isStain?: boolean;  // Screen splash stain effect
+  rotation?: number;  // Angular rotation of the particle shape
+  rotationSpeed?: number;
+  type?: 'sauce' | 'crust' | 'cheese' | 'spark';
+}
+
+export interface FloatingText {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  size: number;
+  age: number;
+  maxAge: number;
+  vx: number;
+  vy: number;
+  type?: 'points' | 'combo' | 'fail';
 }
 
 export interface SlicedPiece {

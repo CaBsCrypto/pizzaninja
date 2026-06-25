@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Play, RotateCcw, Volume2, VolumeX, ShieldAlert, Zap, Flame, CalendarClock, Trophy, Music, Volume1, Maximize2, Minimize2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { PizzaType, PizzaState, GameItem, Particle, SlicedPiece, TrailPoint, SlashReplayPoint } from '../types';
+import { PizzaType, PizzaState, GameItem, Particle, SlicedPiece, TrailPoint, SlashReplayPoint, FloatingText } from '../types';
 import HandTracker from './HandTracker';
 import { gameSocket } from '../services/websocket';
 import { connectFreighter, isFreighterInstalled } from '../services/stellarWallet';
@@ -297,8 +297,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     items: [] as GameItem[],
     particles: [] as Particle[],
     slicedPieces: [] as SlicedPiece[],
+    floatingTexts: [] as FloatingText[],
     trail: [] as TrailPoint[],
     trail1: [] as TrailPoint[],
+    shakeIntensity: 0,
     targetHandX: [0, 0] as number[],
     targetHandY: [0, 0] as number[],
     currentHandX: [undefined, undefined] as (number | undefined)[],
@@ -398,20 +400,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     if (performanceMode) {
       count = Math.max(2, Math.floor(count * 0.35));
     }
-    // 100% vector particles representing juicy sauce, flour crumbs, and cheese. Zero lag.
-    let particleColors = [color, '#fbcfe8', '#fef08a']; // sauce, crust, cheese mix
-    if (itemType === PizzaType.Burnt) {
-      particleColors = ['#18181b', '#3f3f46', '#27272a', '#ea580c']; // ash & fire amber
-    } else if (itemType === PizzaType.Pineapple) {
-      particleColors = ['#fde047', '#facc15', '#eab308']; // pineapple yellow drips
-    }
 
-    // If high speed, spawn dynamic impact shockwave glow rings!
+    // Spawn dynamic impact shockwave glow rings on fast cuts
     if (speedMult > 1.25 && !performanceMode) {
       const dColor = itemType === PizzaType.Burnt ? '#ea580c' : (itemType === PizzaType.Pineapple ? '#facc15' : color);
       const maxRadius = Math.min(110, 40 + speedMult * 12);
       
-      // Background shockwave halo
       stateRef.current.particles.push({
         x,
         y,
@@ -425,7 +419,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         isGlow: true
       });
 
-      // Dynamic intense flash core for rapid slashes
       if (speedMult > 1.95) {
         stateRef.current.particles.push({
           x,
@@ -445,7 +438,34 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = (Math.random() * 7 + 3) * speedMult;
-      const itemColor = particleColors[Math.floor(Math.random() * particleColors.length)];
+      const randVal = Math.random();
+      
+      let itemColor = color;
+      let pType: 'sauce' | 'crust' | 'cheese' | 'spark' = 'sauce';
+      
+      if (randVal < 0.35) {
+        // Dough Crust
+        itemColor = '#d97706'; // Golden brown crust
+        pType = 'crust';
+      } else if (randVal < 0.65) {
+        // Mozzarella Cheese
+        itemColor = '#fef08a'; // Light yellow cheese
+        pType = 'cheese';
+      } else {
+        // Primary Sauce
+        itemColor = color;
+        pType = 'sauce';
+      }
+      
+      if (itemType === PizzaType.Burnt) {
+        const burntColors = ['#18181b', '#3f3f46', '#27272a', '#ea580c'];
+        itemColor = burntColors[Math.floor(Math.random() * burntColors.length)];
+        pType = itemColor === '#ea580c' ? 'spark' : 'crust';
+      } else if (itemType === PizzaType.Pineapple) {
+        const pineColors = ['#fde047', '#facc15', '#eab308'];
+        itemColor = pineColors[Math.floor(Math.random() * pineColors.length)];
+        pType = 'sauce';
+      }
       
       stateRef.current.particles.push({
         x,
@@ -454,9 +474,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         vy: Math.sin(angle) * speed,
         color: itemColor,
         alpha: 1.0,
-        size: (Math.random() * 3 + 2) * Math.min(1.4, Math.sqrt(speedMult)), // crumbs scale with speed
-        gravity: 0.16,
-        isStain: itemColor === '#dc2626' && Math.random() < 0.15 // 15% chance for red sauce to be a splat stain!
+        size: (Math.random() * 3.5 + 1.8) * Math.min(1.3, Math.sqrt(speedMult)),
+        gravity: 0.18,
+        isStain: pType === 'sauce' && Math.random() < 0.08, // 8% chance to splash screen
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.2,
+        type: pType
       });
     }
 
@@ -1279,6 +1302,16 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, width, height);
 
+      // Sutil Screen Shake (se aplica a todos los elementos del juego sin mover los bordes del fondo)
+      if (stateRef.current.shakeIntensity > 0.05) {
+        const dx = (Math.random() - 0.5) * stateRef.current.shakeIntensity;
+        const dy = (Math.random() - 0.5) * stateRef.current.shakeIntensity;
+        ctx.translate(dx, dy);
+        if (!isPaused) {
+          stateRef.current.shakeIntensity *= Math.pow(0.85, timeScale);
+        }
+      }
+
       // If we want 2.5D, we can let GameScene3D cover the background and clear the 2D canvas transparently.
       // But since GameScene3D has a transparent background (no clear color), we need a background anyway!
 
@@ -2031,6 +2064,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           if (!isPaused) {
             p.x += p.vx * timeScale;
             p.y += p.vy * timeScale;
+            if (p.rotation !== undefined && p.rotationSpeed !== undefined) {
+              p.rotation += p.rotationSpeed * timeScale;
+            }
             if (!p.isStain) {
               p.vy += (p.gravity || 0) * timeScale;
               p.alpha -= 0.038 * timeScale;
@@ -2054,14 +2090,31 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               ctx.fillText(p.emoji, p.x, p.y);
             } else {
               ctx.fillStyle = p.color;
-              ctx.beginPath();
-              if (p.isStain) {
-                // Draw a stretched out dripping splat
-                ctx.ellipse(p.x, p.y, p.size * 1.5, p.size * 3.5, Math.atan2(p.vy, p.vx), 0, Math.PI * 2);
+              if (p.type === 'crust' && p.rotation !== undefined) {
+                // Golden brown square crust crumb
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+                ctx.beginPath();
+                ctx.rect(-p.size, -p.size, p.size * 2, p.size * 2);
+                ctx.fill();
+              } else if (p.type === 'cheese' && p.rotation !== undefined) {
+                // Light yellow shredded cheese strand
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+                ctx.beginPath();
+                ctx.rect(-p.size * 0.4, -p.size * 1.8, p.size * 0.8, p.size * 3.6);
+                ctx.fill();
               } else {
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                // Default circles or tomato stains
+                ctx.beginPath();
+                if (p.isStain) {
+                  // Draw a stretched out dripping splat
+                  ctx.ellipse(p.x, p.y, p.size * 1.5, p.size * 3.5, Math.atan2(p.vy, p.vx), 0, Math.PI * 2);
+                } else {
+                  ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                }
+                ctx.fill();
               }
-              ctx.fill();
             }
             ctx.restore();
           }
@@ -2430,6 +2483,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     if (item.type === PizzaType.Pineapple || item.type === PizzaType.Burnt) {
       item.isSliced = true;
       item.sliceAngle = swipeAngle;
+      stateRef.current.shakeIntensity = 18.0; // Strong shake for obstacles!
       
       if (stateRef.current.gameMode === 'classic') {
         stateRef.current.lives = 0;
@@ -2458,6 +2512,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     if (item.type === PizzaType.Golden || item.type === PizzaType.Clock) {
       item.isSliced = true;
       item.sliceAngle = swipeAngle;
+      stateRef.current.shakeIntensity = Math.min(12.0, (stateRef.current.shakeIntensity || 0) + 6.0); // Medium shake for powerups!
       
       if (item.type === PizzaType.Golden) {
         const scoreGain = 50 * multiplier;
@@ -2569,6 +2624,30 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       item.cutPointX = cutPointX;
       item.cutPointY = cutPointY;
       item.multiplier = multiplier;
+    }
+
+    // Sutil screen shake for regular slicing
+    const baseShake = item.state === PizzaState.Whole ? 2.2 : 3.2;
+    stateRef.current.shakeIntensity = Math.min(10.0, (stateRef.current.shakeIntensity || 0) + baseShake * speedRatio);
+
+    // Floating text for points (only if it is not a large combo to keep screen clean and elegant)
+    if (stateRef.current.comboCount < 2) {
+      const scoreGain = (item.state === PizzaState.Whole ? 10 : 15) * multiplier;
+      stateRef.current.comboTexts.push({
+        id: stateRef.current.nextId++,
+        x: cutPointX,
+        y: cutPointY - 8,
+        text: `+${scoreGain}`,
+        subtext: '',
+        color: '#ffffff',
+        alpha: 1.0,
+        scale: 0.8,
+        rotation: (Math.random() - 0.5) * 0.15,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: -2.2,
+        maxAge: 32,
+        age: 0,
+      });
     }
     
     // --- EMIT SLICE EVENT TO GO AUTHORITATIVE SERVER ---
