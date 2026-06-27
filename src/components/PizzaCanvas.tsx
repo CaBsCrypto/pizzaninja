@@ -1275,21 +1275,20 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       const effectivePerformanceMode = performanceMode || controlMode === 'camera' || isMobileDevice;
 
       // Latency detection for hand tracking in camera mode
-      // Only auto-pause if game has been running for at least 3s to prevent
-      // immediate pause during game start before first hand frame arrives
+      // Only auto-pause if hand tracking has stopped sending coordinates for a significant time
       if (isPlaying && controlMode === 'camera') {
         const nowMs = Date.now();
-        const lastTracked = Math.max(lastHandTrackedTimeRef.current[0], lastHandTrackedTimeRef.current[1]);
+        const lastTracked = Math.max(lastHandTrackedTimeRef.current[0] || nowMs, lastHandTrackedTimeRef.current[1] || nowMs);
         const elapsed = nowMs - lastTracked;
         const gameRunningFor = nowMs - (stateRef.current.startTime || nowMs);
 
-        // Only activate auto-pause if game has been active for 3+ seconds
-        if (elapsed > 2000 && gameRunningFor > 3000) {
+        // Relaxed threshold to 6 seconds to prevent premature pauses on mobile cameras
+        if (elapsed > 6000 && gameRunningFor > 4000) {
           if (!isPausedRef.current) {
             togglePause(true);
           }
         } else {
-          // Auto-resume if coordinates are fresh and we were paused!
+          // Auto-resume if coordinates are fresh and we were paused
           if (isPausedRef.current && elapsed < 2000) {
             togglePause(false);
           }

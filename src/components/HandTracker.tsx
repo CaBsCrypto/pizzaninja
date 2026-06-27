@@ -347,12 +347,23 @@ export default function HandTracker({
       }
 
       // Build constraints
-      // PERF: Requesting 640x480 gives a good FOV without forcing standard webcams
-      // to drop their framerate in low-light conditions (which happens at 720p/1080p).
+      // PERF: Requesting 640x480 gives a good FOV. On mobile, we prioritize facingMode "user" to ensure the selfie camera is used automatically.
+      const isMobile = Math.min(window.innerWidth, window.innerHeight) < 768;
+      
       const constraints: MediaStreamConstraints = {
         video: selectedDeviceId 
-          ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 60, min: 30 } }
-          : { facingMode: "user", width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 60, min: 30 } },
+          ? { 
+              deviceId: { exact: selectedDeviceId }, 
+              width: isMobile ? { ideal: 480 } : { ideal: 640, max: 640 }, 
+              height: isMobile ? { ideal: 360 } : { ideal: 480, max: 480 },
+              frameRate: isMobile ? { ideal: 30 } : { ideal: 60, min: 30 }
+            }
+          : { 
+              facingMode: "user", 
+              width: isMobile ? { ideal: 480 } : { ideal: 640, max: 640 }, 
+              height: isMobile ? { ideal: 360 } : { ideal: 480, max: 480 },
+              frameRate: isMobile ? { ideal: 30 } : { ideal: 60, min: 30 }
+            },
         audio: false
       };
 
@@ -362,12 +373,21 @@ export default function HandTracker({
         stream = await navigator.mediaDevices.getUserMedia(constraints);
         addLog("Acceso a Cámara CONCEDIDO.");
       } catch (camErr: any) {
-        addLog(`Acceso ideal fallido (${camErr.name}). Probando acceso de respaldo básico...`);
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        });
-        addLog("Acceso de respaldo básico CONCEDIDO.");
+        addLog(`Acceso ideal fallido (${camErr.name}). Probando acceso de respaldo básico frontal...`);
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user" },
+            audio: false
+          });
+          addLog("Acceso a cámara frontal de respaldo CONCEDIDO.");
+        } catch (backupErr) {
+          addLog("Acceso frontal fallido. Probando cualquier cámara disponible...");
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+          });
+          addLog("Acceso de respaldo básico genérico CONCEDIDO.");
+        }
       }
 
       // Exit if user turned off model while permission modal was active
