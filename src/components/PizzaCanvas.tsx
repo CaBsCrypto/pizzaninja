@@ -1944,7 +1944,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         ctx.scale(pulse, pulse);
 
         // Draw the pizza itself
-        drawPizzaVector(ctx, FoodType.Pizza, PizzaState.Whole, startRadius, Date.now() * 0.001, 0);
+        drawPizzaVector(ctx, PizzaType.Golden, PizzaState.Whole, startRadius, Date.now() * 0.001, 0);
         
         // "CUT TO START" text hovering over the pizza
         ctx.fillStyle = '#ffffff';
@@ -2834,7 +2834,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
     // Play wind speed swipe swoosh sound effect on fast physical hand movements
     if (dist > 18 && now - (stateRef.current.lastSlashSoundTime || 0) > 130) {
-      playWebSound('slash');
+      // playWebSound('slash'); // Removed constant slash noise on hand movement - plays only when hitting a pizza!
       stateRef.current.lastSlashSoundTime = now;
     }
 
