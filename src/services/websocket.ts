@@ -5,6 +5,7 @@ export class GameWebSocket {
     public ws: PartySocket | null = null;
     private listeners: ((data: any) => void)[] = [];
     public isConnected = false;
+    private hasWarnedOffline = false;
 
     private constructor() {
         this.connect();
@@ -31,15 +32,22 @@ export class GameWebSocket {
             this.ws.addEventListener("open", () => {
                 console.log("Conectado al Edge Server de PartyKit");
                 this.isConnected = true;
+                this.hasWarnedOffline = false;
             });
-            
+
             this.ws.addEventListener("message", (event) => {
                 const data = JSON.parse(event.data);
                 this.listeners.forEach(fn => fn(data));
             });
-            
+
             this.ws.addEventListener("error", () => {
-                console.warn(`PartyKit backend no detectado en ${host}`);
+                // PartySocket retries internally forever; only warn once per
+                // disconnected streak instead of on every retry to avoid flooding
+                // the console (previously logged hundreds of times per session).
+                if (!this.hasWarnedOffline) {
+                    console.warn(`PartyKit backend no detectado en ${host} (reintentando en segundo plano)`);
+                    this.hasWarnedOffline = true;
+                }
                 this.isConnected = false;
             });
             

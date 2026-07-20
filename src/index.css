@@ -1,5 +1,14 @@
+/* PizzaVerse shared theme — Layer 1 (base) + Layer 2 (PizzaDAO 2026 season) */
 @import url('https://fonts.googleapis.com/css2?family=Lilita+One&family=Sniglet:wght@400;800&display=swap');
+@import "../pizzaverse-theme.css";
 @import "tailwindcss";
+
+/* Layer 3: Slash Slice Arena per-game accent */
+:root {
+  --pv-game-accent:      #00B4D8;
+  --pv-game-accent-glow: rgba(0, 180, 216, 0.4);
+  --pv-game-accent-dark: #005f73;
+}
 @keyframes screen-shake-mild {
   0%, 100% { transform: translate(0, 0); }
   10%, 90% { transform: translate(-2.5px, 1.5px); }

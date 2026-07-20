@@ -21,9 +21,13 @@ import {
 import { gameSocket } from '../services/websocket';
 
 const mediaPipePrintErr = (msg: any, ...args: any[]) => {
-  
+  // Normalize the incoming message to a string. Without this, referencing an
+  // undefined `fullMsg` threw a ReferenceError inside MediaPipe's native WASM
+  // error callback, which could crash hand tracking (camera mode).
+  const fullMsg = typeof msg === 'string' ? msg : String(msg ?? '');
+
   // Detect informational or warning glogs, or successfully/inactive WebGL statuses
-  const isInfo = /^[IWD]\d{4}\s+/.test(fullMsg) || 
+  const isInfo = /^[IWD]\d{4}\s+/.test(fullMsg) ||
                  fullMsg.includes('gl_context_webgl.cc') || 
                  fullMsg.includes('gl_context.cc') ||
                  fullMsg.includes('Successfully created') ||
@@ -541,6 +545,7 @@ export default function HandTracker({
 
   // Process Landmarks - supports up to 2 hands
   const handleResults = (results: any) => {
+    try {
     const canvas = overlayCanvasRef.current;
     if (!canvas) return;
 
@@ -663,6 +668,9 @@ export default function HandTracker({
         lastYRef.current[i] = null;
         onCoordsTrackedRef.current(0, 0, i, false);
       }
+    }
+    } catch (err) {
+      console.error("[GameLoop] Error crítico en frame:", err);
     }
   };
 

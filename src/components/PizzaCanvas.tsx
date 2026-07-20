@@ -1027,13 +1027,15 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         playWebSound('gameover');
         
         // --- MULTIGAME INTEGRATION ---
-        // Send score to Go Backend to save in Redis Vault and mint Ingredients
-        if (gameSocket && gameSocket.readyState === WebSocket.OPEN) {
-          gameSocket.send(JSON.stringify({
+        // Broadcast score over the realtime socket. gameSocket is a GameWebSocket
+        // wrapper (not a raw WebSocket): use its isConnected flag and pass a plain
+        // object — send() already JSON.stringifies internally.
+        if (gameSocket && gameSocket.isConnected) {
+          gameSocket.send({
             type: 'SCORE_SUBMIT',
             pubKey: walletPubKey || 'G_GUEST_' + Math.random().toString(36).substr(2, 9).toUpperCase(),
             score: stateRef.current.score
-          }));
+          });
         }
         
         onGameOver(
@@ -1270,6 +1272,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       if (!canvas || !ctx) return;
       const width = canvas.width;
       const height = canvas.height;
+      // Declared early (before any use in this scope) to avoid a temporal-dead-zone
+      // ReferenceError: this same name is referenced further down before the point
+      // where it used to be declared, which threw on every single animation frame.
+      const isPaused = isPausedRef.current;
       // PERF: Camera mode or Mobile devices auto-enable performance optimizations
       const isMobileDevice = Math.min(window.innerWidth, window.innerHeight) < 768;
       const effectivePerformanceMode = performanceMode || controlMode === 'camera' || isMobileDevice;
@@ -1316,7 +1322,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       // 2. Spawn mechanism and combo logic (only active during gameplay)
       const now = Date.now();
-      const isPaused = isPausedRef.current;
 
       if (isPlaying && !isPaused) {
         const diffScale = (45 - stateRef.current.timeLeft) / 45; // 0 to 1
@@ -2265,8 +2270,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // Calculate timeScale relative to a perfect 60fps frame (16.666ms)
       const timeScale = dt / (1000 / 60);
 
-      updateLoop(timeScale);
-      
+      try {
+        updateLoop(timeScale);
+      } catch (err) {
+        console.error("[GameLoop] Error crítico en frame:", err);
+      }
+
       animationFrameId = requestAnimationFrame(loopRunner);
     };
 
@@ -2340,6 +2349,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     segmentLength: number,
     itemCtx: CanvasRenderingContext2D
   ) => {
+    try {
     // 2. Cooldown check to prevent instant frame-by-frame double-slicing within the same stroke
     const now = Date.now();
     if (item.lastCutTime && now - item.lastCutTime < 185) {
@@ -2666,6 +2676,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     } catch (e) {
       console.warn("Failed to send slice to Go server", e);
     }
+    } catch (err) {
+      console.error("[GameLoop] Error crítico en frame:", err);
+    }
   };
 
   const handlePointerUp = () => {
@@ -2840,16 +2853,16 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   };
 
   return (
-    <div className="space-y-4 w-full relative max-w-4xl mx-auto">
-      <div 
-        ref={containerRef} 
+    <div className="space-y-4 w-full h-full relative flex flex-col min-h-0">
+      <div
+        ref={containerRef}
         style={{ clipPath: 'inset(0 round 1.5rem)' }}
-        className={`relative w-full max-w-4xl mx-auto bg-slate-950/95 shadow-2xl flex flex-col border-[4px] transition-colors duration-150 ${
+        className={`relative w-full mx-auto bg-slate-950/95 shadow-2xl flex flex-col border-[4px] transition-colors duration-150 ${
         damageFlash ? 'border-red-600 bg-red-950/80 shadow-[0_0_50px_rgba(220,38,38,0.8)]' : 'border-amber-500'
       } ${
-        isPlaying 
-          ? 'aspect-[16/9]' 
-          : 'min-h-[640px] landscape:min-h-0 landscape:aspect-[16/9] md:min-h-0 md:aspect-[16/9] overflow-y-auto landscape:overflow-hidden md:overflow-hidden'
+        isPlaying
+          ? 'flex-1 min-h-0 md:aspect-auto aspect-[16/9]'
+          : 'flex-1 min-h-[500px] md:min-h-0 landscape:min-h-0 landscape:aspect-[16/9] md:aspect-auto overflow-y-auto landscape:overflow-hidden md:overflow-hidden'
       }`}>
       {/* Red damage overlay flash */}
       {damageFlash && (

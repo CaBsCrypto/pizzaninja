@@ -118,5 +118,6 @@ export interface ScoreRecord {
   verified?: boolean;
   mode?: string;
   signedXdr?: string;
+  isDemo?: boolean; // Marca registros de ejemplo/simulados (no provienen de la blockchain real)
 }
 

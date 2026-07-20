@@ -1,0 +1,127 @@
+/* ==========================================================================
+   PIZZAVERSE SHARED THEME LAYER
+   3-layer design system for the PizzaDAO game ecosystem
+   ==========================================================================
+
+   Layer 1: Base invariable — typography and spacing. Never changes.
+   Layer 2: Season theme — swappable palette. Current: PizzaDAO 2026.
+   Layer 3: Per-game accent — survives season changes, applied via class.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   LAYER 1: BASE INVARIABLE
+   Font imports + universal spacing + border-radius base
+   -------------------------------------------------------------------------- */
+
+@import url('https://fonts.googleapis.com/css2?family=Lilita+One&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Typography */
+  --pv-font-title: "Lilita One", sans-serif;
+  --pv-font-ui: "Inter", sans-serif;
+
+  /* Spacing unit: 8px */
+  --pv-space-unit: 8px;
+  --pv-space-1: calc(var(--pv-space-unit) * 1);   /* 8px */
+  --pv-space-2: calc(var(--pv-space-unit) * 2);   /* 16px */
+  --pv-space-3: calc(var(--pv-space-unit) * 3);   /* 24px */
+  --pv-space-4: calc(var(--pv-space-unit) * 4);   /* 32px */
+  --pv-space-6: calc(var(--pv-space-unit) * 6);   /* 48px */
+  --pv-space-8: calc(var(--pv-space-unit) * 8);   /* 64px */
+
+  /* Border radius base: 8px */
+  --pv-radius-base: 8px;
+  --pv-radius-sm: 4px;
+  --pv-radius-md: 12px;
+  --pv-radius-lg: 16px;
+  --pv-radius-xl: 24px;
+  --pv-radius-full: 9999px;
+}
+
+/* --------------------------------------------------------------------------
+   LAYER 2: SEASON THEME — PizzaDAO 2026
+   Swap this entire block to change the season palette.
+   -------------------------------------------------------------------------- */
+
+:root {
+  /* Core palette */
+  --pv-bg:        #FFF8F0; /* warm cream base */
+  --pv-dark:      #1A0800; /* deep oven dark */
+  --pv-primary:   #D62828; /* pizza sauce red */
+  --pv-secondary: #F4A261; /* cheese orange */
+  --pv-accent:    #E9C46A; /* golden yellow */
+  --pv-surface:   #264653; /* deep teal surface */
+  --pv-text:      #1A0800;
+
+  /* Derived semantic tokens */
+  --pv-text-inverse:   #FFF8F0;
+  --pv-border:         rgba(214, 40, 40, 0.25);
+  --pv-shadow:         rgba(26, 8, 0, 0.35);
+  --pv-overlay:        rgba(26, 8, 0, 0.6);
+
+  /* Surface variants */
+  --pv-surface-low:    rgba(255, 248, 240, 0.6);
+  --pv-surface-mid:    rgba(255, 248, 240, 0.85);
+  --pv-surface-high:   rgba(255, 248, 240, 0.97);
+
+  /* Interactive states */
+  --pv-primary-hover:  #B91C1C;
+  --pv-primary-active: #991B1B;
+}
+
+/* --------------------------------------------------------------------------
+   LAYER 3: PER-GAME ACCENT OVERRIDES
+   Apply one of these classes to <html> or <body> for each game.
+   The --pv-game-accent variable is available for game-specific highlights.
+   -------------------------------------------------------------------------- */
+
+/* SpicyCrust — HUB / landing */
+.theme-spicycrust {
+  --pv-game-accent:        #D62828;
+  --pv-game-accent-glow:   rgba(214, 40, 40, 0.4);
+  --pv-game-accent-dark:   #7f1d1d;
+}
+
+/* Slash Slice Arena */
+.theme-slash-slice {
+  --pv-game-accent:        #00B4D8;
+  --pv-game-accent-glow:   rgba(0, 180, 216, 0.4);
+  --pv-game-accent-dark:   #005f73;
+}
+
+/* Slice Hunter */
+.theme-slice-hunter {
+  --pv-game-accent:        #F4A261;
+  --pv-game-accent-glow:   rgba(244, 162, 97, 0.4);
+  --pv-game-accent-dark:   #92400e;
+}
+
+/* Spicy Challenge */
+.theme-spicy-challenge {
+  --pv-game-accent:        #7B2D8B;
+  --pv-game-accent-glow:   rgba(123, 45, 139, 0.4);
+  --pv-game-accent-dark:   #3b0764;
+}
+
+/* --------------------------------------------------------------------------
+   PIZZACHARACTER: shared mascot positioning utility
+   Applied to the .pizza-character container rendered by PizzaCharacter component
+   -------------------------------------------------------------------------- */
+
+.pizza-character {
+  position: fixed;
+  bottom: var(--pv-space-3);
+  right: var(--pv-space-3);
+  width: 72px;
+  height: 72px;
+  z-index: 9000;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pizza-character img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px var(--pv-shadow));
+}

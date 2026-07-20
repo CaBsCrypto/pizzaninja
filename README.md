@@ -1,51 +1,74 @@
-# 🍕 Slash Slice Arena - Turtle Ninja Edition
+# 🍕 Slash Slice Arena — Turtle Ninja Edition
 
-![Slash Slice Arena Banner](https://slashslice.spicycrust.com/bg-dark.webp)
+[![Production Deploy](https://img.shields.io/badge/Vercel-Active-000000?style=for-the-badge&logo=vercel)](https://slashslice.spicycrust.com)
+[![Stellar Network](https://img.shields.io/badge/Stellar-Testnet_Soroban-7D00FF?style=for-the-badge&logo=stellar)](https://stellar.org)
+[![Privy Auth](https://img.shields.io/badge/Privy-Zero_Friction_Web3-FF4458?style=for-the-badge)](https://privy.io)
+[![MediaPipe](https://img.shields.io/badge/MediaPipe-60_FPS_Edge_AI-4285F4?style=for-the-badge&logo=google)](https://mediapipe.dev)
 
-**Slash Slice Arena** es una Prueba de Concepto (PoC) técnica que combina visión artificial (Computer Vision), interfaces modernas y tecnologías Web3, todo ejecutándose fluidamente dentro del navegador. 
+**Slash Slice Arena** is a zero-friction, spatial arcade game running 100% in the browser. It combines **Edge AI Computer Vision** (MediaPipe Hands), a **60 FPS HTML5 Canvas Physics Engine**, **PartyKit Real-Time WebSockets**, and **Stellar/Soroban Gas Abstraction**.
 
-Los jugadores asumen el rol de un Ninja Cortador de Pizzas, usando sus propias manos frente a la cámara web para rebanar ingredientes que vuelan por el aire, simulando un juego arcade clásico, pero con físicas modernas y registro de puntuaciones inmutable en la blockchain.
+Players assume the role of a Ninja Pizza Chef, using their own hands in front of their webcam to slice flying ingredients in mid-air—delivering classic arcade thrill backed by immutable, gas-free blockchain leaderboard records.
 
-## 🚀 Tecnologías Clave (Stack)
+👉 **Live Demo:** [https://slashslice.spicycrust.com](https://slashslice.spicycrust.com)
 
-Esta PoC demuestra la integración fluida de 3 pilares tecnológicos fundamentales:
+---
 
-### 1. Visión Artificial en Tiempo Real (Edge AI)
-- **MediaPipe (Google):** Procesamiento de imágenes en el cliente.
-- Detecta y mapea en 3D los 21 puntos clave de la mano humana a 60 FPS directamente en el navegador, sin necesidad de servidores externos.
-- **Detección de Colisiones 2D:** El dedo índice (Landmark 8) se usa como el punto de la espada, calculando trayectorias (slashes) interpoladas matemáticamente para cortar objetos en movimiento en un canvas HTML5.
+## 📚 Technical Documentation Suite
 
-### 2. Autenticación Web3 "Invisible" (Fricción Cero)
-- **Web3Auth v9:** Tecnología de computación multiparte (MPC) que permite la creación de billeteras criptográficas (Stellar) usando un simple login social (Gmail).
-- **Stellar Network (Soroban):** Las billeteras generadas son compatibles con la red Stellar. En esta PoC, se simula el minteo de registros de puntuación como Smart Contracts (NFTs) en la red Soroban, demostrando cómo una capa blockchain puede añadir inmutabilidad y propiedad (Ownership) a los récords y objetos cosméticos de un juego.
-- **Abstracción de Bóveda:** Los jugadores no necesitan saber qué es una "frase semilla" ni instalar extensiones. Entran con Google y ya están en la Web3.
+For deep-dive architectural breakdowns, smart contract specifications, and development manuals, explore our comprehensive documentation modules:
 
-### 3. Interfaz de Usuario AAA (React + Tailwind)
-- **React 18 & TypeScript:** Tipado estricto y gestión de estado escalable.
-- **Tailwind CSS & Framer Motion:** Diseño "Glassmorphism" con temáticas arcade. Animaciones fluidas, bordes brillantes y modales responsivos que imitan la retención y la calidad visual de juegos móviles Top Grossing (estilo Supercell).
+| Document | Description |
+| :--- | :--- |
+| 🏗️ [**System Architecture & Topology**](docs/ARCHITECTURE.md) | Component diagrams, RAF 60FPS loop, React/Canvas separation, and PartyKit WebSocket rooms. |
+| ⚡ [**Web3, Stellar & Soroban**](docs/WEB3_SOROBAN_STELLAR.md) | Deterministic keypair derivation (`Ed25519`), server-side Gas Abstraction (`FeeBumpTransaction`), and Vercel KV Redis persistence. |
+| 👁️ [**Vision Engine & Physics**](docs/VISION_GAME_PHYSICS.md) | MediaPipe 21 3D landmarks tracking, swipe velocity thresholds, particle engine physics, and WebAudio synthesizer. |
+| 🛠️ [**Development & Deployment**](docs/DEVELOPMENT_DEPLOYMENT.md) | Local setup, HTTP vs HTTPS secure context polyfills, environment variables reference, and Vercel deployment pipeline. |
+| 🌐 [**OpenAPI 3.0 REST API Reference**](docs/API_REFERENCE.md) | OpenAPI specs, endpoints (`/api/score`, `/api/mint`), JSON schemas, cURL examples, HTTP status codes, and rate limiting. |
 
-## 🎮 Cómo Jugar
+---
 
-1. Inicia el juego con `npm run dev`.
-2. Selecciona tu "Banda Sonora" y "Estilo de Espada" (Cosméticos).
-3. Entra en modo **Cámara**: Aléjate un poco, levanta la mano, y usa tu dedo índice como sable láser.
-4. **Modo Clásico**: 3 vidas, las piñas (bombas) te quitan una vida.
-5. **Modo Árcade**: 60 segundos de tiempo libre para hacer combos gigantes, las piñas quitan tiempo.
-6. ¡Rompe el récord y registra tu puntuación en la "Blockchain"!
+## 🚀 Key Technological Pillars
 
-## 🛠 Instalación y Desarrollo Local
+### 1. Real-Time Spatial Tracking (Edge AI)
+- **MediaPipe Hands (Google)**: Runs WebAssembly/TFLite models client-side to track 21 3D hand keypoints at 60 FPS without sending video feeds to external servers.
+- **2D Collision Physics**: Uses Landmark 8 (Index Finger Tip) as a virtual sword point, calculating continuous spatial line-segment intersections against moving target hitboxes.
+
+### 2. Zero-Friction Web3 (Stellar & Soroban)
+- **Social Onboarding (Privy)**: Log in via 1-click Google or Email authentication.
+- **Deterministic Keypairs**: Computes a SHA-256 seed from the user's Privy DID to derive a native Stellar Ed25519 keypair (`G...`) in client memory. No seed phrases or extension downloads required.
+- **Gas Abstraction**: Serverless backend wraps transaction payloads in Stellar `FeeBumpTransaction` wrappers, paying network gas fees so players experience zero-cost score submissions.
+
+### 3. AAA Frontend Experience
+- **React 18 & TypeScript**: Strict type safety and predictable state management.
+- **HTML5 Canvas 2D Engine**: High-performance particle simulation (crust, sauce, cheese), screen shake effects, and procedural WebAudio FX without external audio assets.
+
+---
+
+## 🎮 Game Modes
+
+- **Classic Mode**: 3 Lives. Pineapple bombs deduct 1 life.
+- **Arcade Mode**: 60-second time trial. Pineapple bombs deduct 3 seconds. Slice pizza combos for bonus time multipliers.
+
+---
+
+## 💻 Quickstart (Local Development)
 
 ```bash
-# 1. Clona el repositorio
+# 1. Clone the repository
 git clone https://github.com/CaBsCrypto/pizzaninja.git
 cd pizzaninja
 
-# 2. Instala las dependencias
-npm install
+# 2. Install dependencies
+pnpm install
 
-# 3. Levanta el servidor de desarrollo en localhost:5173
-npm run dev
+# 3. Start the dev server (Localhost Port 3000)
+pnpm dev
 ```
 
+Open `https://localhost:3000` in your browser.
+
 ---
-*Construido como Prueba de Concepto Técnica. Las transacciones mostradas al finalizar la partida en esta versión son simulaciones visuales del comportamiento planificado en Soroban.*
+
+## 📄 License & Credits
+
+Built for the **PizzaDAO 2026 Season Hackathon**. Hosted on Vercel.

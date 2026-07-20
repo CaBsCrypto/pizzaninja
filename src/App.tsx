@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Trophy, Award, Trash2, ArrowRight, User, Sparkles, Star, Swords, Clock, Wallet, X, ShoppingCart } from 'lucide-react';
+import { Trophy, Award, Trash2, ArrowRight, User, Sparkles, Star, Swords, Clock, Wallet, X, ShoppingCart, Loader2, CheckCircle2, Hourglass, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import PizzaCanvas from './components/PizzaCanvas';
 import Leaderboard from './components/Leaderboard';
@@ -63,12 +63,10 @@ export default function App() {
   // Leaderboard lists
   const [scores, setScores] = useState<ScoreRecord[]>([]);
 
-  // Onboarding PoC
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
   // Web3 PoC Simulation state
   const [isMinting, setIsMinting] = useState(false);
   const [mintedTx, setMintedTx] = useState<string | null>(null);
+  const [mintingStep, setMintingStep] = useState<'idle' | 'signing' | 'sponsoring' | 'registering' | 'completed' | 'error'>('idle');
 
   // Stellar Wallet global state
   const [walletState, setWalletState] = useState<StellarWalletState>({
@@ -154,6 +152,8 @@ export default function App() {
         }
       } else {
         // Seed some dummy records matching Slash Slice retro theme
+        // NOTA: estos son registros ficticios de ejemplo (no provienen del ledger real).
+        // Se marcan con isDemo para que la UI pueda mostrar la etiqueta "DEMO".
         const seeds: ScoreRecord[] = [
           {
             name: 'CHEF_MARIO',
@@ -162,6 +162,7 @@ export default function App() {
             duration: 45,
             slashes: 154,
             mode: 'arcade',
+            isDemo: true,
           },
           {
             name: 'NINJA_SLICE',
@@ -170,6 +171,7 @@ export default function App() {
             duration: 45,
             slashes: 125,
             mode: 'arcade',
+            isDemo: true,
           },
           {
             name: 'EL_CORTE_RAPIDO',
@@ -178,6 +180,7 @@ export default function App() {
             duration: 45,
             slashes: 89,
             mode: 'arcade',
+            isDemo: true,
           },
           {
             name: 'PEPERONI_PRO',
@@ -186,6 +189,7 @@ export default function App() {
             duration: 30,
             slashes: 45,
             mode: 'arcade',
+            isDemo: true,
           },
         ];
         setScores(seeds);
@@ -213,12 +217,6 @@ export default function App() {
         console.error("Error fetching global scores, falling back to local:", err);
         loadLocalBackup();
       });
-    
-    // Check Onboarding
-    const hasSeenOnboarding = localStorage.getItem('slash_slice_poc_onboarding');
-    if (!hasSeenOnboarding) {
-      setShowOnboarding(true);
-    }
   }, []);
 
   // When a game finishes, record score state as pending submission
@@ -230,6 +228,9 @@ export default function App() {
     gameStartTimestamp?: number,
     gameMode?: string
   ) => {
+    // Game-over must always take visual priority: close any other overlays
+    // that could still be mounted (e.g. the shop was opened mid-game).
+    setShowShop(false);
     setPendingScore({
       score: finalScore,
       duration: finalDuration,
@@ -313,13 +314,12 @@ export default function App() {
     showToast('🧹 Historial de récords reiniciado!', 'info');
   };
 
+  // Plain div (not motion.div): AnimatePresence only tracks its DIRECT child
+  // for enter/exit — nesting an independently-animated motion.div one level
+  // deeper left it stuck at its `initial` values in testing. The single
+  // motion.div wrapping this in the JSX below now owns the enter/exit tween.
   const scoreRegistrationCard = pendingScore && (
-    <motion.div 
-      initial={{ scale: 0.9, opacity: 0, y: 20 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      exit={{ scale: 0.9, opacity: 0, y: -20 }}
-      className="panel-clash p-6 md:p-8 rounded-3xl w-full max-w-2xl md:max-w-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-center mx-auto z-50 pointer-events-auto"
-    >
+    <div className="panel-clash p-6 md:p-8 rounded-3xl w-full max-w-2xl md:max-w-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-center mx-auto z-50 pointer-events-auto">
       {/* Decorative corner glow */}
       <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-400/20 blur-3xl rounded-full pointer-events-none" />
       
@@ -342,108 +342,236 @@ export default function App() {
       {/* Right Side: Registration Form */}
       <div className="w-full md:w-1/2 flex flex-col justify-center">
         {walletState.connected ? (
-          <div className="space-y-3 bg-amber-100 border-4 border-amber-300 p-4 rounded-2xl text-center shadow-md">
-            <span className="text-sm font-pixel text-amber-800 uppercase block mb-2">Firma On-Chain</span>
-            <div className="text-blue-900 text-xl font-vt bg-white py-2 px-3 rounded-xl border-2 border-amber-200 truncate shadow-inner">
-              👤 {walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 8)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO')}
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                playWebSound('coin');
-                setIsMinting(true);
-                try {
-                  // 1. Build and sign transaction call to submit_score if wallet is connected and not mock
-                  let signedXdr: string | null = null;
-                  const isMockWallet = !walletState.publicKey || walletState.publicKey.length < 56 || walletState.publicKey.substring(1, 5) === 'MOCK' || walletState.publicKey.substring(1, 5) === 'PASS';
-                  
-                  if (walletState.connected && walletState.publicKey && !isMockWallet) {
-                    showToast('📝 Generando firma del smart contract...', 'info');
-                    // Leaderboard contract ID
-                    const contractId = import.meta.env.VITE_LEADERBOARD_CONTRACT_ID || 'CBCX2IOM53YQZEHC24TCZ4VOYZXKVKB6NOH52LIL4GQDRDIL2026LEADER';
-                    
-                    const trimmedName = (walletState.domainName || walletState.publicKey.slice(0, 6) + '...' + walletState.publicKey.slice(-4)).toUpperCase();
+          mintingStep !== 'idle' ? (
+            <div className="space-y-4 bg-slate-900 border-4 border-amber-500/50 p-6 rounded-2xl text-center shadow-lg relative overflow-hidden w-full text-left">
+              {/* Header / Title */}
+              <div className="flex flex-col items-center text-center mb-2">
+                <span className="text-sm font-pixel text-amber-400 uppercase tracking-widest block mb-1">
+                  {mintingStep === 'completed' ? '🎉 ÉXITO' : mintingStep === 'error' ? '❌ ERROR' : '⚡ REGISTRANDO RÉCORD'}
+                </span>
+                <p className="text-xs text-blue-200 font-sans">
+                  {mintingStep === 'completed' 
+                    ? 'Tu récord se ha guardado de forma permanente.' 
+                    : mintingStep === 'error' 
+                    ? 'Algo falló. Inténtalo de nuevo o guarda localmente.' 
+                    : 'Procesando tu récord con Gas Abstracción...'}
+                </p>
+              </div>
 
-                    signedXdr = await buildAndSignSubmitScoreTx(
-                      walletState.publicKey,
-                      trimmedName,
-                      pendingScore.score,
-                      contractId,
-                      walletState.walletType || 'gmail'
-                    );
+              {/* Stepper items */}
+              <div className="space-y-3 font-sans text-sm">
+                {/* Step 1: Firma */}
+                <div className="flex items-center gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg border-2 border-slate-700 bg-slate-900 font-pixel">
+                    {mintingStep === 'signing' ? (
+                      <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                    ) : ['sponsoring', 'registering', 'completed'].includes(mintingStep) ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    ) : (
+                      <Hourglass className="w-4 h-4 text-slate-500" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-pixel text-xs text-white block">1. Firma Digital</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5 font-sans">
+                      {mintingStep === 'signing' ? 'Generando firma criptográfica en tu bóveda...' : ['sponsoring', 'registering', 'completed'].includes(mintingStep) ? 'Firma creada con éxito' : 'Esperando firma...'}
+                    </span>
+                  </div>
+                </div>
 
-                    if (signedXdr) {
-                      showToast('⛽ Patrocinando comisiones de gas...', 'info');
-                    } else {
-                      showToast('⚠️ No se pudo generar la firma del contrato. Guardando localmente...', 'info');
-                    }
-                  }
+                {/* Step 2: Gas */}
+                <div className="flex items-center gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg border-2 border-slate-700 bg-slate-900 font-pixel">
+                    {mintingStep === 'sponsoring' ? (
+                      <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                    ) : ['registering', 'completed'].includes(mintingStep) ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    ) : (
+                      <Hourglass className="w-4 h-4 text-slate-500" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-pixel text-xs text-white block">2. Patrocinio de Gas</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5 font-sans">
+                      {mintingStep === 'sponsoring' ? 'Abstrayendo costos de red (Gas gratis patrocinado)...' : ['registering', 'completed'].includes(mintingStep) ? 'Gas patrocinado' : 'Pendiente de patrocinio...'}
+                    </span>
+                  </div>
+                </div>
 
-                  const newRecord: ScoreRecord = {
-                    name: walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO'),
-                    score: pendingScore.score,
-                    timestamp: Date.now(),
-                    duration: pendingScore.duration,
-                    slashes: pendingScore.slashes,
-                    slashHistory: pendingScore.slashHistory,
-                    pubkey: walletState.publicKey || undefined,
-                    domain: walletState.domainName || undefined,
-                    verified: true,
-                    mode: pendingScore.gameMode || 'arcade',
-                    signedXdr: signedXdr || undefined
-                  };
+                {/* Step 3: Ledger */}
+                <div className="flex items-center gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg border-2 border-slate-700 bg-slate-900 font-pixel">
+                    {mintingStep === 'registering' ? (
+                      <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                    ) : mintingStep === 'completed' ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    ) : (
+                      <Hourglass className="w-4 h-4 text-slate-500" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-pixel text-xs text-white block">3. Registro en Soroban (Stellar)</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5 font-sans">
+                      {mintingStep === 'registering' ? 'Escribiendo puntaje en la blockchain...' : mintingStep === 'completed' ? 'Guardado permanentemente en la red testnet' : 'Pendiente de envío...'}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-                  // Send to database (Vercel KV) with gas abstraction simulation on the server
-                  const res = await fetch('/api/score', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newRecord)
-                  });
-                  const data = await res.json();
-
-                  if (data.success) {
-                    const recordWithHash = { ...newRecord, txHash: data.txHash };
-                    const updated = [recordWithHash, ...scores].sort((a,b) => b.score - a.score).slice(0, 50);
-                    setScores(updated);
-                    localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
-                    setPendingScore(null);
-                    playWebSound('register');
-                    setMintedTx(data.txHash);
-                    showToast('🔥 ¡Récord Inmortalizado en Stellar!', 'success');
-                  } else {
-                    alert("Error al registrar el récord: " + data.error);
-                  }
-                } catch (e) {
-                  console.error(e);
-                  alert("Error de conexión al registrar récord en Stellar.");
-                } finally {
-                  setIsMinting(false);
-                }
-              }}
-              disabled={isMinting}
-              className={`w-full py-3 text-lg flex items-center justify-center gap-2 mt-2 transition-all ${isMinting ? 'bg-slate-400 cursor-not-allowed text-white rounded-2xl' : 'btn-clash-gold'}`}
-            >
-              {isMinting ? (
-                <>
-                  <div className="w-5 h-5 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                  <span className="font-pixel animate-pulse">FIRMANDO CONTRATO...</span>
-                </>
-              ) : (
-                <>
-                  <Star className="w-5 h-5 fill-white" />
-                  <span>INMORTALIZAR RÉCORD</span>
-                </>
+              {/* Success details or retry controls */}
+              {mintingStep === 'completed' && (
+                <div className="space-y-3 pt-2 text-center">
+                  <div className="bg-emerald-500/10 border-2 border-emerald-500/20 p-3 rounded-xl text-[10px] text-emerald-400 font-mono flex items-center justify-center gap-2 select-all">
+                    <span>Tx:</span>
+                    <span className="truncate max-w-[180px]">{mintedTx || 'TxSimulatedHashSig'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingScore(null);
+                      setMintingStep('idle');
+                    }}
+                    className="btn-clash-blue w-full py-2.5 text-sm uppercase tracking-wide cursor-pointer font-pixel"
+                  >
+                    ¡EXCELENTE, VOLVER!
+                  </button>
+                </div>
               )}
-            </button>
-            <div className="flex justify-between items-center text-xs text-amber-700 pt-2 font-vt">
-              <button type="button" onClick={() => setWalletState(prev => ({...prev, connected: false, publicKey: null, domainName: null}))} className="hover:text-amber-900 transition underline cursor-pointer">
-                Cambiar Nombre
-              </button>
-              <button type="button" onClick={() => setPendingScore(null)} className="hover:text-amber-900 transition cursor-pointer font-bold">
-                Omitir
-              </button>
+
+              {mintingStep === 'error' && (
+                <div className="space-y-3 pt-2 text-center">
+                  <div className="bg-red-500/10 border border-red-500/30 p-2.5 rounded-xl text-xs text-red-400 font-sans">
+                    Hubo un problema de conexión al procesar la transacción.
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMintingStep('idle')}
+                      className="btn-clash-blue w-1/2 py-2 text-xs cursor-pointer font-pixel"
+                    >
+                      REINTENTAR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingScore(null);
+                        setMintingStep('idle');
+                      }}
+                      className="bg-slate-700 hover:bg-slate-600 text-white rounded-2xl w-1/2 py-2 text-xs font-pixel uppercase cursor-pointer"
+                    >
+                      CANCELAR
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3 bg-amber-100 border-4 border-amber-300 p-4 rounded-2xl text-center shadow-md w-full">
+              <span className="text-sm font-pixel text-amber-800 uppercase block mb-2">Firma On-Chain</span>
+              <div className="text-blue-900 text-xl font-vt bg-white py-2 px-3 rounded-xl border-2 border-amber-200 truncate shadow-inner">
+                👤 {walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 8)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO')}
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  playWebSound('coin');
+                  setIsMinting(true);
+                  setMintingStep('signing');
+                  try {
+                    // 1. Build and sign transaction call to submit_score if wallet is connected and not mock
+                    let signedXdr: string | null = null;
+                    const isMockWallet = !walletState.publicKey || walletState.publicKey.length < 56 || walletState.publicKey.substring(1, 5) === 'MOCK' || walletState.publicKey.substring(1, 5) === 'PASS';
+                    
+                    if (walletState.connected && walletState.publicKey && !isMockWallet) {
+                      showToast('📝 Generando firma del smart contract...', 'info');
+                      // Leaderboard contract ID
+                      const contractId = import.meta.env.VITE_LEADERBOARD_CONTRACT_ID || 'CBCX2IOM53YQZEHC24TCZ4VOYZXKVKB6NOH52LIL4GQDRDIL2026LEADER';
+                      
+                      const trimmedName = (walletState.domainName || walletState.publicKey.slice(0, 6) + '...' + walletState.publicKey.slice(-4)).toUpperCase();
+  
+                      signedXdr = await buildAndSignSubmitScoreTx(
+                        walletState.publicKey,
+                        trimmedName,
+                        pendingScore.score,
+                        contractId,
+                        walletState.walletType || 'gmail'
+                      );
+  
+                      if (signedXdr) {
+                        setMintingStep('sponsoring');
+                        showToast('⛽ Patrocinando comisiones de gas...', 'info');
+                        // Add a short delay so the player can witness the Gas Sponsorship phase
+                        await new Promise(r => setTimeout(r, 1200));
+                      } else {
+                        showToast('⚠️ No se pudo generar la firma del contrato. Guardando localmente...', 'info');
+                      }
+                    } else {
+                      // Simulation phase for mock wallet so they can see the gorgeous stepper flow
+                      await new Promise(r => setTimeout(r, 1000));
+                      setMintingStep('sponsoring');
+                      await new Promise(r => setTimeout(r, 1000));
+                    }
+  
+                    setMintingStep('registering');
+                    const newRecord: ScoreRecord = {
+                      name: walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'ANÓNIMO'),
+                      score: pendingScore.score,
+                      timestamp: Date.now(),
+                      duration: pendingScore.duration,
+                      slashes: pendingScore.slashes,
+                      slashHistory: pendingScore.slashHistory,
+                      pubkey: walletState.publicKey || undefined,
+                      domain: walletState.domainName || undefined,
+                      verified: true,
+                      mode: pendingScore.gameMode || 'arcade',
+                      signedXdr: signedXdr || undefined
+                    };
+  
+                    // Send to database (Vercel KV) with gas abstraction simulation on the server
+                    const res = await fetch('/api/score', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(newRecord)
+                    });
+                    const data = await res.json();
+  
+                    if (data.success) {
+                      setMintingStep('completed');
+                      const recordWithHash = { ...newRecord, txHash: data.txHash };
+                      const updated = [recordWithHash, ...scores].sort((a,b) => b.score - a.score).slice(0, 50);
+                      setScores(updated);
+                      localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
+                      playWebSound('register');
+                      setMintedTx(data.txHash);
+                      showToast('🔥 ¡Récord Inmortalizado en Stellar!', 'success');
+                    } else {
+                      setMintingStep('error');
+                      alert("Error al registrar el récord: " + data.error);
+                    }
+                  } catch (e) {
+                    console.error(e);
+                    setMintingStep('error');
+                    alert("Error de conexión al registrar récord en Stellar.");
+                  } finally {
+                    setIsMinting(false);
+                  }
+                }}
+                disabled={isMinting}
+                className={`w-full py-3 text-lg flex items-center justify-center gap-2 mt-2 transition-all ${isMinting ? 'bg-slate-400 cursor-not-allowed text-white rounded-2xl' : 'btn-clash-gold'}`}
+              >
+                <Star className="w-5 h-5 fill-white" />
+                <span>INMORTALIZAR RÉCORD</span>
+              </button>
+              <div className="flex justify-between items-center text-xs text-amber-700 pt-2 font-vt">
+                <button type="button" onClick={() => setWalletState(prev => ({...prev, connected: false, publicKey: null, domainName: null}))} className="hover:text-amber-900 transition underline cursor-pointer">
+                  Cambiar Nombre
+                </button>
+                <button type="button" onClick={() => setPendingScore(null)} className="hover:text-amber-900 transition cursor-pointer font-bold">
+                  Omitir
+                </button>
+              </div>
+            </div>
+          )
         ) : (
           <form onSubmit={handleRegisterScore} className="flex flex-col gap-4">
             <div className="space-y-2">
@@ -471,18 +599,18 @@ export default function App() {
           </form>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 
   return (
-    <div id="ninja-app-root" className="min-h-screen bg-slate-950 bg-[url('/bg-dark.webp')] bg-cover bg-center bg-fixed bg-no-repeat text-slate-100 font-sans selection:bg-amber-400 selection:text-white pb-16 overflow-hidden relative">
+    <div id="ninja-app-root" className="h-dvh bg-slate-950 bg-[url('/bg-dark.webp')] bg-cover bg-center bg-fixed bg-no-repeat text-slate-100 font-sans selection:bg-amber-400 selection:text-white overflow-hidden relative flex flex-col">
       
       {/* Cartoon clouds decoration */}
       <div className="absolute top-10 left-10 w-32 h-16 bg-white/20 rounded-full blur-xl pointer-events-none" />
       <div className="absolute top-20 right-20 w-48 h-24 bg-white/10 rounded-full blur-2xl pointer-events-none" />
 
       {/* Main Nav header */}
-      <header className="relative max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4 z-40">
+      <header className="relative w-full max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4 z-40 shrink-0">
         <div className="flex items-center gap-3">
           <motion.div 
             whileHover={{ scale: 1.05, rotate: -5 }}
@@ -504,8 +632,15 @@ export default function App() {
         <div className="flex items-center gap-3">
           {/* Botón de Tienda */}
           <button
-            onClick={() => setShowShop(true)}
-            className="flex items-center gap-2 text-sm px-4 py-3 cursor-pointer text-xl uppercase btn-clash-yellow"
+            onClick={() => {
+              // Prevent opening the shop while another overlay with higher
+              // priority (game-over/score registration) is active, or while
+              // a game is in progress.
+              if (isPlaying || pendingScore !== null) return;
+              setShowShop(true);
+            }}
+            disabled={isPlaying || pendingScore !== null}
+            className="flex items-center gap-2 text-sm px-4 py-3 cursor-pointer text-xl uppercase btn-clash-yellow disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ShoppingCart className="w-5 h-5 text-amber-900" />
             <span className="font-pixel text-sm mt-1 text-amber-900 hidden sm:inline">Tienda</span>
@@ -540,14 +675,14 @@ export default function App() {
       </header>
 
       {/* Main Container Workspace */}
-      <main className="relative max-w-4xl mx-auto px-6 mt-8 z-40">
-        
-        <div className="space-y-4">
+      <main className="relative w-full max-w-6xl mx-auto px-4 md:px-6 py-4 z-40 flex-1 min-h-0 flex flex-col">
+
+        <div className="flex-1 min-h-0 flex flex-col">
 
           {/* Tienda Overlay */}
           <AnimatePresence>
-            {showShop && !isPlaying && (
-              <Shop 
+            {showShop && !isPlaying && pendingScore === null && (
+              <Shop
                 onClose={() => setShowShop(false)} 
                 balance={effectiveBalance} 
                 onPurchase={handlePurchase} 
@@ -557,45 +692,6 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* Onboarding Modal */}
-          <AnimatePresence>
-            {showOnboarding && !isPlaying && (
-              <motion.div 
-                initial={{ opacity: 0, y: 50 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, y: 50 }}
-                className="absolute inset-0 z-[120] flex items-center justify-center bg-slate-950/95 p-4 rounded-3xl"
-              >
-                <div className="panel-clash p-6 rounded-3xl w-full max-w-md shadow-2xl relative overflow-hidden border-2 border-blue-500/50">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl" />
-                  <h2 className="text-2xl font-pixel text-white mb-4 text-stroke-sm text-center">⚔️ Bienvenido a la Arena ⚔️</h2>
-                  
-                  <div className="space-y-4 font-sans text-sm text-blue-100">
-                    <div className="bg-slate-900/60 p-3 rounded-xl border border-blue-500/30">
-                      <strong className="text-amber-400 block mb-1">🎮 Juega con tu Cuerpo</strong>
-                      Activa la <b>CÁMARA</b> y agita las manos frente a la pantalla para cortar pizzas en el aire. ¡Cuidado con no golpear la piña!
-                    </div>
-                    <div className="bg-slate-900/60 p-3 rounded-xl border border-emerald-500/30">
-                      <strong className="text-emerald-400 block mb-1">💎 Web3 Invisible</strong>
-                      Conecta tu cuenta de Gmail usando la bóveda. Cuando rompas tu récord, se guardará como un <b>NFT Inmutable</b> en la blockchain de Stellar.
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={() => {
-                      setShowOnboarding(false);
-                      localStorage.setItem('slash_slice_poc_onboarding', 'true');
-                      playWebSound('splat');
-                    }} 
-                    className="btn-clash-gold w-full py-4 mt-6 text-lg tracking-wider"
-                  >
-                    ¡ENTENDIDO, A JUGAR!
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
           {/* Web3 Minted Success Modal Simulation */}
           <AnimatePresence>
             {mintedTx && !isPlaying && (
@@ -611,8 +707,11 @@ export default function App() {
                     <Sparkles className="w-10 h-10 text-emerald-500" />
                   </div>
                   <h2 className="text-3xl font-pixel text-white mb-2 text-stroke-sm">¡NFT Minteado!</h2>
+                  <div className="inline-block mb-3 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-xs font-mono tracking-wider">
+                    STELLAR TESTNET · DEMO
+                  </div>
                   <p className="font-vt text-blue-200 text-lg mb-6 leading-tight">
-                    Tu récord ha sido guardado de forma inmutable en un Smart Contract de la red Stellar Soroban.
+                    Tu récord se registró en un Smart Contract en la red de pruebas (Testnet) de Stellar Soroban.
                   </p>
                   <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 mb-6">
                     <span className="text-xs font-mono text-slate-400 block mb-1">Hash de Transacción</span>
@@ -626,12 +725,17 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* Score Registry Popup overlay INSIDE the game container */}
+          {/* Score Registry Popup overlay INSIDE the game container.
+              This motion.div is the SINGLE direct child AnimatePresence tracks
+              for enter/exit — scoreRegistrationCard itself is a plain div (see
+              its definition above) so there is no nested motion.div fighting
+              for the same transition. */}
           <AnimatePresence>
             {pendingScore !== null && !isPlaying && (
-              <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
+              <motion.div
+                key="score-registration-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-4 rounded-3xl"
               >
@@ -650,34 +754,9 @@ export default function App() {
             onOpenWallet={() => setIsWalletOpen(true)}
           />
 
-          {/* Retro Arcade Tips Box */}
-          <div className="panel-clash p-5 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/20 rounded-full blur-2xl pointer-events-none" />
-            <div className="flex gap-4 items-start relative z-10">
-              <div className="bg-amber-400 text-white p-3 rounded-2xl mt-0.5 shrink-0 border-b-4 border-amber-600 shadow-lg border-x-2 border-t-2 border-amber-300">
-                <Flame className="w-6 h-6 fill-white drop-shadow-md" />
-              </div>
-              <div>
-                <h3 className="font-pixel text-white text-lg sm:text-xl text-stroke-sm drop-shadow-md">Consejo Maestro: ¡Combos Épicos!</h3>
-                <p className="font-vt text-xl text-blue-900 mt-1 leading-tight font-bold">
-                  Corta múltiples pizzas en un solo movimiento fluido para obtener bonos de elixir (puntos). ¡Esquiva la piña y las quemadas o perderás tu racha!
-                </p>
-              </div>
-            </div>
-          </div>
-
         </div>
 
       </main>
-
-      <footer className="max-w-7xl mx-auto px-6 mt-16 text-center text-blue-200 text-sm font-vt border-t-4 border-blue-600/50 pt-8 drop-shadow-md">
-        <span>© 2026 Slash Slice Arena. Construido con ❤️ para verdaderos chefs guerreros.</span>
-        <div className="mt-2 flex justify-center gap-4 text-xs text-blue-300">
-          <span>Estilo Gráfico AAA</span>
-          <span>•</span>
-          <span>FPS Máximo</span>
-        </div>
-      </footer>
 
       {/* Toast Notification HUD */}
       <AnimatePresence>
@@ -823,6 +902,9 @@ export default function App() {
                   <div className="flex items-center gap-1.5 text-[8px] font-mono text-indigo-400 font-bold bg-indigo-950/20 border border-indigo-900/35 p-1 rounded-lg">
                     <Star className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '6s' }} />
                     <span>INTEGRACIÓN ACTIVADA (NET DE PRUEBA)</span>
+                    <span className="ml-auto bg-amber-500/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.2 rounded-full font-black tracking-wide">
+                      TESTNET
+                    </span>
                   </div>
                 </div>
 

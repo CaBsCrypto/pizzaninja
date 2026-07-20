@@ -26,6 +26,7 @@ interface StellarHubProps {
 
 export default function StellarHub({ walletState, setWalletState, onToastMessage }: StellarHubProps) {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const { login, ready, authenticated, user, logout } = usePrivy();
   const { hasNFT, loading: nftLoading } = useSorobanNFTBalance(walletState.publicKey);
 
@@ -164,7 +165,9 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
         const mockStellarPubKey = `G${hexHash.toUpperCase()}`;
         
         setWalletState({ connected: true, publicKey: mockStellarPubKey, walletType: 'passkey' });
-        onToastMessage("Smart Wallet (Passkey) conectada con éxito", 'success');
+        // Honest labeling: this passkey flow derives a simulated G-address for the
+        // demo — it is NOT a funded on-chain Stellar account.
+        onToastMessage("Passkey conectada (modo demo · billetera simulada)", 'info');
       }
     } catch (e: any) {
       console.error(e);
@@ -197,65 +200,83 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
     <div className="flex flex-col gap-4 w-full">
       {!walletState.connected ? (
         <>
-          <p className="text-sm font-sans text-blue-900 leading-relaxed mb-2">
-            Inicia sesión en el ecosistema Stellar de forma segura para registrar tus puntuaciones en el ledger.
+          <p className="text-sm font-sans text-blue-900 leading-relaxed mb-2 text-center">
+            Inicia sesión en el ecosistema Stellar de forma segura para registrar tus puntuaciones.
           </p>
 
-          {/* Multi-Wallet Button */}
-          <button
-            onClick={handleConnectWallet}
-            disabled={isConnecting}
-            className="w-full bg-slate-900 hover:bg-slate-800 border-2 border-blue-500 text-white rounded-2xl p-4 flex items-center justify-between transition-all group shadow-lg cursor-pointer disabled:opacity-50"
-          >
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-500/20 p-2 rounded-xl group-hover:scale-110 transition-transform">
-                <Shield className="w-6 h-6 text-blue-400" />
-              </div>
-              <div className="text-left">
-                <h4 className="font-pixel text-xs text-blue-100">Billeteras Web3</h4>
-                <span className="font-sans text-[10px] text-blue-300 block mt-0.5">Albedo, Freighter, xBull...</span>
-              </div>
-            </div>
-            <Zap className="w-5 h-5 text-blue-500 group-hover:text-blue-400" />
-          </button>
-
-          {/* Passkeys Button */}
-          <button
-            onClick={handleConnectPasskey}
-            disabled={isConnecting}
-            className="w-full bg-gradient-to-r from-indigo-900 to-purple-900 hover:from-indigo-800 hover:to-purple-800 border-2 border-purple-500 text-white rounded-2xl p-4 flex items-center justify-between transition-all group shadow-[0_0_15px_rgba(168,85,247,0.4)] cursor-pointer disabled:opacity-50 relative overflow-hidden"
-          >
-            <div className="absolute -right-4 -top-4 w-16 h-16 bg-purple-500/20 rounded-full blur-xl group-hover:scale-150 transition-transform" />
-            <div className="flex items-center gap-3 relative z-10">
-              <div className="bg-purple-500/30 p-2 rounded-xl group-hover:scale-110 transition-transform">
-                <Fingerprint className="w-6 h-6 text-purple-300" />
-              </div>
-              <div className="text-left">
-                <h4 className="font-pixel text-xs text-purple-100">Smart Wallet</h4>
-                <span className="font-sans text-[10px] text-purple-300 block mt-0.5">Accede con Passkeys (FaceID / Huella)</span>
-              </div>
-            </div>
-            <Key className="w-5 h-5 text-purple-400 group-hover:text-purple-300 relative z-10" />
-          </button>
-
-          {/* Gmail / Web3Auth Button */}
+          {/* Main Onboarding: Gmail / Google via Privy */}
           <button
             onClick={handleConnectGmail}
             disabled={isConnecting}
-            className="w-full bg-gradient-to-r from-red-900 to-rose-900 hover:from-red-800 hover:to-rose-800 border-2 border-red-500 text-white rounded-2xl p-4 flex items-center justify-between transition-all group shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer disabled:opacity-50 relative overflow-hidden"
+            className="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 border-2 border-red-400 text-white rounded-2xl p-4 flex items-center justify-between transition-all group shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer disabled:opacity-50 relative overflow-hidden active:scale-[0.98]"
           >
             <div className="absolute -left-4 -top-4 w-16 h-16 bg-red-500/20 rounded-full blur-xl group-hover:scale-150 transition-transform" />
             <div className="flex items-center gap-3 relative z-10">
               <div className="bg-red-500/30 p-2 rounded-xl group-hover:scale-110 transition-transform">
-                <Mail className="w-6 h-6 text-red-300" />
+                <Mail className="w-6 h-6 text-white" />
               </div>
               <div className="text-left">
-                <h4 className="font-pixel text-xs text-red-100">Crear Billetera Instantánea</h4>
-                <span className="font-sans text-[10px] text-red-300 block mt-0.5">Ingresar con Gmail / Google</span>
+                <h4 className="font-pixel text-xs text-white">Ingresar con Google</h4>
+                <span className="font-sans text-[10px] text-red-200 block mt-0.5">Crear billetera instantánea de forma segura</span>
               </div>
             </div>
-            <Zap className="w-5 h-5 text-red-400 group-hover:text-red-300 relative z-10" />
+            <Zap className="w-5 h-5 text-amber-300 animate-pulse relative z-10" />
           </button>
+
+          {/* Toggle panel for advanced dev options */}
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="text-xs font-vt font-bold text-slate-500 hover:text-slate-700 transition underline cursor-pointer"
+            >
+              {showAdvanced ? '▲ Ocultar opciones avanzadas' : '▼ Opciones avanzadas de Billeteras'}
+            </button>
+          </div>
+
+          {/* Advanced options panel */}
+          {showAdvanced && (
+            <div className="space-y-3 pt-2 border-t border-slate-700/30 animate-[fade-in-up_0.2s_ease-out]">
+              {/* Multi-Wallet Button */}
+              <button
+                onClick={handleConnectWallet}
+                disabled={isConnecting}
+                className="w-full bg-slate-900 hover:bg-slate-800 border-2 border-blue-500 text-white rounded-2xl p-3 flex items-center justify-between transition-all group shadow-lg cursor-pointer disabled:opacity-50 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-500/20 p-2 rounded-xl group-hover:scale-110 transition-transform">
+                    <Shield className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-pixel text-[11px] text-blue-100">Billeteras Web3</h4>
+                    <span className="font-sans text-[9px] text-blue-300 block mt-0.5">Freighter, Albedo, xBull (Extensión)</span>
+                  </div>
+                </div>
+                <Zap className="w-4 h-4 text-blue-500 group-hover:text-blue-400" />
+              </button>
+
+              {/* Passkeys Button */}
+              <button
+                onClick={handleConnectPasskey}
+                disabled={isConnecting}
+                className="w-full bg-gradient-to-r from-indigo-950 to-purple-950 hover:from-indigo-900 hover:to-purple-900 border-2 border-purple-800 text-white rounded-2xl p-3 flex items-center justify-between transition-all group shadow-md cursor-pointer disabled:opacity-50 relative overflow-hidden text-left"
+              >
+                <div className="absolute -right-4 -top-4 w-12 h-12 bg-purple-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform" />
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="bg-purple-500/20 p-2 rounded-xl group-hover:scale-110 transition-transform">
+                    <Fingerprint className="w-5 h-5 text-purple-300" />
+                  </div>
+                  <div>
+                    <h4 className="font-pixel text-[11px] text-purple-100 flex items-center gap-1.5">
+                      Smart Wallet (Demo)
+                    </h4>
+                    <span className="font-sans text-[9px] text-purple-300 block mt-0.5">Acceso rápido con Passkey (FaceID / Huella)</span>
+                  </div>
+                </div>
+                <Key className="w-4 h-4 text-purple-400 group-hover:text-purple-300 relative z-10" />
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <div className="bg-slate-900 rounded-2xl p-4 border border-slate-700 shadow-inner">
@@ -266,9 +287,16 @@ export default function StellarHub({ walletState, setWalletState, onToastMessage
               <Fingerprint className="w-8 h-8 text-purple-400" />
             )}
             <div>
-              <h4 className="font-pixel text-sm text-white">Conectado a Stellar</h4>
+              <h4 className="font-pixel text-sm text-white flex items-center gap-1.5">
+                Conectado a Stellar
+                {walletState.walletType === 'passkey' && (
+                  <span className="text-[7px] bg-purple-500/30 text-purple-200 border border-purple-400/40 px-1 py-0.2 rounded-full font-black tracking-wide uppercase">
+                    Demo
+                  </span>
+                )}
+              </h4>
               <span className="font-sans text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                {walletState.walletType === 'freighter' ? 'Vía Freighter' : walletState.walletType === 'gmail' ? 'Vía Cuenta de Google' : 'Vía Passkey Smart Wallet'}
+                {walletState.walletType === 'freighter' ? 'Vía Freighter' : walletState.walletType === 'gmail' ? 'Vía Cuenta de Google' : 'Vía Passkey Smart Wallet (simulada)'}
               </span>
             </div>
           </div>

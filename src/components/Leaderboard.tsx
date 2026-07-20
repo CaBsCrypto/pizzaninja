@@ -485,6 +485,14 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
                               <span>{record.name || 'NINJA_ANON'}</span>
                             </>
                           )}
+                          {record.isDemo && (
+                            <span
+                              className="bg-slate-500/20 text-[7px] text-slate-300 px-1 py-0.2 rounded border border-slate-500/30 font-sans tracking-wide uppercase font-black"
+                              title="Registro de ejemplo, no proviene de la blockchain real"
+                            >
+                              DEMO
+                            </span>
+                          )}
                         </div>
                         
                         {/* Subtitle record details */}
