@@ -1,5 +1,7 @@
 # 🍕 Slash Slice Arena — Turtle Ninja Edition
 
+![Slash Slice Arena Cover Banner](public/cover_banner.png)
+
 [![Production Deploy](https://img.shields.io/badge/Vercel-Active-000000?style=for-the-badge&logo=vercel)](https://slashslice.spicycrust.com)
 [![Stellar Network](https://img.shields.io/badge/Stellar-Testnet_Soroban-7D00FF?style=for-the-badge&logo=stellar)](https://stellar.org)
 [![Privy Auth](https://img.shields.io/badge/Privy-Zero_Friction_Web3-FF4458?style=for-the-badge)](https://privy.io)
