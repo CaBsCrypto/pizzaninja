@@ -1929,7 +1929,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     } // End of if (isPlaying)
 
     // --- MENU / CALIBRATION LOOP (START PIZZA ONLY FOR CAMERA MODE) ---
-      if (countdown === null && !isPlaying && controlMode === 'camera' && handDetectedRef.current) {
+      if (countdown === null && !countdownActiveRef.current && !isPlaying && controlMode === 'camera' && handDetectedRef.current) {
         const isMobileStart = width < 600;
         const startX = width / 2;
         const startY = isMobileStart ? height * 0.35 : height / 2; // Más arriba en celulares para no tapar la cámara
@@ -1963,7 +1963,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             const p1 = trail[trail.length - 2];
             const p2 = trail[trail.length - 1];
             const hit = checkLineCircleCollision(p1.x, p1.y, p2.x, p2.y, startX, startY, startRadius);
-            if (hit > 0) {
+            if (hit > 0 && !countdownActiveRef.current) {
               // Play slice sounds!
               playWebSound('splat');
               playWebSound('slash');
@@ -2759,12 +2759,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         });
       }
       // Check Start Pizza in menu loop - either hand can start the game
-      if (countdown === null && !isPlaying) {
+      if (countdown === null && !countdownActiveRef.current && !isPlaying) {
         const startX = canvas.width / 2;
         const startY = canvas.height / 2 + Math.sin(Date.now() * 0.0025) * 12;
         const startRadius = 75;
         const hit = Math.hypot(x - startX, y - startY) <= startRadius;
-        if (hit) {
+        if (hit && !countdownActiveRef.current) {
           playWebSound('splat');
           playWebSound('slash');
           
@@ -2802,12 +2802,12 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       }
 
       // Check Start Pizza in menu loop - either hand can start the game
-      if (countdown === null && !isPlaying) {
+      if (countdown === null && !countdownActiveRef.current && !isPlaying) {
         const startX = canvas.width / 2;
         const startY = canvas.height / 2 + Math.sin(Date.now() * 0.0025) * 12;
         const startRadius = 75;
         const hit = checkLineCircleCollision(prevRawX, prevRawY, x, y, startX, startY, startRadius);
-        if (hit > 0) {
+        if (hit > 0 && !countdownActiveRef.current) {
           playWebSound('splat');
           playWebSound('slash');
           
