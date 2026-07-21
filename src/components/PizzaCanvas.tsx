@@ -2852,11 +2852,11 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   };
 
   return (
-    <div className="w-full flex-1 min-h-0 relative flex items-center justify-center">
+    <div className="w-full h-full flex-1 min-h-0 relative flex items-center justify-center">
       <div
         ref={containerRef}
         style={{ clipPath: 'inset(0 round 1.5rem)' }}
-        className={`relative w-full max-w-5xl aspect-[16/9] mx-auto bg-slate-950/95 shadow-2xl flex flex-col border-[4px] transition-colors duration-150 overflow-hidden ${
+        className={`relative w-auto max-w-full h-full max-h-[82vh] aspect-[16/9] mx-auto bg-slate-950/95 shadow-2xl flex flex-col border-[4px] transition-colors duration-150 overflow-hidden ${
           damageFlash ? 'border-red-600 bg-red-950/80 shadow-[0_0_50px_rgba(220,38,38,0.8)]' : 'border-amber-500'
         }`}
       >

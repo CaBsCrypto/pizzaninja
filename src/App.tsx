@@ -675,7 +675,7 @@ export default function App() {
       </header>
 
       {/* Main Container Workspace */}
-      <main className="relative w-full max-w-6xl mx-auto px-4 md:px-6 py-4 z-40 flex-1 min-h-0 flex flex-col">
+      <main className="relative w-full max-w-[96%] xl:max-w-7xl mx-auto px-2 sm:px-4 py-2 z-40 flex-1 min-h-0 flex flex-col items-center justify-center">
 
         <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
 
