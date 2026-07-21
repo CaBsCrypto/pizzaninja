@@ -2852,17 +2852,14 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   };
 
   return (
-    <div className="space-y-4 w-full h-full relative flex flex-col min-h-0">
+    <div className="w-full flex-1 min-h-0 relative flex items-center justify-center">
       <div
         ref={containerRef}
         style={{ clipPath: 'inset(0 round 1.5rem)' }}
-        className={`relative w-full mx-auto bg-slate-950/95 shadow-2xl flex flex-col border-[4px] transition-colors duration-150 ${
-        damageFlash ? 'border-red-600 bg-red-950/80 shadow-[0_0_50px_rgba(220,38,38,0.8)]' : 'border-amber-500'
-      } ${
-        isPlaying
-          ? 'flex-1 min-h-0 md:aspect-auto aspect-[16/9]'
-          : 'flex-1 min-h-[500px] md:min-h-0 landscape:min-h-0 landscape:aspect-[16/9] md:aspect-auto overflow-y-auto landscape:overflow-hidden md:overflow-hidden'
-      }`}>
+        className={`relative w-full max-w-5xl aspect-[16/9] mx-auto bg-slate-950/95 shadow-2xl flex flex-col border-[4px] transition-colors duration-150 overflow-hidden ${
+          damageFlash ? 'border-red-600 bg-red-950/80 shadow-[0_0_50px_rgba(220,38,38,0.8)]' : 'border-amber-500'
+        }`}
+      >
       {/* Red damage overlay flash */}
       {damageFlash && (
         <div className="absolute inset-0 bg-red-600/30 pointer-events-none z-50 animate-pulse mix-blend-overlay" />

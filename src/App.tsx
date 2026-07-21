@@ -677,7 +677,7 @@ export default function App() {
       {/* Main Container Workspace */}
       <main className="relative w-full max-w-6xl mx-auto px-4 md:px-6 py-4 z-40 flex-1 min-h-0 flex flex-col">
 
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
 
           {/* Tienda Overlay */}
           <AnimatePresence>
