@@ -24,7 +24,7 @@ function mapTo3D(val: number, max: number, range: number) {
   return (val / max) * range - (range / 2);
 }
 
-function CelPizza({ item }: { item: any }) {
+const CelPizza: React.FC<{ item: any }> = ({ item }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
@@ -50,9 +50,9 @@ function CelPizza({ item }: { item: any }) {
       <Outlines thickness={0.05} color="black" />
     </mesh>
   );
-}
+};
 
-function CelBomb({ item }: { item: any }) {
+const CelBomb: React.FC<{ item: any }> = ({ item }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
@@ -79,7 +79,7 @@ function CelBomb({ item }: { item: any }) {
       )}
     </mesh>
   );
-}
+};
 
 // The main 3D Scene
 export default function GameScene3D({ gameStateRef }: { gameStateRef: React.MutableRefObject<any> }) {

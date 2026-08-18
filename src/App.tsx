@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Award, Trash2, ArrowRight, User, Sparkles, Star, Swords, Clock, Wallet, X, ShoppingCart, Loader2, CheckCircle2, Hourglass, AlertCircle } from 'lucide-react';
+import { Trophy, Award, Trash2, ArrowRight, User, Sparkles, Star, Swords, Clock, Wallet, X, ShoppingCart, Loader2, CheckCircle2, Hourglass, AlertCircle, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import PizzaCanvas from './components/PizzaCanvas';
 import Leaderboard from './components/Leaderboard';
@@ -314,26 +314,39 @@ export default function App() {
     showToast('🧹 Historial de récords reiniciado!', 'info');
   };
 
+  // Immediate retry / play again action for instant seamless replay
+  const handlePlayAgain = () => {
+    setPendingScore(null);
+    setMintingStep('idle');
+    setMintedTx(null);
+    setIsPlaying(true);
+    playWebSound('coin');
+  };
+
   // Plain div (not motion.div): AnimatePresence only tracks its DIRECT child
   // for enter/exit — nesting an independently-animated motion.div one level
   // deeper left it stuck at its `initial` values in testing. The single
   // motion.div wrapping this in the JSX below now owns the enter/exit tween.
   const scoreRegistrationCard = pendingScore && (
-    <div className="panel-clash p-6 md:p-8 rounded-3xl w-full max-w-2xl md:max-w-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row gap-6 items-center mx-auto z-50 pointer-events-auto">
+    <div className="panel-clash p-4 sm:p-6 md:p-8 rounded-3xl w-full max-w-2xl md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl relative flex flex-col md:flex-row gap-4 sm:gap-6 items-center mx-auto z-50 pointer-events-auto">
       {/* Decorative corner glow */}
       <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-400/20 blur-3xl rounded-full pointer-events-none" />
       
       {/* Left Side: Game Over Info & Score */}
-      <div className="w-full md:w-1/2 flex flex-col items-center text-center space-y-4">
-        <h2 className="text-3xl md:text-5xl font-pixel text-white text-stroke-title drop-shadow-lg leading-tight uppercase">
-          ¡Tiempo Agotado!
+      <div className="w-full md:w-1/2 flex flex-col items-center text-center space-y-2 sm:space-y-4">
+        <h2 className="text-2xl sm:text-3xl md:text-5xl font-pixel text-white text-stroke-title drop-shadow-lg leading-tight uppercase">
+          {pendingScore.gameMode === 'classic' ? '¡Fin de Partida!' : '¡Tiempo Agotado!'}
         </h2>
-        <div className="bg-slate-900/50 p-4 rounded-2xl border-2 border-slate-700/50 w-full shadow-inner relative overflow-hidden">
+        <div className="bg-slate-900/50 p-3 sm:p-4 rounded-2xl border-2 border-slate-700/50 w-full shadow-inner relative overflow-hidden">
            <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 to-transparent pointer-events-none" />
            <div className="relative z-10 flex flex-col items-center">
-             <span className="font-vt text-blue-300 text-sm uppercase tracking-widest mb-1 font-bold">Puntuación Final</span>
-             <div className="text-5xl font-black text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] font-sans italic tracking-tighter">
-               {pendingScore.score} <span className="text-xl text-amber-200">pts</span>
+             <span className="font-vt text-blue-300 text-xs sm:text-sm uppercase tracking-widest mb-0.5 sm:mb-1 font-bold">Puntuación Final</span>
+             <div className="text-4xl sm:text-5xl font-black text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)] font-sans italic tracking-tighter">
+               {pendingScore.score} <span className="text-lg sm:text-xl text-amber-200">pts</span>
+             </div>
+             <div className="flex items-center gap-3 mt-2 text-xs font-mono text-slate-300">
+               <span>⏱️ {pendingScore.duration}s</span>
+               <span>⚔️ {pendingScore.slashes} cortes</span>
              </div>
            </div>
         </div>
@@ -425,16 +438,26 @@ export default function App() {
                     <span>Tx:</span>
                     <span className="truncate max-w-[180px]">{mintedTx || 'TxSimulatedHashSig'}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingScore(null);
-                      setMintingStep('idle');
-                    }}
-                    className="btn-clash-blue w-full py-2.5 text-sm uppercase tracking-wide cursor-pointer font-pixel"
-                  >
-                    ¡EXCELENTE, VOLVER!
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePlayAgain}
+                      className="btn-clash-gold w-full sm:w-1/2 py-2.5 text-xs sm:text-sm uppercase tracking-wide cursor-pointer font-pixel flex items-center justify-center gap-1.5"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>JUGAR DE NUEVO</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingScore(null);
+                        setMintingStep('idle');
+                      }}
+                      className="btn-clash-blue w-full sm:w-1/2 py-2.5 text-xs sm:text-sm uppercase tracking-wide cursor-pointer font-pixel"
+                    >
+                      ¡EXCELENTE, VOLVER!
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -562,20 +585,30 @@ export default function App() {
                 <Star className="w-5 h-5 fill-white" />
                 <span>INMORTALIZAR RÉCORD</span>
               </button>
-              <div className="flex justify-between items-center text-xs text-amber-700 pt-2 font-vt">
-                <button type="button" onClick={() => setWalletState(prev => ({...prev, connected: false, publicKey: null, domainName: null}))} className="hover:text-amber-900 transition underline cursor-pointer">
-                  Cambiar Nombre
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-2 pt-2 text-xs text-amber-700 font-vt">
+                <button
+                  type="button"
+                  onClick={handlePlayAgain}
+                  className="btn-clash-yellow py-1.5 px-3 text-xs w-full sm:w-auto flex items-center justify-center gap-1.5 font-pixel cursor-pointer uppercase shadow"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>JUGAR DE NUEVO</span>
                 </button>
-                <button type="button" onClick={() => setPendingScore(null)} className="hover:text-amber-900 transition cursor-pointer font-bold">
-                  Omitir
-                </button>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => setWalletState(prev => ({...prev, connected: false, publicKey: null, domainName: null}))} className="hover:text-amber-900 transition underline cursor-pointer">
+                    Cambiar Nombre
+                  </button>
+                  <button type="button" onClick={() => setPendingScore(null)} className="hover:text-amber-900 transition cursor-pointer font-bold">
+                    Omitir
+                  </button>
+                </div>
               </div>
             </div>
           )
         ) : (
-          <form onSubmit={handleRegisterScore} className="flex flex-col gap-4">
-            <div className="space-y-2">
-              <label htmlFor="chef-name" className="font-pixel text-blue-900 text-lg block drop-shadow-sm text-center">
+          <form onSubmit={handleRegisterScore} className="flex flex-col gap-3 sm:gap-4">
+            <div className="space-y-1 sm:space-y-2">
+              <label htmlFor="chef-name" className="font-pixel text-blue-900 text-base sm:text-lg block drop-shadow-sm text-center">
                 Firma tu obra maestra
               </label>
               <input
@@ -585,17 +618,31 @@ export default function App() {
                 placeholder="CHEF_NINJA"
                 value={chefName}
                 onChange={(e) => setChefName(e.target.value)}
-                className="bg-white border-4 border-blue-200 text-blue-900 rounded-2xl px-5 py-4 text-2xl font-vt text-center uppercase focus:outline-none focus:border-amber-400 shadow-inner w-full transition-all"
+                className="bg-white border-2 sm:border-4 border-blue-200 text-blue-900 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-4 text-xl sm:text-2xl font-vt text-center uppercase focus:outline-none focus:border-amber-400 shadow-inner w-full transition-all"
                 required
               />
             </div>
-            <button type="submit" className="btn-clash-blue py-3 md:py-4 text-xl w-full flex items-center justify-center gap-3 mt-2">
+            <button type="submit" className="btn-clash-blue py-2.5 sm:py-3 md:py-4 text-lg sm:text-xl w-full flex items-center justify-center gap-2 sm:gap-3 mt-1 sm:mt-2 min-h-[44px] cursor-pointer">
               <span>GUARDAR RÉCORD</span>
-              <ArrowRight className="w-6 h-6" />
+              <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-            <button type="button" onClick={() => setPendingScore(null)} className="text-xs md:text-sm font-vt font-bold text-slate-400 hover:text-slate-500 transition block text-center w-full cursor-pointer underline mt-2">
-              Omitir registro y volver al menú
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-1 sm:mt-2">
+              <button
+                type="button"
+                onClick={handlePlayAgain}
+                className="btn-clash-gold py-2 px-4 text-xs sm:text-sm w-full sm:w-auto flex items-center justify-center gap-2 cursor-pointer font-pixel uppercase shadow-md min-h-[40px]"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>JUGAR DE NUEVO</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingScore(null)}
+                className="text-xs md:text-sm font-vt font-bold text-slate-400 hover:text-slate-200 transition text-center cursor-pointer underline py-1 px-2"
+              >
+                Omitir registro y volver al menú
+              </button>
+            </div>
           </form>
         )}
       </div>
@@ -610,26 +657,26 @@ export default function App() {
       <div className="absolute top-20 right-20 w-48 h-24 bg-white/10 rounded-full blur-2xl pointer-events-none" />
 
       {/* Main Nav header */}
-      <header className="relative w-full max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4 z-40 shrink-0">
-        <div className="flex items-center gap-3">
+      <header className={`relative w-full max-w-7xl mx-auto px-2 py-2 sm:px-4 sm:py-3 justify-between items-center gap-2 sm:gap-4 z-40 shrink-0 ${isPlaying ? 'hidden md:flex' : 'flex'}`}>
+        <div className="flex items-center gap-2 sm:gap-3">
           <motion.div 
             whileHover={{ scale: 1.05, rotate: -5 }}
-            className="relative bg-gradient-to-b from-amber-300 to-amber-500 text-3xl p-3 rounded-2xl flex items-center justify-center font-bold border-b-[6px] border-amber-600 shadow-lg border-x-2 border-t-2 border-amber-200"
+            className="relative bg-gradient-to-b from-amber-300 to-amber-500 text-xl sm:text-3xl p-1.5 sm:p-3 rounded-xl sm:rounded-2xl flex items-center justify-center font-bold border-b-4 sm:border-b-[6px] border-amber-600 shadow-lg border-x-2 border-t-2 border-amber-200"
           >
             🍕⚔️
           </motion.div>
           <div>
-            <h1 className="text-3xl md:text-4xl font-pixel tracking-wide text-white text-stroke-title drop-shadow-xl flex items-center gap-2">
+            <h1 className="text-xl sm:text-3xl md:text-4xl font-pixel tracking-wide text-white text-stroke-title drop-shadow-xl flex items-center gap-1.5 sm:gap-2">
               Slash Slice 
-              <span className="text-[10px] uppercase font-vt text-lg bg-red-500 text-white border-2 border-red-700 px-2 py-0.5 rounded-lg shadow-sm transform -rotate-6 translate-y-[-5px]">
+              <span className="text-[9px] sm:text-xs uppercase font-vt bg-red-500 text-white border-2 border-red-700 px-1.5 py-0.5 rounded-lg shadow-sm transform -rotate-6 translate-y-[-2px] sm:translate-y-[-5px]">
                 Arena
               </span>
             </h1>
-            <p className="font-vt text-xl text-blue-100 mt-1 uppercase text-stroke-sm drop-shadow-md">¡Domina la arena de la cocina!</p>
+            <p className="hidden sm:block font-vt text-lg sm:text-xl text-blue-100 mt-0.5 sm:mt-1 uppercase text-stroke-sm drop-shadow-md">¡Domina la arena de la cocina!</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Botón de Tienda */}
           <button
             onClick={() => {
@@ -640,44 +687,44 @@ export default function App() {
               setShowShop(true);
             }}
             disabled={isPlaying || pendingScore !== null}
-            className="flex items-center gap-2 text-sm px-4 py-3 cursor-pointer text-xl uppercase btn-clash-yellow disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-3 cursor-pointer text-sm sm:text-xl uppercase btn-clash-yellow disabled:opacity-40 disabled:cursor-not-allowed min-h-[40px]"
           >
-            <ShoppingCart className="w-5 h-5 text-amber-900" />
-            <span className="font-pixel text-sm mt-1 text-amber-900 hidden sm:inline">Tienda</span>
+            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-amber-900" />
+            <span className="font-pixel text-xs sm:text-sm mt-0.5 text-amber-900 hidden sm:inline">Tienda</span>
           </button>
 
           <button
             onClick={() => setIsWalletOpen(true)}
-            className={`flex items-center gap-2 text-sm px-4 py-3 cursor-pointer text-xl uppercase ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-3 cursor-pointer text-sm sm:text-xl uppercase min-h-[40px] ${
               walletState.connected
                 ? 'btn-clash-blue'
                 : 'btn-clash-red'
             }`}
           >
-            <Wallet className={`w-5 h-5 shrink-0 ${walletState.connected ? 'text-blue-100' : 'text-red-100'}`} />
-            <span className="font-pixel text-sm mt-1 flex flex-col items-start">
+            <Wallet className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${walletState.connected ? 'text-blue-100' : 'text-red-100'}`} />
+            <span className="font-pixel text-xs sm:text-sm mt-0.5 flex flex-col items-start">
               <span>
                 {walletState.connected
                   ? walletState.domainName || `${walletState.publicKey?.slice(0, 4)}...${walletState.publicKey?.slice(-4)}`
                   : 'Wallet'}
               </span>
               {walletState.connected && (
-                <span className="text-[10px] text-amber-300 font-sans tracking-wide">
+                <span className="text-[9px] sm:text-[10px] text-amber-300 font-sans tracking-wide">
                   {balanceLoading ? '...' : effectiveBalance.toFixed(0)} $SLICE
                 </span>
               )}
             </span>
             {walletState.connected && (
-              <span className="h-2 w-2 bg-emerald-400 rounded-full border border-emerald-700 ml-1" />
+              <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 bg-emerald-400 rounded-full border border-emerald-700 ml-0.5 sm:ml-1" />
             )}
           </button>
         </div>
       </header>
 
       {/* Main Container Workspace */}
-      <main className="relative w-full max-w-[96%] xl:max-w-7xl mx-auto px-2 sm:px-4 py-2 z-40 flex-1 min-h-0 flex flex-col items-center justify-center">
+      <main className="relative w-full max-w-[98%] xl:max-w-7xl mx-auto px-1 sm:px-4 py-1 sm:py-2 z-40 flex-1 min-h-0 flex flex-col items-center justify-center">
 
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+        <div className="w-full h-full flex-1 min-h-0 flex flex-col items-center justify-center relative">
 
           {/* Tienda Overlay */}
           <AnimatePresence>
@@ -725,24 +772,9 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* Score Registry Popup overlay INSIDE the game container.
-              This motion.div is the SINGLE direct child AnimatePresence tracks
-              for enter/exit — scoreRegistrationCard itself is a plain div (see
-              its definition above) so there is no nested motion.div fighting
-              for the same transition. */}
-          <AnimatePresence>
-            {pendingScore !== null && !isPlaying && (
-              <motion.div
-                key="score-registration-overlay"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-4 rounded-3xl"
-              >
-                {scoreRegistrationCard}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* PizzaCanvas encapsulates containerRef (the browser Fullscreen root element)
+              and renders scoreRegistrationContent directly inside containerRef at z-[100]
+              so that in Fullscreen mode the Game Over modal is immediately visible and interactive. */}
           <PizzaCanvas
             activeBladeColor={activeBladeColor}
             onGameOver={handleGameOver}
@@ -752,6 +784,8 @@ export default function App() {
             isRegistering={pendingScore !== null}
             walletPublicKey={walletState.publicKey}
             onOpenWallet={() => setIsWalletOpen(true)}
+            scoreRegistrationContent={scoreRegistrationCard}
+            onPlayAgain={handlePlayAgain}
           />
 
         </div>
@@ -781,64 +815,19 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Landscape Rotation Warning Overlay */}
-      <div className="fixed inset-0 z-50 bg-blue-900 flex flex-col items-center justify-center text-center p-6 pointer-events-auto select-none md:hidden portrait:flex landscape:hidden">
-        {/* Cartoon clouds decoration */}
-        <div className="absolute top-10 left-10 w-32 h-16 bg-white/10 rounded-full blur-xl pointer-events-none" />
-        <div className="absolute bottom-20 right-20 w-48 h-24 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-
-        {/* Cyber Loop Phone Rotation Icon */}
-        <div className="relative mb-8 group">
-          <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-rose-500 to-indigo-500 blur opacity-75 animate-pulse" />
-          <div className="relative bg-slate-900 border border-slate-800 p-6 rounded-full flex items-center justify-center shadow-2xl">
-            {/* Loop rotate phone svg */}
-            <svg
-              className="w-16 h-16 text-rose-500 animate-[spin_3s_linear_infinite]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-              <path d="M12 18h.01" />
-              <path d="M17 6H7" />
-              <path d="M7 14h10" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Warning Typography */}
-        <h2 className="text-xl font-black font-sans tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-amber-400 to-rose-400 uppercase leading-none drop-shadow-md">
-          🥷 Gira tu Pantalla
-        </h2>
-        <span className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest block mt-2">
-          MODO CONSOLA HORIZONTAL 16:9
-        </span>
-        
-        <p className="text-slate-300 text-xs leading-relaxed max-w-[280px] mt-4 font-medium">
-          ¡Mamma Mia! Para cortar las pizzas con la máxima precisión, rango de corte y velocidad, por favor **gira tu celular a modo horizontal**.
-        </p>
-
-        {/* Premium badge */}
-        <div className="mt-8 border border-slate-900 bg-slate-900/40 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-[9px] font-mono font-bold text-slate-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />
-          <span>SOPORTE ÓPTICO ACTIVO</span>
-        </div>
-      </div>
-
       {/* Floating Side Wallet Trigger Tab */}
       <button
         onClick={() => setIsWalletOpen(true)}
-        className={`fixed right-0 top-1/3 -translate-y-1/2 z-40 py-4 px-2 rounded-l-2xl border-y-4 border-l-4 transition-all duration-200 cursor-pointer flex flex-col items-center gap-2 hover:pl-3 shadow-xl ${
+        className={`fixed right-0 top-1/3 -translate-y-1/2 z-40 py-3 sm:py-4 px-1.5 sm:px-2 rounded-l-2xl border-y-2 sm:border-y-4 border-l-2 sm:border-l-4 transition-all duration-200 cursor-pointer flex flex-col items-center gap-1 sm:gap-2 hover:pl-3 shadow-xl ${
+          isPlaying ? 'hidden' : 'hidden md:flex'
+        } ${
           walletState.connected
             ? 'bg-blue-500 border-blue-700 text-white'
             : 'bg-purple-600 border-purple-800 text-white'
         }`}
         title="Ver Stellar Wallet"
       >
-        <Wallet className="w-6 h-6 text-white drop-shadow-md animate-bounce" />
+        <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-md animate-bounce" />
         <span className="text-xs font-pixel tracking-wider uppercase select-none [writing-mode:vertical-lr] scale-90 text-stroke-sm">
           {walletState.connected ? 'WALLET OK' : 'STELLAR'}
         </span>

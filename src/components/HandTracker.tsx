@@ -211,6 +211,8 @@ export default function HandTracker({
 
   // 2. Trigger script injection when enabled or when sourceType changes
   useEffect(() => {
+    let isCancelled = false;
+
     if (!isEnabled) {
       handleStopTracking();
       return;
@@ -232,10 +234,15 @@ export default function HandTracker({
           await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js');
         }
         
+        if (isCancelled || !isEnabledRef.current) {
+          return;
+        }
+
         addLog("Scripts cargados con éxito. Instanciando pipeline de detección dual...");
         setCdnStatus('loaded');
         handleStartTracking();
       } catch (err: any) {
+        if (isCancelled || !isEnabledRef.current) return;
         addLog(`ERROR al inyectar scripts en modo ${sourceType.toUpperCase()}: ${err.message || err}`);
         
         // Automatic Fallback
@@ -252,6 +259,11 @@ export default function HandTracker({
     };
 
     injectScripts();
+
+    return () => {
+      isCancelled = true;
+      handleStopTracking();
+    };
   }, [isEnabled, sourceType]);
 
   // 3. Dynamic Model Options Update on Calibrator Change
@@ -297,12 +309,17 @@ export default function HandTracker({
 
   // Start Camera and Instantiate tracker
   const handleStartTracking = async () => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !isEnabledRef.current) return;
     
     const AnyWindow = window as any;
     if (!AnyWindow.Hands) {
+      if (!isEnabledRef.current) return;
       addLog("MediaPipe global 'Hands' ausente en window. Esperando inicialización (500ms)...");
-      setTimeout(handleStartTracking, 500);
+      setTimeout(() => {
+        if (isEnabledRef.current) {
+          handleStartTracking();
+        }
+      }, 500);
       return;
     }
 
@@ -316,9 +333,17 @@ export default function HandTracker({
         handsInstanceRef.current = null;
       }
 
-      // Cancel any previous RAF loop
-      if (frameIdRef.current) {
-        cancelAnimationFrame(frameIdRef.current);
+      // Cancel any previous RAF / RVFC loop
+      if (frameIdRef.current !== null) {
+        if (videoRef.current && 'cancelVideoFrameCallback' in videoRef.current) {
+          try {
+            (videoRef.current as any).cancelVideoFrameCallback(frameIdRef.current);
+          } catch (e) {}
+        } else {
+          try {
+            cancelAnimationFrame(frameIdRef.current);
+          } catch (e) {}
+        }
         frameIdRef.current = null;
       }
 
@@ -397,7 +422,12 @@ export default function HandTracker({
       // Exit if user turned off model while permission modal was active
       if (!videoRef.current || !isEnabledRef.current) {
         addLog("Detección suspendida post-aprobación del usuario.");
-        stream.getTracks().forEach(t => t.stop());
+        if (stream) {
+          stream.getTracks().forEach(t => {
+            try { t.stop(); } catch (e) {}
+            try { stream.removeTrack(t); } catch (e) {}
+          });
+        }
         return;
       }
 
@@ -476,7 +506,7 @@ export default function HandTracker({
       };
 
       const scheduleNextTick = () => {
-        if (!videoRef.current) return;
+        if (!videoRef.current || !isEnabledRef.current) return;
         const vid = videoRef.current as any;
         if ('requestVideoFrameCallback' in vid) {
           frameIdRef.current = vid.requestVideoFrameCallback(tick);
@@ -507,25 +537,48 @@ export default function HandTracker({
   const handleStopTracking = () => {
     addLog("Apagando sensor de forma segura...");
     
-    if (frameIdRef.current) {
-      cancelAnimationFrame(frameIdRef.current);
+    // 1. Cancel requestVideoFrameCallback or requestAnimationFrame properly
+    if (frameIdRef.current !== null) {
+      if (videoRef.current && 'cancelVideoFrameCallback' in videoRef.current) {
+        try {
+          (videoRef.current as any).cancelVideoFrameCallback(frameIdRef.current);
+        } catch (e) {}
+      } else {
+        try {
+          cancelAnimationFrame(frameIdRef.current);
+        } catch (e) {}
+      }
       frameIdRef.current = null;
     }
 
+    // 2. Stop all media stream tracks and remove them
     if (streamRef.current) {
       try {
-        streamRef.current.getTracks().forEach(track => {
-          track.stop();
+        const tracks = streamRef.current.getTracks();
+        tracks.forEach(track => {
+          try {
+            track.stop();
+          } catch (e) {}
+          try {
+            streamRef.current?.removeTrack(track);
+          } catch (e) {}
           addLog("Canal de cámara cerrado.");
         });
       } catch (e) {}
       streamRef.current = null;
     }
 
+    // 3. Pause video, clear srcObject and attributes
     if (videoRef.current) {
-      videoRef.current.srcObject = null;
+      try {
+        videoRef.current.pause();
+        videoRef.current.srcObject = null;
+        videoRef.current.removeAttribute('src');
+        videoRef.current.load();
+      } catch (e) {}
     }
 
+    // 4. Close MediaPipe instance
     if (handsInstanceRef.current) {
       try {
         handsInstanceRef.current.close();
@@ -536,6 +589,7 @@ export default function HandTracker({
 
     setModelStatus('off');
     setHandDetected(false);
+    onHandPresenceChange?.(false);
     if (onStatusChange) onStatusChange('inactive');
 
     lastXRef.current = [null, null];

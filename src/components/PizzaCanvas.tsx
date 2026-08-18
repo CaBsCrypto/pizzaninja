@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PizzaType, PizzaState, GameItem, Particle, SlicedPiece, TrailPoint, SlashReplayPoint, FloatingText } from '../types';
 import HandTracker from './HandTracker';
 import { gameSocket } from '../services/websocket';
-import { connectFreighter, isFreighterInstalled } from '../services/stellarWallet';
 import { getSpriteCache, drawCachedPizzaSlice } from '../graphics/PizzaSpriteCache';
 
 export type GameMode = 'arcade' | 'classic';
@@ -18,9 +17,24 @@ interface PizzaCanvasProps {
   walletPublicKey?: string | null;
   onOpenWallet?: () => void;
   activeBladeColor?: string;
+  scoreRegistrationContent?: React.ReactNode;
+  children?: React.ReactNode;
+  onPlayAgain?: () => void;
 }
 
-export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToastMessage, isRegistering = false, walletPublicKey = null, onOpenWallet, activeBladeColor = '#ffffff' }: PizzaCanvasProps) {
+export default function PizzaCanvas({
+  onGameOver,
+  isPlaying,
+  setIsPlaying,
+  onToastMessage,
+  isRegistering = false,
+  walletPublicKey = null,
+  onOpenWallet,
+  activeBladeColor = '#ffffff',
+  scoreRegistrationContent,
+  children,
+  onPlayAgain
+}: PizzaCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastHandTrackedTimeRef = useRef<number[]>([0, 0]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -327,7 +341,6 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     startTime: 0,
     slashHistory: [] as SlashReplayPoint[],
     shakeDuration: 0,
-    shakeIntensity: 0,
   });
 
   // Go Authoritative Server Integration
@@ -536,7 +549,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       const gainNode = ctx.createGain();
 
       // Implement dynamic resonance filter (intensity) for high combos (>5) or splash intensity
-      if (comboFactor > 5 && (type === 'slash' | 'splat')) {
+      if (comboFactor > 5 && (type === 'slash' || type === 'splat')) {
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
         // Sweep frequency upwards based on intensity
@@ -628,6 +641,32 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     }
   };
 
+  // Synchronize and sanitize state whenever controlMode changes
+  useEffect(() => {
+    if (controlMode === 'mouse') {
+      // 1. Force reset pause state so normal mode NEVER inherits camera pause
+      isPausedRef.current = false;
+      setIsPaused(false);
+      
+      // 2. Clear hand detection states
+      handDetectedRef.current = false;
+      setHandDetected(false);
+      
+      // 3. Clear camera-specific trails and coordinates
+      if (stateRef.current) {
+        stateRef.current.targetHandX = [0, 0];
+        stateRef.current.targetHandY = [0, 0];
+        stateRef.current.currentHandX = [undefined, undefined];
+        stateRef.current.currentHandY = [undefined, undefined];
+        stateRef.current.lastRawX = [undefined, undefined];
+        stateRef.current.lastRawY = [undefined, undefined];
+        stateRef.current.handVx = [0, 0];
+        stateRef.current.handVy = [0, 0];
+        stateRef.current.trail1 = [];
+      }
+    }
+  }, [controlMode]);
+
   const startGame = () => {
     lastHandTrackedTimeRef.current = [Date.now(), Date.now()];
     isPausedRef.current = false;
@@ -684,6 +723,64 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     setIsPlaying(true);
     playWebSound('splat');
   };
+
+  const clockIntervalRef = useRef<any>(null);
+
+  const triggerGameOver = useCallback(() => {
+    if (!isPlaying && !countdownActiveRef.current) return;
+
+    if (clockIntervalRef.current) {
+      clearInterval(clockIntervalRef.current);
+      clockIntervalRef.current = null;
+    }
+    setIsPlaying(false);
+    countdownActiveRef.current = false;
+    setCountdown(null);
+
+    // Ensure pause state and optical tracking are cleanly reset on game over
+    isPausedRef.current = false;
+    setIsPaused(false);
+    setControlMode('mouse');
+    handDetectedRef.current = false;
+    setHandDetected(false);
+
+    playWebSound('gameover');
+
+    const elapsed = Math.floor((Date.now() - (stateRef.current.startTime || Date.now())) / 1000);
+
+    // --- MULTIGAME INTEGRATION ---
+    // Broadcast score over the realtime socket. gameSocket is a GameWebSocket
+    // wrapper (not a raw WebSocket): use its isConnected flag and pass a plain
+    // object — send() already JSON.stringifies internally.
+    if (gameSocket && gameSocket.isConnected) {
+      gameSocket.send({
+        type: 'SCORE_SUBMIT',
+        pubKey: walletPubKey || 'G_GUEST_' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+        score: stateRef.current.score
+      });
+    }
+
+    onGameOver(
+      stateRef.current.score,
+      elapsed,
+      stateRef.current.totalSlashes,
+      stateRef.current.slashHistory || [],
+      stateRef.current.startTime,
+      stateRef.current.gameMode
+    );
+  }, [isPlaying, walletPubKey, onGameOver, setIsPlaying]);
+
+  const triggerGameOverRef = useRef(triggerGameOver);
+  useEffect(() => {
+    triggerGameOverRef.current = triggerGameOver;
+  }, [triggerGameOver]);
+
+  // Synchronize external restart / play again calls
+  useEffect(() => {
+    if (isPlaying && (!stateRef.current.startTime || stateRef.current.lives <= 0 || (stateRef.current.gameMode === 'arcade' && stateRef.current.timeLeft <= 0))) {
+      startGame();
+    }
+  }, [isPlaying]);
 
 
   // Background Ambient Loops and procedural "Italian Kitchen" music/sizzle synthesis
@@ -1023,34 +1120,15 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       if (isGameOver) {
         clearInterval(clockInterval);
-        setIsPlaying(false);
-        playWebSound('gameover');
-        
-        // --- MULTIGAME INTEGRATION ---
-        // Broadcast score over the realtime socket. gameSocket is a GameWebSocket
-        // wrapper (not a raw WebSocket): use its isConnected flag and pass a plain
-        // object — send() already JSON.stringifies internally.
-        if (gameSocket && gameSocket.isConnected) {
-          gameSocket.send({
-            type: 'SCORE_SUBMIT',
-            pubKey: walletPubKey || 'G_GUEST_' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-            score: stateRef.current.score
-          });
-        }
-        
-        onGameOver(
-          stateRef.current.score, 
-          elapsed, 
-          stateRef.current.totalSlashes, 
-          stateRef.current.slashHistory || [],
-          stateRef.current.startTime,
-          stateRef.current.gameMode
-        );
+        triggerGameOverRef.current();
       }
     }, 1000);
 
+    clockIntervalRef.current = clockInterval;
+
     return () => {
       clearInterval(clockInterval);
+      clockIntervalRef.current = null;
     };
   }, [isPlaying]);
 
@@ -1298,6 +1376,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
             togglePause(false);
           }
         }
+      } else if (controlMode === 'mouse' && isPausedRef.current) {
+        // Defensive guarantee: mouse mode MUST NEVER remain paused by optical tracking loss
+        isPausedRef.current = false;
+        setIsPaused(false);
       }
 
       ctx.save();
@@ -1778,6 +1860,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                 stateRef.current.lives = Math.max(0, stateRef.current.lives - 1);
                 updateHUD();
                 playWebSound('error');
+                if (stateRef.current.lives <= 0) {
+                  triggerGameOverRef.current();
+                }
               } else {
                 stateRef.current.score = Math.max(0, stateRef.current.score - 5);
                 updateHUD();
@@ -2224,8 +2309,8 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       ctx.restore(); // Restore from screen shake translation
 
-      // 8. Draw high-tech pause overlay on the screen
-      if (isPlaying && isPausedRef.current) {
+      // 8. Draw high-tech pause overlay on the screen (strictly isolated to camera mode)
+      if (isPlaying && isPausedRef.current && controlMode === 'camera') {
         ctx.save();
         ctx.fillStyle = 'rgba(10, 13, 20, 0.88)'; // elegant dark slate back-overlay
         ctx.fillRect(0, 0, width, height);
@@ -2290,6 +2375,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   // Handle pointer tracking inputs
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     stateRef.current.isMousePressed = true;
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -2513,6 +2601,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       // Flash bomb effect particles (boost counts on high speed)
       const bombCrumbs = Math.round(35 * speedRatio);
       addSplatParticles(item.x, item.y, '#eab308', bombCrumbs, item.type, speedRatio);
+
+      if (stateRef.current.lives <= 0) {
+        triggerGameOverRef.current();
+      }
       return;
     }
 
@@ -2680,16 +2772,23 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e?: React.PointerEvent<HTMLCanvasElement>) => {
     stateRef.current.isMousePressed = false;
     stateRef.current.trail = [];
     stateRef.current.trail1 = [];
+    if (e) {
+      try {
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+    }
   };
 
-  const handlePointerLeave = () => {
-    stateRef.current.isMousePressed = false;
-    stateRef.current.trail = [];
-    stateRef.current.trail1 = [];
+  const handlePointerLeave = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // Only clear trail if pointer is mouse and not pressed; for touch, active stroke is maintained
+    if (e.pointerType === 'mouse' && !stateRef.current.isMousePressed) {
+      stateRef.current.trail = [];
+      stateRef.current.trail1 = [];
+    }
   };
 
   const handleHandCoordsTracked = (normX: number, normY: number, handIdx: number, isEngaged: boolean) => {
@@ -2852,11 +2951,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
   };
 
   return (
-    <div className="w-full h-full flex-1 min-h-0 relative flex items-center justify-center">
+    <div className="w-full h-full flex-1 min-h-0 relative flex items-center justify-center p-0.5 sm:p-1">
       <div
         ref={containerRef}
-        style={{ clipPath: 'inset(0 round 1.5rem)' }}
-        className={`relative w-auto max-w-full h-full max-h-[82vh] aspect-[16/9] mx-auto bg-slate-950/95 shadow-2xl flex flex-col border-[4px] transition-colors duration-150 overflow-hidden ${
+        className={`relative w-full h-full max-w-full max-h-full mx-auto bg-slate-950/95 shadow-2xl flex flex-col rounded-2xl sm:rounded-3xl border-2 sm:border-[4px] transition-colors duration-150 overflow-hidden ${
           damageFlash ? 'border-red-600 bg-red-950/80 shadow-[0_0_50px_rgba(220,38,38,0.8)]' : 'border-amber-500'
         }`}
       >
@@ -2867,32 +2965,32 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
       {/* HUD Header */}
       {isPlaying && (
-        <div className="absolute top-0 inset-x-0 z-40 px-4 py-4 flex justify-between items-center bg-gradient-to-b from-blue-900/80 to-transparent pointer-events-none select-none">
+        <div className="absolute top-0 inset-x-0 z-40 px-2 sm:px-4 py-2 sm:py-3 flex justify-between items-center bg-gradient-to-b from-blue-900/80 to-transparent pointer-events-none select-none gap-1 sm:gap-3">
         
         {/* Left indicators: Score & Lives */}
-        <div className="flex items-center gap-3 pointer-events-auto">
+        <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto">
           {/* Unified Score */}
-          <div className="flex items-center gap-2 bg-slate-900/95 border-4 border-amber-500 px-5 py-2 rounded-2xl shadow-[0_0_15px_rgba(245,158,11,0.5)] relative">
-            <span className="text-3xl drop-shadow-md">👑</span>
+          <div className="flex items-center gap-1 sm:gap-2 bg-slate-900/95 border-2 sm:border-4 border-amber-500 px-2.5 py-1 sm:px-5 sm:py-2 rounded-xl sm:rounded-2xl shadow-[0_0_15px_rgba(245,158,11,0.5)] relative">
+            <span className="text-xl sm:text-3xl drop-shadow-md">👑</span>
             <div className="flex flex-col">
-              <span className="text-xs uppercase tracking-widest text-amber-500 font-bold leading-none">Puntos</span>
-              <span id="hud-score-display" className="text-3xl font-black text-white leading-none mt-1 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">{String(stateRef.current.score)}</span>
+              <span className="text-[9px] sm:text-xs uppercase tracking-widest text-amber-500 font-bold leading-none">Puntos</span>
+              <span id="hud-score-display" className="text-xl sm:text-3xl font-black text-white leading-none mt-0.5 sm:mt-1 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">{String(stateRef.current.score)}</span>
             </div>
 
             {/* Embedded Circular Fire Combo Indicator */}
-            <div id="hud-combo-container" style={{ display: stateRef.current.ninjaCombo >= 2 ? 'flex' : 'none' }} className="absolute -right-6 -bottom-6 w-16 h-16 bg-slate-900 border-4 border-red-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.8)] animate-pulse z-20">
-              <Flame className="absolute -top-3 w-6 h-6 text-orange-500 animate-bounce fill-orange-500" />
-              <span id="hud-combo-multiplier" className="text-2xl font-black text-white drop-shadow-[0_0_5px_rgba(255,255,255,1)]">x{stateRef.current.comboMultiplier}</span>
+            <div id="hud-combo-container" style={{ display: stateRef.current.ninjaCombo >= 2 ? 'flex' : 'none' }} className="absolute -right-3 sm:-right-6 -bottom-3 sm:-bottom-6 w-10 h-10 sm:w-16 sm:h-16 bg-slate-900 border-2 sm:border-4 border-red-500 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.8)] animate-pulse z-20">
+              <Flame className="absolute -top-2 sm:-top-3 w-4 h-4 sm:w-6 sm:h-6 text-orange-500 animate-bounce fill-orange-500" />
+              <span id="hud-combo-multiplier" className="text-sm sm:text-2xl font-black text-white drop-shadow-[0_0_5px_rgba(255,255,255,1)]">x{stateRef.current.comboMultiplier}</span>
             </div>
           </div>
 
           {/* Lives list pill */}
-          <div className="bg-slate-900/95 border-4 border-red-500 px-4 py-2 rounded-2xl shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center gap-2">
+          <div className="bg-slate-900/95 border-2 sm:border-4 border-red-500 px-2 sm:px-4 py-1 sm:py-2 rounded-xl sm:rounded-2xl shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center gap-1 sm:gap-2">
             {[1, 2, 3].map((pizzaLifeId) => (
               <span
                 key={pizzaLifeId}
                 id={`hud-life-${pizzaLifeId}`}
-                className={`transition-all duration-300 text-2xl ${
+                className={`transition-all duration-300 text-lg sm:text-2xl ${
                   stateRef.current.lives >= pizzaLifeId 
                     ? 'opacity-100 scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'
                     : 'opacity-30 grayscale scale-75'
@@ -2906,10 +3004,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         </div>
 
         {/* Right indicators: Audio & Timer */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center gap-1 sm:gap-2 pointer-events-auto">
           {/* Laser Hand Sensor Status Decal */}
           {controlMode === 'camera' && (
-            <div className="bg-slate-900/90 border border-emerald-500/35 px-2.5 py-1.5 rounded-2xl flex items-center gap-1.5 font-mono shadow-md text-[9px] font-bold text-emerald-400" title="Control Óptico Activo">
+            <div className="bg-slate-900/90 border border-emerald-500/35 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl flex items-center gap-1 sm:gap-1.5 font-mono shadow-md text-[8px] sm:text-[9px] font-bold text-emerald-400" title="Control Óptico Activo">
               <span className="flex h-1.5 w-1.5 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
@@ -2920,10 +3018,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           )}
 
           {/* Dynamic Difficulty Level Badge */}
-          <div className="bg-amber-500/90 border-2 border-amber-300 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-lg border-b-4 border-amber-700" title="Nivel de Horneo actual">
-            <Flame className="w-5 h-5 text-white animate-pulse drop-shadow-md fill-white" />
-            <span className="text-sm font-vt text-amber-100 uppercase font-bold tracking-wider">Nivel:</span>
-            <span className="font-pixel text-lg text-white text-stroke-sm">
+          <div className="hidden sm:flex bg-amber-500/90 border-2 border-amber-300 px-3 sm:px-4 py-1 sm:py-2 rounded-xl sm:rounded-2xl items-center gap-1.5 sm:gap-2 shadow-lg border-b-4 border-amber-700" title="Nivel de Horneo actual">
+            <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse drop-shadow-md fill-white" />
+            <span className="text-xs sm:text-sm font-vt text-amber-100 uppercase font-bold tracking-wider">Nivel:</span>
+            <span className="font-pixel text-sm sm:text-lg text-white text-stroke-sm">
               {Math.min(6, 1 + Math.floor((45 - timeLeft) / 8))}
             </span>
           </div>
@@ -2936,7 +3034,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                 setShowSoundSettings(!showSoundSettings);
                 playWebSound('splat');
               }}
-              className={`border p-3 rounded-2xl transition-all shadow-lg cursor-pointer flex items-center justify-center ${
+              className={`border p-2 sm:p-3 rounded-xl sm:rounded-2xl transition-all shadow-lg cursor-pointer flex items-center justify-center min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px] ${
                 showSoundSettings
                   ? 'btn-clash-gold scale-105'
                   : 'btn-clash-blue'
@@ -2944,9 +3042,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               title="Ajustes de Sonido"
             >
               {soundEnabled && globalVolume > 0 ? (
-                globalVolume > 0.5 ? <Volume2 className="w-5 h-5" /> : <Volume1 className="w-5 h-5" />
+                globalVolume > 0.5 ? <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume1 className="w-4 h-4 sm:w-5 sm:h-5" />
               ) : (
-                <VolumeX className="w-5 h-5" />
+                <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" />
               )}
             </button>
 
@@ -3034,26 +3132,26 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               toggleFullscreen();
               playWebSound('splat');
             }}
-            className="bg-slate-900/90 hover:bg-slate-850 border border-slate-800/90 p-2 rounded-2xl transition-all shadow-md cursor-pointer flex items-center justify-center text-slate-300 hover:text-white"
+            className="bg-slate-900/90 hover:bg-slate-850 border border-slate-800/90 p-2 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all shadow-md cursor-pointer flex items-center justify-center text-slate-300 hover:text-white min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px]"
             title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4 text-rose-400" /> : <Maximize2 className="w-4 h-4 text-emerald-400" />}
           </button>
 
           {/* Time Countdown / Oven Temperature */}
-          <div className="bg-slate-900/95 border-4 border-orange-500 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-[0_0_15px_rgba(249,115,22,0.4)]">
-            <Flame className={`w-6 h-6 ${
+          <div className="bg-slate-900/95 border-2 sm:border-4 border-orange-500 px-2.5 sm:px-4 py-1 sm:py-2 rounded-xl sm:rounded-2xl flex items-center gap-1.5 sm:gap-3 shadow-[0_0_15px_rgba(249,115,22,0.4)]">
+            <Flame className={`w-4 h-4 sm:w-6 sm:h-6 ${
               gameMode === 'arcade' && timeLeft <= 10 ? 'text-red-500 animate-pulse fill-red-500' : 'text-orange-500 fill-orange-500'
             }`} />
             {gameMode === 'arcade' ? (
               <div className="flex flex-col">
-                <span className="text-[9px] text-orange-400 font-black tracking-widest uppercase leading-none">Horno</span>
-                <span className={`font-black text-2xl leading-none mt-0.5 ${timeLeft <= 10 ? 'text-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]'}`}>
+                <span className="text-[8px] sm:text-[9px] text-orange-400 font-black tracking-widest uppercase leading-none">Horno</span>
+                <span className={`font-black text-sm sm:text-2xl leading-none mt-0.5 ${timeLeft <= 10 ? 'text-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]'}`}>
                   00:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}
                 </span>
               </div>
             ) : (
-              <span className="font-black text-xs text-slate-200">
+              <span className="font-black text-xs sm:text-sm text-slate-200">
                 {(() => {
                   const m = Math.floor(elapsedTime / 60);
                   const s = elapsedTime % 60;
@@ -3069,7 +3167,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
       {/* Dynamic accuracy-based Combo Overlay removed to optimize performance. Replaced by Canvas text. */}
 
       {/* Screen Canvas wrapper to prevent infinite ResizeObserver loops */}
-      <div className="relative flex-1 w-full min-h-0 overflow-hidden rounded-3xl bg-slate-950">
+      <div className="relative flex-1 w-full min-h-0 overflow-hidden rounded-xl sm:rounded-2xl bg-slate-950">
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full cursor-crosshair touch-none z-10 pointer-events-auto"
@@ -3077,6 +3175,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerLeave}
+          onPointerCancel={handlePointerUp}
         />
       </div>
 
@@ -3090,39 +3189,53 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
         </div>
       )}
 
+      {/* Game Over / Score Registration Modal Overlay INSIDE containerRef for Fullscreen Top Layer */}
+      <AnimatePresence>
+        {isRegistering && (scoreRegistrationContent || children) && (
+          <motion.div
+            key="score-registration-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-2 sm:p-4 rounded-2xl sm:rounded-3xl overflow-y-auto pointer-events-auto"
+          >
+            {scoreRegistrationContent || children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Menu Overlay */}
       {!isPlaying && !isRegistering && !(controlMode === 'camera' && handDetected) && (
-        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-4 select-none overflow-hidden rounded-3xl transition-all duration-300 bg-slate-950/20 pointer-events-auto`}>
+        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-2 sm:p-4 select-none overflow-y-auto rounded-2xl sm:rounded-3xl transition-all duration-300 bg-slate-950/20 pointer-events-auto`}>
           {/* TOP NAVIGATION BAR */}
-          <div className="absolute top-4 md:top-6 inset-x-4 md:inset-x-6 flex justify-between items-start z-[60]">
+          <div className="absolute top-2 sm:top-4 md:top-6 inset-x-2 sm:inset-x-4 md:inset-x-6 flex justify-between items-start z-[60]">
             {/* Left Icons */}
-            <div className="flex flex-row gap-2 md:gap-3 pointer-events-auto relative z-[60]">
-              <button onClick={(e) => { e.stopPropagation(); setActiveModal('knives'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer">
+            <div className="flex flex-row gap-1.5 sm:gap-2 md:gap-3 pointer-events-auto relative z-[60]">
+              <button onClick={(e) => { e.stopPropagation(); setActiveModal('knives'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer">
                 🗡️
               </button>
-              <button onClick={(e) => { e.stopPropagation(); setActiveModal('rules'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer">
+              <button onClick={(e) => { e.stopPropagation(); setActiveModal('rules'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer">
                 📋
               </button>
             </div>
 
             {/* Right Icons + Wallet */}
-            <div className="flex flex-row items-center gap-2 md:gap-3 pointer-events-auto relative z-[60]">
-              <button onClick={(e) => { e.stopPropagation(); setActiveModal('settings'); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)] cursor-pointer" title="Ajustes">
+            <div className="flex flex-row items-center gap-1.5 sm:gap-2 md:gap-3 pointer-events-auto relative z-[60]">
+              <button onClick={(e) => { e.stopPropagation(); setActiveModal('settings'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-blue-400 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(96,165,250,0.4)] cursor-pointer" title="Ajustes">
                 ⚙️
               </button>
-              <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); playWebSound('splat'); }} className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)] cursor-pointer" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
-                {isFullscreen ? <Minimize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" /> : <Maximize2 className="w-5 h-5 md:w-7 md:h-7 text-indigo-400" />}
+              <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)] cursor-pointer" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
+                {isFullscreen ? <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 text-indigo-400" /> : <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 text-indigo-400" />}
               </button>
               
-              {/* Billetera */}
               {/* Billetera */}
               {walletPublicKey ? (
                 <div 
                   onClick={(e) => { e.stopPropagation(); onOpenWallet?.(); }}
-                  className="bg-slate-800/80 border border-emerald-500/50 rounded-full px-3 md:px-5 h-12 md:h-16 flex items-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] cursor-pointer hover:bg-slate-700 transition"
+                  className="bg-slate-800/80 border border-emerald-500/50 rounded-full px-2.5 sm:px-3 md:px-5 h-10 sm:h-12 md:h-16 flex items-center gap-1.5 sm:gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] cursor-pointer hover:bg-slate-700 transition"
                 >
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="font-pixel text-emerald-400 text-[9px] md:text-xs">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-pixel text-emerald-400 text-[8px] sm:text-[9px] md:text-xs">
                     {walletPublicKey.substring(0, 5)}...{walletPublicKey.substring(walletPublicKey.length - 4)}
                   </span>
                 </div>
@@ -3132,45 +3245,45 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                     e.stopPropagation();
                     onOpenWallet?.();
                   }}
-                  className="bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-blue-400 rounded-full px-3 md:px-5 h-12 md:h-16 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 md:gap-2 shadow-lg cursor-pointer"
+                  className="bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-blue-400 rounded-full px-2.5 sm:px-3 md:px-5 h-10 sm:h-12 md:h-16 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 md:gap-2 shadow-lg cursor-pointer"
                 >
-                  <Zap className="w-4 h-4 md:w-5 md:h-5 text-white fill-amber-300 shrink-0" />
-                  <span className="font-pixel text-white text-[9px] md:text-xs tracking-wider hidden sm:inline-block">CONECTAR BOVEDA</span>
-                  <span className="font-pixel text-white text-[9px] tracking-wider sm:hidden">BOVEDA</span>
+                  <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white fill-amber-300 shrink-0" />
+                  <span className="font-pixel text-white text-[8px] sm:text-[9px] md:text-xs tracking-wider hidden sm:inline-block">CONECTAR BOVEDA</span>
+                  <span className="font-pixel text-white text-[8px] tracking-wider sm:hidden">BOVEDA</span>
                 </button>
               )}
             </div>
           </div>
 
           {/* Main Content Centered */}
-          <div className={`flex flex-col landscape:flex-row items-center justify-center gap-2 md:gap-6 landscape:gap-12 w-full max-w-lg landscape:max-w-4xl mx-auto z-10 transition-all duration-300 ${activeModal ? 'blur-md scale-95 opacity-50' : 'blur-0 scale-100 opacity-100'}`}>
+          <div className={`flex flex-col landscape:flex-row items-center justify-center gap-1 sm:gap-3 md:gap-6 landscape:gap-4 lg:landscape:gap-12 w-full max-w-lg landscape:max-w-4xl mx-auto z-10 my-auto pt-8 sm:pt-0 transition-all duration-300 ${activeModal ? 'blur-md scale-95 opacity-50' : 'blur-0 scale-100 opacity-100'}`}>
             
             {controlMode === 'mouse' ? (
               <>
                 {/* Mascot */}
                 <div className="relative group animate-[fade-in-up_0.5s_ease-out] shrink-0 pointer-events-none">
                   <div className="absolute -inset-8 bg-gradient-to-r from-emerald-500/20 via-green-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse" />
-                  <img src="/ninja_turtle.png" alt="Ninja Turtle Mascot" className="relative w-48 h-48 md:w-64 md:h-64 landscape:w-48 landscape:h-48 object-contain drop-shadow-[0_0_25px_rgba(16,185,129,0.5)] animate-[bounce_4s_infinite]" />
+                  <img src="/ninja_turtle.png" alt="Ninja Turtle Mascot" className="relative w-20 h-20 sm:w-32 sm:h-32 md:w-48 md:h-48 landscape:w-20 landscape:h-20 sm:landscape:w-28 sm:landscape:h-28 md:landscape:w-40 md:landscape:h-40 object-contain drop-shadow-[0_0_25px_rgba(16,185,129,0.5)] animate-[bounce_4s_infinite]" />
                 </div>
 
                 {/* Right Side / Bottom Side Container */}
-                <div className="flex flex-col items-center landscape:items-start w-full max-w-sm landscape:max-w-xl pointer-events-none">
+                <div className="flex flex-col items-center landscape:items-start w-full max-w-xs sm:max-w-sm landscape:max-w-xl pointer-events-none">
                   {/* Title */}
-                  <div className="text-center landscape:text-left mt-[-1rem] landscape:mt-0">
-                    <h1 className="text-4xl md:text-5xl landscape:text-6xl font-pixel text-white text-stroke-title tracking-widest leading-none drop-shadow-2xl">Slash Slice</h1>
-                    <span className="text-xs md:text-sm font-pixel text-emerald-400 text-stroke-sm uppercase tracking-widest block mt-2 drop-shadow-lg">Turtle Ninja Edition</span>
+                  <div className="text-center landscape:text-left">
+                    <h1 className="text-2xl sm:text-4xl md:text-5xl landscape:text-3xl sm:landscape:text-4xl md:landscape:text-5xl font-pixel text-white text-stroke-title tracking-widest leading-none drop-shadow-2xl">Slash Slice</h1>
+                    <span className="text-[10px] sm:text-xs md:text-sm font-pixel text-emerald-400 text-stroke-sm uppercase tracking-widest block mt-1 sm:mt-2 drop-shadow-lg">Turtle Ninja Edition</span>
                   </div>
 
                   {/* Score badge from last game (conditional) */}
                   {score > 0 && (
-                    <div className="bg-slate-900/80 border-2 border-emerald-400/50 rounded-full px-6 py-2 mt-3 flex items-center justify-center gap-3 text-sm font-pixel text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                      <Trophy className="w-4 h-4 text-emerald-500" /> 
+                    <div className="bg-slate-900/80 border border-emerald-400/50 rounded-full px-3 sm:px-5 py-1 sm:py-1.5 mt-1.5 sm:mt-2 flex items-center justify-center gap-2 text-xs sm:text-sm font-pixel text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                      <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" /> 
                       Última Puntuación: <span className="text-emerald-400">{score}</span>
                     </div>
                   )}
 
                   {/* AAA Play Buttons */}
-                  <div className="flex flex-col gap-3 mt-6 pointer-events-auto z-50 w-full max-w-xs landscape:max-w-sm">
+                  <div className="flex flex-col gap-2 sm:gap-3 mt-3 sm:mt-4 md:mt-6 pointer-events-auto z-50 w-full max-w-[260px] sm:max-w-xs landscape:max-w-sm">
                     <button
                       type="button"
                       onClick={() => {
@@ -3178,9 +3291,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                         playWebSound('slash');
                         initiateCountdown();
                       }}
-                      className="bg-gradient-to-b from-amber-400 to-amber-600 border-[3px] border-amber-200 rounded-2xl py-4 px-6 text-white font-pixel text-xl md:text-2xl uppercase tracking-widest drop-shadow-[0_4px_0_#b45309] active:translate-y-1 active:drop-shadow-[0_0px_0_#b45309] transition-all hover:brightness-110 flex items-center justify-center gap-3 w-full cursor-pointer shadow-2xl"
+                      className="bg-gradient-to-b from-amber-400 to-amber-600 border-[2px] sm:border-[3px] border-amber-200 rounded-xl sm:rounded-2xl py-2.5 sm:py-3.5 md:py-4 px-4 sm:px-6 text-white font-pixel text-sm sm:text-lg md:text-xl uppercase tracking-widest drop-shadow-[0_3px_0_#b45309] sm:drop-shadow-[0_4px_0_#b45309] active:translate-y-1 active:drop-shadow-[0_0px_0_#b45309] transition-all hover:brightness-110 flex items-center justify-center gap-2 sm:gap-3 w-full cursor-pointer shadow-2xl min-h-[44px]"
                     >
-                      <span className="text-3xl drop-shadow-md">🖱️</span>
+                      <span className="text-xl sm:text-2xl md:text-3xl drop-shadow-md">🖱️</span>
                       <span>JUGAR NORMAL</span>
                     </button>
                     
@@ -3190,9 +3303,9 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                         setControlMode('camera');
                         playWebSound('slash');
                       }}
-                      className="bg-gradient-to-b from-blue-500 to-blue-700 border-[3px] border-blue-300 rounded-2xl py-3 px-6 text-white font-pixel text-lg md:text-xl uppercase tracking-widest drop-shadow-[0_4px_0_#1e3a8a] active:translate-y-1 active:drop-shadow-[0_0px_0_#1e3a8a] transition-all hover:brightness-110 flex items-center justify-center gap-3 w-full cursor-pointer shadow-xl opacity-90 hover:opacity-100"
+                      className="bg-gradient-to-b from-blue-500 to-blue-700 border-[2px] sm:border-[3px] border-blue-300 rounded-xl sm:rounded-2xl py-2 sm:py-3 px-4 sm:px-6 text-white font-pixel text-xs sm:text-base md:text-lg uppercase tracking-widest drop-shadow-[0_3px_0_#1e3a8a] sm:drop-shadow-[0_4px_0_#1e3a8a] active:translate-y-1 active:drop-shadow-[0_0px_0_#1e3a8a] transition-all hover:brightness-110 flex items-center justify-center gap-2 sm:gap-3 w-full cursor-pointer shadow-xl opacity-90 hover:opacity-100 min-h-[44px]"
                     >
-                      <span className="text-2xl drop-shadow-md">📷</span>
+                      <span className="text-lg sm:text-xl md:text-2xl drop-shadow-md">📷</span>
                       <span>JUGAR CÁMARA</span>
                     </button>
                   </div>
@@ -3202,14 +3315,14 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
               /* CAMERA MODE WAITING UI */
               <div className="flex flex-col items-center justify-center text-center mt-auto mb-10 pointer-events-none w-full max-w-sm absolute bottom-10 left-1/2 -translate-x-1/2">
                 {!handDetected && (
-                  <h2 className="text-xl md:text-2xl font-pixel text-white text-stroke-title drop-shadow-xl animate-pulse bg-blue-900/80 p-4 rounded-xl border border-blue-500/50 shadow-2xl">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-pixel text-white text-stroke-title drop-shadow-xl animate-pulse bg-blue-900/80 p-3 sm:p-4 rounded-xl border border-blue-500/50 shadow-2xl">
                     📷 ACERCA TU MANO A LA CÁMARA...
                   </h2>
                 )}
                 
                 <button 
                   onClick={() => { setControlMode('mouse'); playWebSound('splat'); }}
-                  className="mt-4 px-6 py-2 bg-slate-800/90 border-2 border-slate-600 rounded-full text-slate-300 font-pixel text-xs uppercase tracking-widest hover:bg-slate-700 hover:text-white hover:border-slate-500 transition-all pointer-events-auto shadow-lg"
+                  className="mt-3 sm:mt-4 px-4 sm:px-6 py-2 bg-slate-800/90 border-2 border-slate-600 rounded-full text-slate-300 font-pixel text-xs uppercase tracking-widest hover:bg-slate-700 hover:text-white hover:border-slate-500 transition-all pointer-events-auto shadow-lg"
                 >
                   ◀ VOLVER AL RATÓN
                 </button>
@@ -3221,28 +3334,28 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
           {/* Modal Overlay */}
           {activeModal && (
-            <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 pointer-events-auto" onClick={() => setActiveModal(null)}>
+            <div className="absolute inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-950/90 pointer-events-auto" onClick={() => setActiveModal(null)}>
               <div 
-                className="panel-clash p-5 md:p-6 rounded-3xl w-full max-w-md animate-[bounce-in_0.3s_cubic-bezier(0.175,0.885,0.32,1.275)]"
+                className="panel-clash p-4 sm:p-6 rounded-2xl sm:rounded-3xl w-full max-w-md max-h-[85vh] flex flex-col animate-[bounce-in_0.3s_cubic-bezier(0.175,0.885,0.32,1.275)]"
                 onClick={e => e.stopPropagation()}
               >
-                <div className="flex justify-between items-center mb-6 border-b-2 border-blue-200/20 pb-4">
-                  <h2 className="text-xl font-pixel text-white text-stroke-sm">
+                <div className="flex justify-between items-center mb-3 sm:mb-4 border-b-2 border-blue-200/20 pb-2 sm:pb-3 shrink-0">
+                  <h2 className="text-lg sm:text-xl font-pixel text-white text-stroke-sm">
                     {activeModal === 'knives' && '🗡️ Armería'}
                     {activeModal === 'rules' && '📋 Tutorial'}
                     {activeModal === 'settings' && '⚙️ Ajustes'}
                   </h2>
-                  <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full transition-colors cursor-pointer">
-                    <X className="w-5 h-5" />
+                  <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white bg-slate-800 p-1.5 sm:p-2 rounded-full transition-colors cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center">
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
 
-                <div className="max-h-[60vh] overflow-y-auto pr-2">
+                <div className="max-h-[65vh] overflow-y-auto pr-1 sm:pr-2">
                   {/* KNIVES MODAL CONTENT */}
                   {activeModal === 'knives' && (
-                    <div className="space-y-4">
-                      <p className="text-blue-200 font-sans text-sm mb-4">Selecciona el diseño de tu espada láser para cortar pizzas con estilo.</p>
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3 sm:space-y-4">
+                      <p className="text-blue-200 font-sans text-xs sm:text-sm mb-2 sm:mb-4">Selecciona el diseño de tu espada láser para cortar pizzas con estilo.</p>
+                      <div className="grid grid-cols-2 gap-2 sm:gap-3">
                         {[
                           { id: 'fire', label: 'Fuego', icon: '🔥', color: 'from-orange-500 to-red-600', border: 'border-orange-400' },
                           { id: 'cyber', label: 'Cyber', icon: '⚡', color: 'from-cyan-400 to-blue-600', border: 'border-cyan-400' },
@@ -3252,14 +3365,14 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                           <button
                             key={item.id}
                             onClick={() => { setBladeStyle(item.id as any); playWebSound('splat'); setActiveModal(null); }}
-                            className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 border-b-4 border-2 transition-all cursor-pointer ${
+                            className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center gap-1 sm:gap-2 border-b-4 border-2 transition-all cursor-pointer ${
                               bladeStyle === item.id 
                                 ? `bg-gradient-to-b ${item.color} ${item.border} border-b-0 translate-y-[4px] text-white shadow-inner` 
                                 : `bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700`
                             }`}
                           >
-                            <span className="text-4xl drop-shadow-lg">{item.icon}</span>
-                            <span className="font-pixel text-[10px] uppercase">{item.label}</span>
+                            <span className="text-2xl sm:text-4xl drop-shadow-lg">{item.icon}</span>
+                            <span className="font-pixel text-[9px] sm:text-[10px] uppercase">{item.label}</span>
                           </button>
                         ))}
                       </div>
@@ -3268,26 +3381,26 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
                   {/* RULES MODAL CONTENT */}
                   {activeModal === 'rules' && (
-                    <div className="space-y-4 font-sans text-sm text-blue-100">
-                      <div className="bg-slate-900/50 p-4 rounded-2xl border border-blue-500/30 flex items-start gap-3">
-                        <span className="text-2xl">🍕</span>
+                    <div className="space-y-2.5 sm:space-y-4 font-sans text-xs sm:text-sm text-blue-100">
+                      <div className="bg-slate-900/50 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-blue-500/30 flex items-start gap-2.5 sm:gap-3">
+                        <span className="text-xl sm:text-2xl">🍕</span>
                         <div>
-                          <strong className="text-white block font-pixel text-[10px] mb-1">Pizza Entera</strong>
-                          <p className="text-xs">Corta 1 vez para dividirla en mitades.</p>
+                          <strong className="text-white block font-pixel text-[9px] sm:text-[10px] mb-0.5 sm:mb-1">Pizza Entera</strong>
+                          <p className="text-[11px] sm:text-xs">Corta 1 vez para dividirla en mitades.</p>
                         </div>
                       </div>
-                      <div className="bg-slate-900/50 p-4 rounded-2xl border border-blue-500/30 flex items-start gap-3">
-                        <span className="text-2xl">🔪</span>
+                      <div className="bg-slate-900/50 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-blue-500/30 flex items-start gap-2.5 sm:gap-3">
+                        <span className="text-xl sm:text-2xl">🔪</span>
                         <div>
-                          <strong className="text-white block font-pixel text-[10px] mb-1">Mitades</strong>
-                          <p className="text-xs">Corta de nuevo para hacer rebanadas y ganar puntos.</p>
+                          <strong className="text-white block font-pixel text-[9px] sm:text-[10px] mb-0.5 sm:mb-1">Mitades</strong>
+                          <p className="text-[11px] sm:text-xs">Corta de nuevo para hacer rebanadas y ganar puntos.</p>
                         </div>
                       </div>
-                      <div className="bg-rose-950/50 p-4 rounded-2xl border border-rose-500/30 flex items-start gap-3">
-                        <span className="text-2xl">🍍</span>
+                      <div className="bg-rose-950/50 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-rose-500/30 flex items-start gap-2.5 sm:gap-3">
+                        <span className="text-xl sm:text-2xl">🍍</span>
                         <div>
-                          <strong className="text-rose-400 block font-pixel text-[10px] mb-1">Peligro: Piña y Quemadas</strong>
-                          <p className="text-xs">¡No las toques! Pierdes vidas y se incendia el juego.</p>
+                          <strong className="text-rose-400 block font-pixel text-[9px] sm:text-[10px] mb-0.5 sm:mb-1">Peligro: Piña y Quemadas</strong>
+                          <p className="text-[11px] sm:text-xs">¡No las toques! Pierdes vidas y se incendia el juego.</p>
                         </div>
                       </div>
                     </div>
@@ -3295,10 +3408,10 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
                   {/* SETTINGS MODAL CONTENT */}
                   {activeModal === 'settings' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       {/* Game Mode */}
                       <div>
-                        <h3 className="font-pixel text-[10px] text-blue-300 uppercase mb-3">Modo de Juego</h3>
+                        <h3 className="font-pixel text-[9px] sm:text-[10px] text-blue-300 uppercase mb-2 sm:mb-3">Modo de Juego</h3>
                         <div className="grid grid-cols-2 gap-2">
                           {[
                             { id: 'arcade', label: 'Árcade', icon: '⏱️' },
@@ -3311,7 +3424,7 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
                                 gameMode === mode.id ? 'bg-blue-600 border-blue-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
                               }`}
                             >
-                              <span className="text-xl">{mode.icon}</span>
+                              <span className="text-lg sm:text-xl">{mode.icon}</span>
                               <span className="font-pixel text-[8px] uppercase">{mode.label}</span>
                             </button>
                           ))}
@@ -3320,28 +3433,28 @@ export default function PizzaCanvas({ onGameOver, isPlaying, setIsPlaying, onToa
 
                       {/* Music Theme */}
                       <div>
-                        <h3 className="font-pixel text-[10px] text-blue-300 uppercase mb-3">Banda Sonora</h3>
-                        <div className="grid grid-cols-2 gap-3">
-                          <button onPointerDown={() => { setMusicTheme('italian'); playWebSound('splat'); }} className={`p-3 rounded-xl flex items-center gap-2 border-b-[3px] border-2 transition-all cursor-pointer ${musicTheme === 'italian' ? 'bg-amber-600 border-amber-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
-                            <span className="text-xl">🤌</span> <span className="font-pixel text-[10px]">Tarantella</span>
+                        <h3 className="font-pixel text-[9px] sm:text-[10px] text-blue-300 uppercase mb-2 sm:mb-3">Banda Sonora</h3>
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                          <button onPointerDown={() => { setMusicTheme('italian'); playWebSound('splat'); }} className={`p-2.5 sm:p-3 rounded-xl flex items-center gap-1.5 sm:gap-2 border-b-[3px] border-2 transition-all cursor-pointer ${musicTheme === 'italian' ? 'bg-amber-600 border-amber-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                            <span className="text-lg sm:text-xl">🤌</span> <span className="font-pixel text-[9px] sm:text-[10px]">Tarantella</span>
                           </button>
-                          <button onPointerDown={() => { setMusicTheme('synthwave'); playWebSound('splat'); }} className={`p-3 rounded-xl flex items-center gap-2 border-b-[3px] border-2 transition-all cursor-pointer ${musicTheme === 'synthwave' ? 'bg-fuchsia-600 border-fuchsia-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
-                            <span className="text-xl">🎹</span> <span className="font-pixel text-[10px]">Synthwave</span>
+                          <button onPointerDown={() => { setMusicTheme('synthwave'); playWebSound('splat'); }} className={`p-2.5 sm:p-3 rounded-xl flex items-center gap-1.5 sm:gap-2 border-b-[3px] border-2 transition-all cursor-pointer ${musicTheme === 'synthwave' ? 'bg-fuchsia-600 border-fuchsia-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                            <span className="text-lg sm:text-xl">🎹</span> <span className="font-pixel text-[9px] sm:text-[10px]">Synthwave</span>
                           </button>
                         </div>
                       </div>
 
                       {/* Volume & Perf */}
-                      <div className="space-y-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
-                        <div className="flex items-center gap-3">
+                      <div className="space-y-3 sm:space-y-4 bg-slate-900/50 p-3 sm:p-4 rounded-xl border border-slate-800">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <button onPointerDown={(e) => { e.stopPropagation(); setSoundEnabled(!soundEnabled); }} className="text-amber-500 hover:scale-110 transition-transform cursor-pointer">
-                            {soundEnabled && globalVolume > 0 ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 text-rose-500" />}
+                            {soundEnabled && globalVolume > 0 ? <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" /> : <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-rose-500" />}
                           </button>
                           <input type="range" min="0" max="1" step="0.05" value={globalVolume} onChange={(e) => setGlobalVolume(parseFloat(e.target.value))} className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" onPointerDown={e => e.stopPropagation()} />
                         </div>
-                        <div className="flex justify-between items-center pt-3 border-t border-slate-800">
-                          <span className="font-pixel text-[9px] text-slate-300">Rendimiento Gráfico</span>
-                          <button onPointerDown={(e) => { e.stopPropagation(); togglePerformanceMode(); }} className={`px-3 py-1.5 rounded-lg font-pixel text-[8px] uppercase border cursor-pointer ${performanceMode ? 'bg-blue-900/50 border-blue-500 text-blue-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
+                        <div className="flex justify-between items-center pt-2 sm:pt-3 border-t border-slate-800">
+                          <span className="font-pixel text-[8px] sm:text-[9px] text-slate-300">Rendimiento Gráfico</span>
+                          <button onPointerDown={(e) => { e.stopPropagation(); togglePerformanceMode(); }} className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg font-pixel text-[8px] uppercase border cursor-pointer ${performanceMode ? 'bg-blue-900/50 border-blue-500 text-blue-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
                             {performanceMode ? 'Optimizado' : 'Alto (60 FPS)'}
                           </button>
                         </div>

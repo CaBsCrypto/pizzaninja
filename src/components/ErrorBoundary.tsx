@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 
 interface ErrorBoundaryProps {
-  children: React.ReactNode;
+  children: ReactNode;
   /** Optional label to identify which region failed (for logs). */
   region?: string;
 }
@@ -18,8 +18,15 @@ interface ErrorBoundaryState {
  * screen. This shows a branded recovery screen with a reload action instead.
  */
 export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  declare props: ErrorBoundaryProps;
+  declare state: ErrorBoundaryState;
+  declare context: any;
+  declare setState: (state: Partial<ErrorBoundaryState> | ((prevState: ErrorBoundaryState) => Partial<ErrorBoundaryState>)) => void;
+  declare forceUpdate: (callback?: () => void) => void;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
+    this.props = props;
     this.state = { hasError: false, error: null };
   }
 

@@ -130,7 +130,7 @@ export const buildAndSignSubmitScoreTx = async (
     }
 
     // 5. Assemble transaction
-    const assembledTx = rpc.assembleTransaction(tx, simulation);
+    const assembledTx = rpc.assembleTransaction(tx, simulation).build();
 
     // 6. Sign transaction depending on wallet type
     let signedXdr: string | null = null;
