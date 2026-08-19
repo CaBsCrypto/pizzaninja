@@ -51,6 +51,27 @@ For deep-dive architectural breakdowns, smart contract specifications, and devel
 - **Classic Mode**: 3 Lives. Pineapple bombs deduct 1 life.
 - **Arcade Mode**: 60-second time trial. Pineapple bombs deduct 3 seconds. Slice pizza combos for bonus time multipliers.
 
+### 🕹️ Control Methods
+- **🖱️ / 📱 Touch & Mouse Mode**: Ultra-responsive zero-latency slicing on smartphones, tablets, and desktops with multi-touch support.
+- **📷 Camera AI Mode**: Spatial slicing via MediaPipe hand tracking at 60 FPS directly through your webcam.
+
+---
+
+## 🧪 Automated Testing Suite
+
+The project includes an enterprise-grade automated test harness featuring **219+ end-to-end and regression tests** across 5 tiers:
+
+```bash
+# Run the complete test suite
+npm test
+```
+
+- **Tier 1**: Feature coverage, game lifecycle, and score calculation.
+- **Tier 2**: Boundary conditions and multi-touch coordinates.
+- **Tier 3**: Cross-feature interactions and state sanitization.
+- **Tier 4**: Real-world smartphone viewports and device orientation shifts.
+- **Tier 5**: Adversarial stress testing, WebRTC track teardown, and memory leak prevention.
+
 ---
 
 ## 💻 Quickstart (Local Development)
@@ -61,16 +82,22 @@ git clone https://github.com/CaBsCrypto/pizzaninja.git
 cd pizzaninja
 
 # 2. Install dependencies
-pnpm install
+npm install
 
-# 3. Start the dev server (Localhost Port 3000)
-pnpm dev
+# 3. Run automated tests
+npm test
+
+# 4. Start the dev server (Localhost Port 3000)
+npm run dev
+
+# 5. Build for production
+npm run build
 ```
 
-Open `https://localhost:3000` in your browser.
+Open `http://localhost:3000` in your browser.
 
 ---
 
 ## 📄 License & Credits
 
-Built for the **PizzaDAO 2026 Season Hackathon**. Hosted on Vercel.
+Built for the **PizzaDAO Season Hackathon**. Hosted on Vercel.
