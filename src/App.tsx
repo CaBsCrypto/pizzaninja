@@ -694,6 +694,16 @@ export default function App() {
             </h1>
             <p className="hidden sm:block font-vt text-lg sm:text-xl text-blue-100 mt-0.5 sm:mt-1 uppercase text-stroke-sm drop-shadow-md">¡Domina la arena de la cocina!</p>
           </div>
+          {/* Back to SpicyCrust button */}
+          <a
+            href="https://spicycrust.com"
+            target="_self"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800/70 hover:bg-slate-700/90 hover:border-slate-500 text-slate-300 hover:text-white transition-all duration-150 text-[10px] font-pixel uppercase tracking-wide cursor-pointer shadow-md shrink-0 ml-1"
+            title="Volver a SpicyCrust"
+          >
+            <span className="text-base leading-none">🏠</span>
+            <span className="hidden md:inline">SpicyCrust</span>
+          </a>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">

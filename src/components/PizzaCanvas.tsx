@@ -3324,6 +3324,14 @@ export default function PizzaCanvas({
                       <span className="text-lg sm:text-xl md:text-2xl drop-shadow-md">📷</span>
                       <span>JUGAR CÁMARA</span>
                     </button>
+                    <a
+                      href="https://spicycrust.com"
+                      target="_self"
+                      className="flex items-center justify-center gap-1.5 mt-1 py-1.5 px-3 rounded-xl border border-slate-700/60 bg-slate-900/50 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200 transition-all text-[9px] font-pixel uppercase tracking-wider cursor-pointer w-full min-h-[36px]"
+                    >
+                      <span className="text-sm">🏠</span>
+                      <span>Volver a SpicyCrust</span>
+                    </a>
                   </div>
                 </div>
               </>
