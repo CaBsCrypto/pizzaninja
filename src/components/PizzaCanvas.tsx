@@ -77,6 +77,9 @@ export default function PizzaCanvas({
   const [timeLeft, setTimeLeft] = useState(45);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  // Bug 3: immediate local flag so Game Over overlay renders in the same React tick as game end,
+  // before the parent's onGameOver → setPendingScore → isRegistering prop cycle completes.
+  const [showGameOverOverlay, setShowGameOverOverlay] = useState(false);
   const [controlMode, setControlMode] = useState<'mouse' | 'camera'>('mouse');
   
   const [gameMode, setGameMode] = useState<GameMode>(() => {
@@ -272,11 +275,15 @@ export default function PizzaCanvas({
     arcadeDifficultyRef.current = arcadeDifficulty;
   }, [arcadeDifficulty]);
 
-  const [bladeStyle, setBladeStyle] = useState<'fire' | 'cyber' | 'basil' | 'gold'>('fire');
+  const [bladeStyle, setBladeStyle] = useState<'fire' | 'cyber' | 'basil' | 'gold'>(() => {
+    const saved = localStorage.getItem('ninja_blade_style');
+    return (saved === 'fire' || saved === 'cyber' || saved === 'basil' || saved === 'gold') ? saved : 'fire';
+  });
   const bladeStyleRef = useRef<'fire' | 'cyber' | 'basil' | 'gold'>('fire');
 
   useEffect(() => {
     bladeStyleRef.current = bladeStyle;
+    localStorage.setItem('ninja_blade_style', bladeStyle);
   }, [bladeStyle]);
 
   const DIFFICULTY_SETTINGS = {
@@ -744,9 +751,14 @@ export default function PizzaCanvas({
     handDetectedRef.current = false;
     setHandDetected(false);
 
+    // Bug 3: Show overlay immediately so fullscreen users see the Game Over UI
+    // without a black-screen gap while waiting for App.tsx to process onGameOver
+    setShowGameOverOverlay(true);
+
     playWebSound('gameover');
 
     const elapsed = Math.floor((Date.now() - (stateRef.current.startTime || Date.now())) / 1000);
+
 
     // --- MULTIGAME INTEGRATION ---
     // Broadcast score over the realtime socket. gameSocket is a GameWebSocket
@@ -3191,13 +3203,17 @@ export default function PizzaCanvas({
 
       {/* Game Over / Score Registration Modal Overlay INSIDE containerRef for Fullscreen Top Layer */}
       <AnimatePresence>
-        {isRegistering && (scoreRegistrationContent || children) && (
+        {(isRegistering || showGameOverOverlay) && (scoreRegistrationContent || children) && (
           <motion.div
             key="score-registration-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-2 sm:p-4 rounded-2xl sm:rounded-3xl overflow-y-auto pointer-events-auto"
+            onAnimationComplete={() => {
+              // Once App.tsx has set isRegistering=true, we can clear the local flag
+              if (isRegistering) setShowGameOverOverlay(false);
+            }}
           >
             {scoreRegistrationContent || children}
           </motion.div>
@@ -3205,7 +3221,7 @@ export default function PizzaCanvas({
       </AnimatePresence>
 
       {/* Main Menu Overlay */}
-      {!isPlaying && !isRegistering && !(controlMode === 'camera' && handDetected) && (
+      {!isPlaying && !isRegistering && !showGameOverOverlay && !(controlMode === 'camera' && handDetected) && (
         <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-2 sm:p-4 select-none overflow-y-auto rounded-2xl sm:rounded-3xl transition-all duration-300 bg-slate-950/20 pointer-events-auto`}>
           {/* TOP NAVIGATION BAR */}
           <div className="absolute top-2 sm:top-4 md:top-6 inset-x-2 sm:inset-x-4 md:inset-x-6 flex justify-between items-start z-[60]">

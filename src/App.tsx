@@ -68,6 +68,26 @@ export default function App() {
   const [mintedTx, setMintedTx] = useState<string | null>(null);
   const [mintingStep, setMintingStep] = useState<'idle' | 'signing' | 'sponsoring' | 'registering' | 'completed' | 'error'>('idle');
 
+  // Bug 1: Detect mobile portrait orientation and show rotation banner
+  const [isPortraitMobile, setIsPortraitMobile] = useState(false);
+  const [rotationBannerDismissed, setRotationBannerDismissed] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      const isMobile = window.innerWidth < 768;
+      const isPortrait = window.innerHeight > window.innerWidth;
+      setIsPortraitMobile(isMobile && isPortrait);
+      // Reset dismissed state when user rotates back to portrait
+      if (isMobile && isPortrait) setRotationBannerDismissed(false);
+    };
+    check();
+    window.addEventListener('resize', check);
+    window.addEventListener('orientationchange', check);
+    return () => {
+      window.removeEventListener('resize', check);
+      window.removeEventListener('orientationchange', check);
+    };
+  }, []);
+
   // Stellar Wallet global state
   const [walletState, setWalletState] = useState<StellarWalletState>({
     connected: false,
@@ -921,6 +941,32 @@ export default function App() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Bug 1: Floating rotate banner — visible only on mobile portrait, dismissible */}
+      <AnimatePresence>
+        {isPortraitMobile && !rotationBannerDismissed && !isPlaying && (
+          <motion.div
+            key="rotation-banner"
+            initial={{ opacity: 0, y: 60 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 60 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 bg-slate-900/95 border-2 border-amber-500/60 rounded-2xl px-4 py-3 shadow-2xl max-w-[90vw] pointer-events-auto"
+          >
+            <span className="text-2xl animate-[spin_2s_linear_infinite]">🔄</span>
+            <span className="font-pixel text-[10px] text-amber-300 uppercase tracking-wide leading-tight">
+              Gira el dispositivo<br />para mejor experiencia
+            </span>
+            <button
+              onClick={() => setRotationBannerDismissed(true)}
+              className="ml-2 text-slate-400 hover:text-white transition-colors p-1 rounded-full hover:bg-slate-700 cursor-pointer"
+              aria-label="Cerrar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
 

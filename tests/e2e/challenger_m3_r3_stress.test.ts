@@ -344,7 +344,12 @@ describe('Milestone 3 Adversarial & Empirical Stress Suite (Requirement R3)', ()
 
       // 3. scoreRegistrationContent is mounted INSIDE containerRef inside AnimatePresence
       assert.ok(canvasCode.includes('score-registration-overlay'), 'score-registration-overlay must be rendered inside PizzaCanvas');
-      assert.ok(canvasCode.includes('isRegistering && (scoreRegistrationContent || children)'), 'Overlay must condition on isRegistering');
+      // Bug 3 fix: overlay triggers on isRegistering (from App.tsx) OR showGameOverOverlay (immediate local flag)
+      assert.ok(
+        canvasCode.includes('isRegistering && (scoreRegistrationContent || children)') ||
+        canvasCode.includes('(isRegistering || showGameOverOverlay) && (scoreRegistrationContent || children)'),
+        'Overlay must condition on isRegistering (or also showGameOverOverlay for immediate fullscreen rendering)'
+      );
 
       // 4. App.tsx passes scoreRegistrationCard to PizzaCanvas via scoreRegistrationContent prop
       assert.ok(appCode.includes('scoreRegistrationContent={scoreRegistrationCard}'), 'App.tsx must pass scoreRegistrationCard to PizzaCanvas');
