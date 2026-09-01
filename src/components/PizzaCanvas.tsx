@@ -3243,31 +3243,6 @@ export default function PizzaCanvas({
               <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-indigo-400 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(129,140,248,0.4)] cursor-pointer" title={isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}>
                 {isFullscreen ? <Minimize2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 text-indigo-400" /> : <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-7 md:h-7 text-indigo-400" />}
               </button>
-              
-              {/* Billetera */}
-              {walletPublicKey ? (
-                <div 
-                  onClick={(e) => { e.stopPropagation(); onOpenWallet?.(); }}
-                  className="bg-slate-800/80 border border-emerald-500/50 rounded-full px-2.5 sm:px-3 md:px-5 h-10 sm:h-12 md:h-16 flex items-center gap-1.5 sm:gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] cursor-pointer hover:bg-slate-700 transition"
-                >
-                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="font-pixel text-emerald-400 text-[8px] sm:text-[9px] md:text-xs">
-                    {walletPublicKey.substring(0, 5)}...{walletPublicKey.substring(walletPublicKey.length - 4)}
-                  </span>
-                </div>
-              ) : (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenWallet?.();
-                  }}
-                  className="bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-blue-400 rounded-full px-2.5 sm:px-3 md:px-5 h-10 sm:h-12 md:h-16 hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 md:gap-2 shadow-lg cursor-pointer"
-                >
-                  <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white fill-amber-300 shrink-0" />
-                  <span className="font-pixel text-white text-[8px] sm:text-[9px] md:text-xs tracking-wider hidden sm:inline-block">CONECTAR BOVEDA</span>
-                  <span className="font-pixel text-white text-[8px] tracking-wider sm:hidden">BOVEDA</span>
-                </button>
-              )}
             </div>
           </div>
 

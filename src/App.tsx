@@ -707,47 +707,7 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Botón de Tienda */}
-          <button
-            onClick={() => {
-              // Prevent opening the shop while another overlay with higher
-              // priority (game-over/score registration) is active, or while
-              // a game is in progress.
-              if (isPlaying || pendingScore !== null) return;
-              setShowShop(true);
-            }}
-            disabled={isPlaying || pendingScore !== null}
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-3 cursor-pointer text-sm sm:text-xl uppercase btn-clash-yellow disabled:opacity-40 disabled:cursor-not-allowed min-h-[40px]"
-          >
-            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-amber-900" />
-            <span className="font-pixel text-xs sm:text-sm mt-0.5 text-amber-900 hidden sm:inline">Tienda</span>
-          </button>
-
-          <button
-            onClick={() => setIsWalletOpen(true)}
-            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-3 cursor-pointer text-sm sm:text-xl uppercase min-h-[40px] ${
-              walletState.connected
-                ? 'btn-clash-blue'
-                : 'btn-clash-red'
-            }`}
-          >
-            <Wallet className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${walletState.connected ? 'text-blue-100' : 'text-red-100'}`} />
-            <span className="font-pixel text-xs sm:text-sm mt-0.5 flex flex-col items-start">
-              <span>
-                {walletState.connected
-                  ? walletState.domainName || `${walletState.publicKey?.slice(0, 4)}...${walletState.publicKey?.slice(-4)}`
-                  : 'Wallet'}
-              </span>
-              {walletState.connected && (
-                <span className="text-[9px] sm:text-[10px] text-amber-300 font-sans tracking-wide">
-                  {balanceLoading ? '...' : effectiveBalance.toFixed(0)} $SLICE
-                </span>
-              )}
-            </span>
-            {walletState.connected && (
-              <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 bg-emerald-400 rounded-full border border-emerald-700 ml-0.5 sm:ml-1" />
-            )}
-          </button>
+          {/* Tienda y Wallet temporalmente ocultos */}
         </div>
       </header>
 
@@ -845,27 +805,29 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Floating Side Wallet Trigger Tab */}
-      <button
-        onClick={() => setIsWalletOpen(true)}
-        className={`fixed right-0 top-1/3 -translate-y-1/2 z-40 py-3 sm:py-4 px-1.5 sm:px-2 rounded-l-2xl border-y-2 sm:border-y-4 border-l-2 sm:border-l-4 transition-all duration-200 cursor-pointer flex flex-col items-center gap-1 sm:gap-2 hover:pl-3 shadow-xl ${
-          isPlaying ? 'hidden' : 'hidden md:flex'
-        } ${
-          walletState.connected
-            ? 'bg-blue-500 border-blue-700 text-white'
-            : 'bg-purple-600 border-purple-800 text-white'
-        }`}
-        title="Ver Stellar Wallet"
-      >
-        <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-md animate-bounce" />
-        <span className="text-xs font-pixel tracking-wider uppercase select-none [writing-mode:vertical-lr] scale-90 text-stroke-sm">
-          {walletState.connected ? 'WALLET OK' : 'STELLAR'}
-        </span>
-      </button>
+      {/* Pestaña lateral flotante y Drawer de Stellar Wallet temporalmente ocultos */}
+      {false && (
+        <button
+          onClick={() => setIsWalletOpen(true)}
+          className={`fixed right-0 top-1/3 -translate-y-1/2 z-40 py-3 sm:py-4 px-1.5 sm:px-2 rounded-l-2xl border-y-2 sm:border-y-4 border-l-2 sm:border-l-4 transition-all duration-200 cursor-pointer flex flex-col items-center gap-1 sm:gap-2 hover:pl-3 shadow-xl ${
+            isPlaying ? 'hidden' : 'hidden md:flex'
+          } ${
+            walletState.connected
+              ? 'bg-blue-500 border-blue-700 text-white'
+              : 'bg-purple-600 border-purple-800 text-white'
+          }`}
+          title="Ver Stellar Wallet"
+        >
+          <Wallet className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-md animate-bounce" />
+          <span className="text-xs font-pixel tracking-wider uppercase select-none [writing-mode:vertical-lr] scale-90 text-stroke-sm">
+            {walletState.connected ? 'WALLET OK' : 'STELLAR'}
+          </span>
+        </button>
+      )}
 
       {/* Stellar Wallet Slide-out Side Drawer ("Drop Bar Lateral") */}
       <AnimatePresence>
-        {isWalletOpen && (
+        {false && isWalletOpen && (
           <>
             {/* Dark overlay backdrop */}
             <motion.div
