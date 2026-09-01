@@ -3333,73 +3333,122 @@ export default function PizzaCanvas({
 
           {/* Modal Overlay */}
           {activeModal && (
-            <div className="absolute inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-950/90 pointer-events-auto" onClick={() => setActiveModal(null)}>
+            <div className="absolute inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md pointer-events-auto" onClick={() => setActiveModal(null)}>
               <div 
-                className="panel-clash p-4 sm:p-6 rounded-2xl sm:rounded-3xl w-full max-w-md max-h-[85vh] flex flex-col animate-[bounce-in_0.3s_cubic-bezier(0.175,0.885,0.32,1.275)]"
+                className="relative bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-[3px] sm:border-4 border-amber-500/70 rounded-3xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] flex flex-col shadow-[0_0_35px_rgba(245,158,11,0.25),0_12px_24px_rgba(0,0,0,0.8)] animate-[bounce-in_0.25s_cubic-bezier(0.175,0.885,0.32,1.2)]"
                 onClick={e => e.stopPropagation()}
               >
-                <div className="flex justify-between items-center mb-3 sm:mb-4 border-b-2 border-blue-200/20 pb-2 sm:pb-3 shrink-0">
-                  <h2 className="text-lg sm:text-xl font-pixel text-white text-stroke-sm">
-                    {activeModal === 'knives' && '🗡️ Armería'}
-                    {activeModal === 'rules' && '📋 Tutorial'}
-                    {activeModal === 'settings' && '⚙️ Ajustes'}
-                  </h2>
-                  <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white bg-slate-800 p-1.5 sm:p-2 rounded-full transition-colors cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-3 sm:mb-4 border-b-2 border-amber-500/20 pb-3 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-pixel text-amber-400 tracking-wider text-stroke-sm drop-shadow-md">
+                      {activeModal === 'knives' && '🗡️ Armería Ninja'}
+                      {activeModal === 'rules' && '📋 Cómo Jugar'}
+                      {activeModal === 'settings' && '⚙️ Ajustes'}
+                    </h2>
+                  </div>
+                  <button 
+                    onClick={() => setActiveModal(null)} 
+                    className="text-slate-400 hover:text-white bg-slate-800/80 hover:bg-rose-600/80 border border-slate-700 hover:border-rose-400 p-1.5 sm:p-2 rounded-xl transition-all duration-150 cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center shadow-md active:scale-95"
+                    title="Cerrar"
+                  >
                     <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
 
-                <div className="max-h-[65vh] overflow-y-auto pr-1 sm:pr-2">
+                <div className="max-h-[68vh] overflow-y-auto pr-1 sm:pr-2 space-y-4">
                   {/* KNIVES MODAL CONTENT */}
                   {activeModal === 'knives' && (
-                    <div className="space-y-3 sm:space-y-4">
-                      <p className="text-blue-200 font-sans text-xs sm:text-sm mb-2 sm:mb-4">Selecciona el diseño de tu espada láser para cortar pizzas con estilo.</p>
-                      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div className="space-y-3.5">
+                      <p className="text-slate-300 font-sans text-xs sm:text-sm leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 text-center">
+                        Selecciona el efecto de tu <strong className="text-amber-400">hoja láser</strong> para rebanar pizzas en la arena.
+                      </p>
+                      
+                      <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
                         {[
-                          { id: 'fire', label: 'Fuego', icon: '🔥', color: 'from-orange-500 to-red-600', border: 'border-orange-400' },
-                          { id: 'cyber', label: 'Cyber', icon: '⚡', color: 'from-cyan-400 to-blue-600', border: 'border-cyan-400' },
-                          { id: 'basil', label: 'Pesto', icon: '🌿', color: 'from-green-400 to-emerald-600', border: 'border-green-400' },
-                          { id: 'gold', label: 'Oro', icon: '👑', color: 'from-yellow-300 to-amber-600', border: 'border-yellow-300' }
-                        ].map((item) => (
-                          <button
-                            key={item.id}
-                            onClick={() => { setBladeStyle(item.id as any); playWebSound('splat'); setActiveModal(null); }}
-                            className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col items-center justify-center gap-1 sm:gap-2 border-b-4 border-2 transition-all cursor-pointer ${
-                              bladeStyle === item.id 
-                                ? `bg-gradient-to-b ${item.color} ${item.border} border-b-0 translate-y-[4px] text-white shadow-inner` 
-                                : `bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700`
-                            }`}
-                          >
-                            <span className="text-2xl sm:text-4xl drop-shadow-lg">{item.icon}</span>
-                            <span className="font-pixel text-[9px] sm:text-[10px] uppercase">{item.label}</span>
-                          </button>
-                        ))}
+                          { id: 'fire', label: 'Fuego', subtitle: 'Llama Ardiente', icon: '🔥', glow: 'from-orange-500 to-red-600', borderActive: 'border-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.5)]', borderInactive: 'border-orange-950/40 hover:border-orange-500/50', badgeColor: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+                          { id: 'cyber', label: 'Cyber', subtitle: 'Rayo Eléctrico', icon: '⚡', glow: 'from-cyan-400 to-blue-600', borderActive: 'border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.5)]', borderInactive: 'border-cyan-950/40 hover:border-cyan-500/50', badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
+                          { id: 'basil', label: 'Pesto', subtitle: 'Hojas Sagradas', icon: '🌿', glow: 'from-emerald-400 to-green-600', borderActive: 'border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]', borderInactive: 'border-emerald-950/40 hover:border-emerald-500/50', badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+                          { id: 'gold', label: 'Oro', subtitle: 'Corona Real', icon: '👑', glow: 'from-yellow-300 to-amber-600', borderActive: 'border-yellow-300 shadow-[0_0_15px_rgba(234,179,8,0.5)]', borderInactive: 'border-yellow-950/40 hover:border-yellow-500/50', badgeColor: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' }
+                        ].map((item) => {
+                          const isSelected = bladeStyle === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => { setBladeStyle(item.id as any); playWebSound('splat'); setActiveModal(null); }}
+                              className={`relative p-3 sm:p-4 rounded-2xl flex flex-col items-center justify-center gap-1.5 border-2 transition-all duration-150 cursor-pointer overflow-hidden group ${
+                                isSelected 
+                                  ? `bg-gradient-to-b ${item.glow} ${item.borderActive} text-white scale-[1.02]` 
+                                  : `bg-slate-950/80 ${item.borderInactive} text-slate-300 hover:bg-slate-800/80 hover:scale-[1.01]`
+                              }`}
+                            >
+                              {/* Selected indicator check */}
+                              {isSelected && (
+                                <span className="absolute top-2 right-2 w-5 h-5 bg-white/90 rounded-full flex items-center justify-center text-[10px] text-slate-900 font-bold shadow">
+                                  ✓
+                                </span>
+                              )}
+                              <span className="text-3xl sm:text-4xl drop-shadow-lg transition-transform group-hover:scale-110 duration-200">
+                                {item.icon}
+                              </span>
+                              <div className="text-center">
+                                <span className="font-pixel text-xs sm:text-sm uppercase tracking-wide block text-stroke-sm">
+                                  {item.label}
+                                </span>
+                                <span className={`text-[9px] font-sans font-medium px-2 py-0.5 rounded-full border mt-1 inline-block ${
+                                  isSelected ? 'bg-black/30 border-white/20 text-white' : item.badgeColor
+                                }`}>
+                                  {item.subtitle}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
 
                   {/* RULES MODAL CONTENT */}
                   {activeModal === 'rules' && (
-                    <div className="space-y-2.5 sm:space-y-4 font-sans text-xs sm:text-sm text-blue-100">
-                      <div className="bg-slate-900/50 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-blue-500/30 flex items-start gap-2.5 sm:gap-3">
-                        <span className="text-xl sm:text-2xl">🍕</span>
-                        <div>
-                          <strong className="text-white block font-pixel text-[9px] sm:text-[10px] mb-0.5 sm:mb-1">Pizza Entera</strong>
-                          <p className="text-[11px] sm:text-xs">Corta 1 vez para dividirla en mitades.</p>
+                    <div className="space-y-3 font-sans">
+                      {/* Step 1: Pizza Entera */}
+                      <div className="bg-slate-950/70 p-3 sm:p-3.5 rounded-2xl border border-amber-500/30 flex items-center gap-3.5 shadow-md">
+                        <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
+                          <span className="text-2xl sm:text-3xl animate-pulse">🍕</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-pixel text-xs sm:text-sm text-amber-300 uppercase">1. Pizza Entera</span>
+                            <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono border border-amber-500/30">1er Corte</span>
+                          </div>
+                          <p className="text-xs text-slate-300 mt-0.5 leading-snug">Córtala una vez para dividirla en dos mitades.</p>
                         </div>
                       </div>
-                      <div className="bg-slate-900/50 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-blue-500/30 flex items-start gap-2.5 sm:gap-3">
-                        <span className="text-xl sm:text-2xl">🔪</span>
-                        <div>
-                          <strong className="text-white block font-pixel text-[9px] sm:text-[10px] mb-0.5 sm:mb-1">Mitades</strong>
-                          <p className="text-[11px] sm:text-xs">Corta de nuevo para hacer rebanadas y ganar puntos.</p>
+
+                      {/* Step 2: Mitades */}
+                      <div className="bg-slate-950/70 p-3 sm:p-3.5 rounded-2xl border border-cyan-500/30 flex items-center gap-3.5 shadow-md">
+                        <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                          <span className="text-2xl sm:text-3xl">🔪</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-pixel text-xs sm:text-sm text-cyan-300 uppercase">2. Rebanadas</span>
+                            <span className="text-[9px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded font-mono border border-cyan-500/30">+Puntos</span>
+                          </div>
+                          <p className="text-xs text-slate-300 mt-0.5 leading-snug">Vuelve a cortar las mitades para sumar puntos y combos.</p>
                         </div>
                       </div>
-                      <div className="bg-rose-950/50 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-rose-500/30 flex items-start gap-2.5 sm:gap-3">
-                        <span className="text-xl sm:text-2xl">🍍</span>
-                        <div>
-                          <strong className="text-rose-400 block font-pixel text-[9px] sm:text-[10px] mb-0.5 sm:mb-1">Peligro: Piña y Quemadas</strong>
-                          <p className="text-[11px] sm:text-xs">¡No las toques! Pierdes vidas y se incendia el juego.</p>
+
+                      {/* Step 3: Peligro Piña */}
+                      <div className="bg-rose-950/40 p-3 sm:p-3.5 rounded-2xl border-2 border-rose-500/50 flex items-center gap-3.5 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+                        <div className="w-12 h-12 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
+                          <span className="text-2xl sm:text-3xl">🍍</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-pixel text-xs sm:text-sm text-rose-400 uppercase">¡Peligro: Piña y Quemadas!</span>
+                          </div>
+                          <p className="text-xs text-rose-200 mt-0.5 leading-snug">¡No las toques! Pierdes vidas y se corta tu racha de combos.</p>
                         </div>
                       </div>
                     </div>
@@ -3407,24 +3456,29 @@ export default function PizzaCanvas({
 
                   {/* SETTINGS MODAL CONTENT */}
                   {activeModal === 'settings' && (
-                    <div className="space-y-4 sm:space-y-6">
+                    <div className="space-y-4 sm:space-y-5 font-sans">
                       {/* Game Mode */}
                       <div>
-                        <h3 className="font-pixel text-[9px] sm:text-[10px] text-blue-300 uppercase mb-2 sm:mb-3">Modo de Juego</h3>
-                        <div className="grid grid-cols-2 gap-2">
+                        <h3 className="font-pixel text-xs text-amber-400 uppercase mb-2 flex items-center gap-1.5">
+                          <span>🎮 Modo de Juego</span>
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
                           {[
-                            { id: 'arcade', label: 'Árcade', icon: '⏱️' },
-                            { id: 'classic', label: 'Clásico', icon: '💖' }
+                            { id: 'arcade', label: 'Árcade', subtitle: '45s con Reloj', icon: '⏱️' },
+                            { id: 'classic', label: 'Clásico', subtitle: '3 Vidas', icon: '💖' }
                           ].map(mode => (
                             <button
                               key={mode.id}
                               onClick={() => selectGameMode(mode.id as GameMode)}
-                              className={`p-2 rounded-xl flex flex-col items-center gap-1 border-b-[3px] border-2 transition-all ${
-                                gameMode === mode.id ? 'bg-blue-600 border-blue-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'
+                              className={`p-3 rounded-2xl flex flex-col items-center gap-1 border-2 transition-all cursor-pointer ${
+                                gameMode === mode.id 
+                                  ? 'bg-blue-600/90 border-blue-400 text-white shadow-[0_0_12px_rgba(59,130,246,0.4)]' 
+                                  : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-800'
                               }`}
                             >
-                              <span className="text-lg sm:text-xl">{mode.icon}</span>
-                              <span className="font-pixel text-[8px] uppercase">{mode.label}</span>
+                              <span className="text-2xl">{mode.icon}</span>
+                              <span className="font-pixel text-xs uppercase text-stroke-sm">{mode.label}</span>
+                              <span className="text-[9px] text-slate-300 font-sans">{mode.subtitle}</span>
                             </button>
                           ))}
                         </div>
@@ -3432,28 +3486,46 @@ export default function PizzaCanvas({
 
                       {/* Music Theme */}
                       <div>
-                        <h3 className="font-pixel text-[9px] sm:text-[10px] text-blue-300 uppercase mb-2 sm:mb-3">Banda Sonora</h3>
+                        <h3 className="font-pixel text-xs text-amber-400 uppercase mb-2 flex items-center gap-1.5">
+                          <span>🎵 Banda Sonora</span>
+                        </h3>
                         <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                          <button onPointerDown={() => { setMusicTheme('italian'); playWebSound('splat'); }} className={`p-2.5 sm:p-3 rounded-xl flex items-center gap-1.5 sm:gap-2 border-b-[3px] border-2 transition-all cursor-pointer ${musicTheme === 'italian' ? 'bg-amber-600 border-amber-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
-                            <span className="text-lg sm:text-xl">🤌</span> <span className="font-pixel text-[9px] sm:text-[10px]">Tarantella</span>
+                          <button 
+                            onPointerDown={() => { setMusicTheme('italian'); playWebSound('splat'); }} 
+                            className={`p-3 rounded-2xl flex items-center justify-center gap-2 border-2 transition-all cursor-pointer ${
+                              musicTheme === 'italian' 
+                                ? 'bg-amber-600/90 border-amber-400 text-white shadow-[0_0_12px_rgba(245,158,11,0.4)]' 
+                                : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-800'
+                            }`}
+                          >
+                            <span className="text-xl">🤌</span> 
+                            <span className="font-pixel text-xs uppercase">Tarantella</span>
                           </button>
-                          <button onPointerDown={() => { setMusicTheme('synthwave'); playWebSound('splat'); }} className={`p-2.5 sm:p-3 rounded-xl flex items-center gap-1.5 sm:gap-2 border-b-[3px] border-2 transition-all cursor-pointer ${musicTheme === 'synthwave' ? 'bg-fuchsia-600 border-fuchsia-400 border-b-0 translate-y-[3px] text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
-                            <span className="text-lg sm:text-xl">🎹</span> <span className="font-pixel text-[9px] sm:text-[10px]">Synthwave</span>
+                          <button 
+                            onPointerDown={() => { setMusicTheme('synthwave'); playWebSound('splat'); }} 
+                            className={`p-3 rounded-2xl flex items-center justify-center gap-2 border-2 transition-all cursor-pointer ${
+                              musicTheme === 'synthwave' 
+                                ? 'bg-fuchsia-600/90 border-fuchsia-400 text-white shadow-[0_0_12px_rgba(217,70,239,0.4)]' 
+                                : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-800'
+                            }`}
+                          >
+                            <span className="text-xl">🎹</span> 
+                            <span className="font-pixel text-xs uppercase">Synthwave</span>
                           </button>
                         </div>
                       </div>
 
                       {/* Volume & Perf */}
-                      <div className="space-y-3 sm:space-y-4 bg-slate-900/50 p-3 sm:p-4 rounded-xl border border-slate-800">
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <button onPointerDown={(e) => { e.stopPropagation(); setSoundEnabled(!soundEnabled); }} className="text-amber-500 hover:scale-110 transition-transform cursor-pointer">
-                            {soundEnabled && globalVolume > 0 ? <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" /> : <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-rose-500" />}
+                      <div className="space-y-3 bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800">
+                        <div className="flex items-center gap-3">
+                          <button onPointerDown={(e) => { e.stopPropagation(); setSoundEnabled(!soundEnabled); }} className="text-amber-400 hover:scale-110 transition-transform cursor-pointer">
+                            {soundEnabled && globalVolume > 0 ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 text-rose-500" />}
                           </button>
-                          <input type="range" min="0" max="1" step="0.05" value={globalVolume} onChange={(e) => setGlobalVolume(parseFloat(e.target.value))} className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" onPointerDown={e => e.stopPropagation()} />
+                          <input type="range" min="0" max="1" step="0.05" value={globalVolume} onChange={(e) => setGlobalVolume(parseFloat(e.target.value))} className="flex-1 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400" onPointerDown={e => e.stopPropagation()} />
                         </div>
-                        <div className="flex justify-between items-center pt-2 sm:pt-3 border-t border-slate-800">
-                          <span className="font-pixel text-[8px] sm:text-[9px] text-slate-300">Rendimiento Gráfico</span>
-                          <button onPointerDown={(e) => { e.stopPropagation(); togglePerformanceMode(); }} className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg font-pixel text-[8px] uppercase border cursor-pointer ${performanceMode ? 'bg-blue-900/50 border-blue-500 text-blue-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>
+                        <div className="flex justify-between items-center pt-2.5 border-t border-slate-800">
+                          <span className="font-pixel text-[10px] text-slate-300 uppercase">Rendimiento Gráfico</span>
+                          <button onPointerDown={(e) => { e.stopPropagation(); togglePerformanceMode(); }} className={`px-3 py-1 rounded-xl font-pixel text-[9px] uppercase border cursor-pointer transition-all ${performanceMode ? 'bg-blue-900/60 border-blue-500 text-blue-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'}`}>
                             {performanceMode ? 'Optimizado' : 'Alto (60 FPS)'}
                           </button>
                         </div>
