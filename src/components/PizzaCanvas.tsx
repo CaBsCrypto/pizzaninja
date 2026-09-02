@@ -3262,7 +3262,7 @@ export default function PizzaCanvas({
                   {/* Title */}
                   <div className="text-center landscape:text-left">
                     <h1 className="text-2xl sm:text-4xl md:text-5xl landscape:text-3xl sm:landscape:text-4xl md:landscape:text-5xl font-pixel text-white text-stroke-title tracking-widest leading-none drop-shadow-2xl">Slash Slice</h1>
-                    <span className="text-[10px] sm:text-xs md:text-sm font-pixel text-emerald-400 text-stroke-sm uppercase tracking-widest block mt-1 sm:mt-2 drop-shadow-lg">Turtle Ninja Edition</span>
+                    <span className="text-[9px] sm:text-[11px] md:text-xs font-pixel text-emerald-400 text-stroke-sm uppercase tracking-widest block mt-1 sm:mt-1.5 drop-shadow-lg">Turtle Ninja Edition</span>
                   </div>
 
                   {/* Score badge from last game (conditional) */}
@@ -3392,10 +3392,10 @@ export default function PizzaCanvas({
                                 {item.icon}
                               </span>
                               <div className="text-center">
-                                <span className="font-pixel text-xs sm:text-sm uppercase tracking-wide block text-stroke-sm">
+                                <span className="font-pixel text-[11px] sm:text-[13px] uppercase tracking-wide block text-stroke-sm">
                                   {item.label}
                                 </span>
-                                <span className={`text-[9px] font-sans font-medium px-2 py-0.5 rounded-full border mt-1 inline-block ${
+                                <span className={`text-[8px] font-sans font-medium px-1.5 py-0.5 rounded-full border mt-0.5 inline-block ${
                                   isSelected ? 'bg-black/30 border-white/20 text-white' : item.badgeColor
                                 }`}>
                                   {item.subtitle}
@@ -3410,45 +3410,45 @@ export default function PizzaCanvas({
 
                   {/* RULES MODAL CONTENT */}
                   {activeModal === 'rules' && (
-                    <div className="space-y-3 font-sans">
+                    <div className="space-y-2.5 font-sans">
                       {/* Step 1: Pizza Entera */}
-                      <div className="bg-slate-950/70 p-3 sm:p-3.5 rounded-2xl border border-amber-500/30 flex items-center gap-3.5 shadow-md">
-                        <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
+                      <div className="bg-slate-950/70 p-2.5 sm:p-3 rounded-2xl border border-amber-500/30 flex items-center gap-3 shadow-md">
+                        <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
                           <span className="text-2xl sm:text-3xl animate-pulse">🍕</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-pixel text-xs sm:text-sm text-amber-300 uppercase">1. Pizza Entera</span>
-                            <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono border border-amber-500/30">1er Corte</span>
+                            <span className="font-pixel text-[11px] sm:text-xs text-amber-300 uppercase">1. Pizza Entera</span>
+                            <span className="text-[8px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono border border-amber-500/30">1er Corte</span>
                           </div>
-                          <p className="text-xs text-slate-300 mt-0.5 leading-snug">Córtala una vez para dividirla en dos mitades.</p>
+                          <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">Córtala una vez para dividirla en dos mitades.</p>
                         </div>
                       </div>
 
                       {/* Step 2: Mitades */}
-                      <div className="bg-slate-950/70 p-3 sm:p-3.5 rounded-2xl border border-cyan-500/30 flex items-center gap-3.5 shadow-md">
-                        <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                      <div className="bg-slate-950/70 p-2.5 sm:p-3 rounded-2xl border border-cyan-500/30 flex items-center gap-3 shadow-md">
+                        <div className="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0">
                           <span className="text-2xl sm:text-3xl">🔪</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-pixel text-xs sm:text-sm text-cyan-300 uppercase">2. Rebanadas</span>
-                            <span className="text-[9px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded font-mono border border-cyan-500/30">+Puntos</span>
+                            <span className="font-pixel text-[11px] sm:text-xs text-cyan-300 uppercase">2. Rebanadas</span>
+                            <span className="text-[8px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded font-mono border border-cyan-500/30">+Puntos</span>
                           </div>
-                          <p className="text-xs text-slate-300 mt-0.5 leading-snug">Vuelve a cortar las mitades para sumar puntos y combos.</p>
+                          <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">Vuelve a cortar las mitades para sumar puntos y combos.</p>
                         </div>
                       </div>
 
                       {/* Step 3: Peligro Piña */}
-                      <div className="bg-rose-950/40 p-3 sm:p-3.5 rounded-2xl border-2 border-rose-500/50 flex items-center gap-3.5 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
-                        <div className="w-12 h-12 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
+                      <div className="bg-rose-950/40 p-2.5 sm:p-3 rounded-2xl border-2 border-rose-500/50 flex items-center gap-3 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+                        <div className="w-11 h-11 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0">
                           <span className="text-2xl sm:text-3xl">🍍</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-pixel text-xs sm:text-sm text-rose-400 uppercase">¡Peligro: Piña y Quemadas!</span>
+                            <span className="font-pixel text-[11px] sm:text-xs text-rose-400 uppercase">¡Peligro: Piña y Quemadas!</span>
                           </div>
-                          <p className="text-xs text-rose-200 mt-0.5 leading-snug">¡No las toques! Pierdes vidas y se corta tu racha de combos.</p>
+                          <p className="text-[11px] text-rose-200 mt-0.5 leading-snug">¡No las toques! Pierdes vidas y se corta tu racha de combos.</p>
                         </div>
                       </div>
                     </div>
@@ -3459,7 +3459,7 @@ export default function PizzaCanvas({
                     <div className="space-y-4 sm:space-y-5 font-sans">
                       {/* Game Mode */}
                       <div>
-                        <h3 className="font-pixel text-xs text-amber-400 uppercase mb-2 flex items-center gap-1.5">
+                        <h3 className="font-pixel text-[11px] text-amber-400 uppercase mb-2 flex items-center gap-1.5">
                           <span>🎮 Modo de Juego</span>
                         </h3>
                         <div className="grid grid-cols-2 gap-2 sm:gap-3">
@@ -3470,15 +3470,15 @@ export default function PizzaCanvas({
                             <button
                               key={mode.id}
                               onClick={() => selectGameMode(mode.id as GameMode)}
-                              className={`p-3 rounded-2xl flex flex-col items-center gap-1 border-2 transition-all cursor-pointer ${
+                              className={`p-2.5 sm:p-3 rounded-2xl flex flex-col items-center gap-1 border-2 transition-all cursor-pointer ${
                                 gameMode === mode.id 
                                   ? 'bg-blue-600/90 border-blue-400 text-white shadow-[0_0_12px_rgba(59,130,246,0.4)]' 
                                   : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-800'
                               }`}
                             >
-                              <span className="text-2xl">{mode.icon}</span>
-                              <span className="font-pixel text-xs uppercase text-stroke-sm">{mode.label}</span>
-                              <span className="text-[9px] text-slate-300 font-sans">{mode.subtitle}</span>
+                              <span className="text-xl sm:text-2xl">{mode.icon}</span>
+                              <span className="font-pixel text-[11px] sm:text-xs uppercase text-stroke-sm">{mode.label}</span>
+                              <span className="text-[8px] text-slate-300 font-sans">{mode.subtitle}</span>
                             </button>
                           ))}
                         </div>
@@ -3486,7 +3486,7 @@ export default function PizzaCanvas({
 
                       {/* Music Theme */}
                       <div>
-                        <h3 className="font-pixel text-xs text-amber-400 uppercase mb-2 flex items-center gap-1.5">
+                        <h3 className="font-pixel text-[11px] text-amber-400 uppercase mb-2 flex items-center gap-1.5">
                           <span>🎵 Banda Sonora</span>
                         </h3>
                         <div className="grid grid-cols-2 gap-2 sm:gap-3">

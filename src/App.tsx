@@ -692,7 +692,7 @@ export default function App() {
                 Arena
               </span>
             </h1>
-            <p className="hidden sm:block font-vt text-lg sm:text-xl text-blue-100 mt-0.5 sm:mt-1 uppercase text-stroke-sm drop-shadow-md">¡Domina la arena de la cocina!</p>
+            <p className="hidden sm:block font-vt text-base sm:text-lg text-blue-100 mt-0.5 uppercase text-stroke-sm drop-shadow-md">¡Domina la arena de la cocina!</p>
           </div>
           {/* Back to SpicyCrust button */}
           <a
