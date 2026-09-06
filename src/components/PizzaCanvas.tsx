@@ -1448,7 +1448,7 @@ export default function PizzaCanvas({
       if (controlMode === 'camera' && !isPaused) {
         const nowMs = Date.now();
         const dt = 0.01666 * timeScale; // Real delta timestep for spring stability
-        const smoothTime = 0.07; // Snappy 70ms response time for zero perceived lag
+        const smoothTime = 0.04; // Hyper-snappy 40ms critically damped response time for zero perceived camera latency
 
         for (let handIdx = 0; handIdx < 2; handIdx++) {
           const lastUpdate = stateRef.current.handLastUpdateTime[handIdx];
@@ -2762,23 +2762,8 @@ export default function PizzaCanvas({
       });
     }
     
-    // --- EMIT SLICE EVENT TO GO AUTHORITATIVE SERVER ---
-    // Enviar el evento de corte (tanto del ratón como de la cámara si pasan por aquí) al servidor Go,
-    // que a su vez lo retransmitirá al Pub/Sub de la nube para el Agente IA de Python.
-    try {
-      gameSocket.send({
-        type: "SLICE",
-        timestamp: Date.now(),
-        wallet: "anonymous", // TODO: Integrar wallet real en el futuro
-        signature: "0x...", // TODO: Firma criptográfica Web3
-        trajectory: [
-          { x: p1x, y: p1y, timestamp: now - 16, confidence: 1.0 },
-          { x: p2x, y: p2y, timestamp: now, confidence: 1.0 }
-        ]
-      });
-    } catch (e) {
-      console.warn("Failed to send slice to Go server", e);
-    }
+    // PERF & OFFLINE-FIRST: Los cortes y colisiones se procesan 100% en memoria local a 60 FPS estables.
+    // No se satura el WebSocket ni el hilo principal con mensajes de red por cada frame/corte.
     } catch (err) {
       console.error("[GameLoop] Error crítico en frame:", err);
     }
