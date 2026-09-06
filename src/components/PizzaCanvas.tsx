@@ -1353,12 +1353,13 @@ export default function PizzaCanvas({
 
     // PERF: In camera mode, cap the game render loop to 30fps.
     // Hand tracking delivers at 20fps -- running the canvas at 60fps wastes ~50% CPU for no visual gain.
-    // loopRunner is a stable reference used by updateLoop's self-scheduling rAF call.
-    let lastRenderTs = performance.now();
-    let loopRunner: () => void;
+    // DYNAMIC FPS WATCHDOG: Mide el framerate real en tiempo real. Si detecta caídas (<50 FPS),
+    // activa de forma invisible el modo optimizado para proteger los 60 FPS del juego.
+    let frameTimes: number[] = [];
+    let dynamicAdaptiveDegrade = false;
 
     // Main animation frame function with deltaTime scaling for ultra-fluid physics
-    const updateLoop = (timeScale: number) => {
+    const updateLoop = (timeScale: number, currentFps: number) => {
       if (!canvas || !ctx) return;
       const width = canvas.width;
       const height = canvas.height;
@@ -1366,9 +1367,17 @@ export default function PizzaCanvas({
       // ReferenceError: this same name is referenced further down before the point
       // where it used to be declared, which threw on every single animation frame.
       const isPaused = isPausedRef.current;
-      // PERF: Camera mode or Mobile devices auto-enable performance optimizations
+
+      // Adaptación dinámica e invisible si el dispositivo sufre tirones
+      if (currentFps > 0 && currentFps < 48) {
+        dynamicAdaptiveDegrade = true;
+      } else if (currentFps >= 56) {
+        dynamicAdaptiveDegrade = false;
+      }
+
+      // PERF: Camera mode, Mobile devices, manual performanceMode or Dynamic Adaptive Watchdog
       const isMobileDevice = Math.min(window.innerWidth, window.innerHeight) < 768;
-      const effectivePerformanceMode = performanceMode || controlMode === 'camera' || isMobileDevice;
+      const effectivePerformanceMode = performanceMode || controlMode === 'camera' || isMobileDevice || dynamicAdaptiveDegrade;
 
       // Latency detection for hand tracking in camera mode
       // Auto-pause if hand tracking has stopped sending coordinates for 2.0 seconds
@@ -2366,8 +2375,14 @@ export default function PizzaCanvas({
       // Calculate timeScale relative to a perfect 60fps frame (16.666ms)
       const timeScale = dt / (1000 / 60);
 
+      // Track rolling FPS over the last 30 frames
+      frameTimes.push(dt);
+      if (frameTimes.length > 30) frameTimes.shift();
+      const avgDt = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+      const currentFps = avgDt > 0 ? 1000 / avgDt : 60;
+
       try {
-        updateLoop(timeScale);
+        updateLoop(timeScale, currentFps);
       } catch (err) {
         console.error("[GameLoop] Error crítico en frame:", err);
       }
