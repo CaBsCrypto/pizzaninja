@@ -80,9 +80,9 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
             </button>
           </div>
 
-          {import.meta.env.DEV && this.state.error && (
-            <pre className="mt-4 max-h-[30vh] overflow-auto text-left text-[10px] text-rose-300 bg-slate-900/60 border border-rose-500/20 p-3 rounded-xl">
-              {String(this.state.error?.stack || this.state.error?.message)}
+          {this.state.error && (
+            <pre className="mt-4 max-h-[30vh] overflow-auto text-left text-[11px] font-mono text-rose-800 bg-rose-100 border border-rose-400 p-3 rounded-xl whitespace-pre-wrap break-all">
+              {String(this.state.error?.stack || this.state.error?.message || this.state.error)}
             </pre>
           )}
         </div>
