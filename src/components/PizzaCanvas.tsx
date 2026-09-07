@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Play, RotateCcw, Volume2, VolumeX, ShieldAlert, Zap, Flame, CalendarClock, Trophy, Music, Volume1, Maximize2, Minimize2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { PizzaType, PizzaState, GameItem, Particle, SlicedPiece, TrailPoint, SlashReplayPoint, FloatingText } from '../types';
+import { PizzaType, PizzaState, GameItem, Particle, SlicedPiece, TrailPoint, SlashReplayPoint, FloatingText, ScoreRecord } from '../types';
 import HandTracker from './HandTracker';
+import Leaderboard from './Leaderboard';
 import { gameSocket } from '../services/websocket';
 import { getSpriteCache, drawCachedPizzaSlice } from '../graphics/PizzaSpriteCache';
 
@@ -20,6 +21,7 @@ interface PizzaCanvasProps {
   scoreRegistrationContent?: React.ReactNode;
   children?: React.ReactNode;
   onPlayAgain?: () => void;
+  scores?: ScoreRecord[];
 }
 
 export default function PizzaCanvas({
@@ -33,7 +35,8 @@ export default function PizzaCanvas({
   activeBladeColor = '#ffffff',
   scoreRegistrationContent,
   children,
-  onPlayAgain
+  onPlayAgain,
+  scores = []
 }: PizzaCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastHandTrackedTimeRef = useRef<number[]>([0, 0]);
@@ -109,7 +112,7 @@ export default function PizzaCanvas({
   const [handDetected, setHandDetected] = useState(false);
   const handDetectedRef = useRef(false);
   const setHandDetectedWithRef = useCallback((v: boolean) => { handDetectedRef.current = v; setHandDetected(v); }, []);
-  const [activeModal, setActiveModal] = useState<'knives' | 'rules' | 'settings' | null>(null);
+  const [activeModal, setActiveModal] = useState<'knives' | 'rules' | 'settings' | 'leaderboard' | null>(null);
   const [countdown, setCountdown] = useState<number | 'GO' | null>(null);
   const countdownActiveRef = useRef(false);
   const [performanceMode, setPerformanceMode] = useState(() => {
@@ -3229,10 +3232,13 @@ export default function PizzaCanvas({
           <div className="absolute top-2 sm:top-4 md:top-6 inset-x-2 sm:inset-x-4 md:inset-x-6 flex justify-between items-start z-[60]">
             {/* Left Icons */}
             <div className="flex flex-row gap-1.5 sm:gap-2 md:gap-3 pointer-events-auto relative z-[60]">
-              <button onClick={(e) => { e.stopPropagation(); setActiveModal('knives'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer">
+              <button onClick={(e) => { e.stopPropagation(); setActiveModal('leaderboard'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-amber-400 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(245,158,11,0.4)] cursor-pointer" title="Clasificación / Récords">
+                🏆
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); setActiveModal('knives'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer" title="Armería">
                 🗡️
               </button>
-              <button onClick={(e) => { e.stopPropagation(); setActiveModal('rules'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer">
+              <button onClick={(e) => { e.stopPropagation(); setActiveModal('rules'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer" title="Cómo Jugar">
                 📋
               </button>
             </div>
@@ -3301,10 +3307,24 @@ export default function PizzaCanvas({
                       <span className="text-lg sm:text-xl md:text-2xl drop-shadow-md">📷</span>
                       <span>JUGAR CÁMARA</span>
                     </button>
+
+                    {/* Leaderboard CTA Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveModal('leaderboard');
+                        playWebSound('splat');
+                      }}
+                      className="bg-gradient-to-b from-purple-600 via-purple-700 to-indigo-900 border-[2px] sm:border-[3px] border-purple-300 rounded-xl sm:rounded-2xl py-2 sm:py-2.5 px-4 sm:px-6 text-white font-pixel text-xs sm:text-sm md:text-base uppercase tracking-widest drop-shadow-[0_3px_0_#3b0764] sm:drop-shadow-[0_4px_0_#3b0764] active:translate-y-1 active:drop-shadow-[0_0px_0_#3b0764] transition-all hover:brightness-110 flex items-center justify-center gap-2 sm:gap-3 w-full cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.3)] hover:shadow-[0_0_25px_rgba(168,85,247,0.5)] min-h-[40px]"
+                    >
+                      <span className="text-base sm:text-lg md:text-xl drop-shadow-md">🏆</span>
+                      <span className="text-stroke-sm">CLASIFICACIÓN / RÉCORDS</span>
+                    </button>
+
                     <a
                       href="https://spicycrust.com"
                       target="_self"
-                      className="group relative flex items-center justify-center gap-2 mt-2 py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl sm:rounded-2xl border-[2px] sm:border-[3px] border-red-400 bg-gradient-to-b from-red-600 via-red-700 to-rose-900 text-white font-pixel text-xs sm:text-sm md:text-base uppercase tracking-widest drop-shadow-[0_3px_0_#4c0519] sm:drop-shadow-[0_4px_0_#4c0519] active:translate-y-1 active:drop-shadow-[0_0px_0_#4c0519] transition-all hover:brightness-110 hover:border-red-300 w-full cursor-pointer shadow-[0_0_15px_rgba(225,29,72,0.35)] hover:shadow-[0_0_25px_rgba(225,29,72,0.6)] min-h-[44px]"
+                      className="group relative flex items-center justify-center gap-2 mt-1 py-2 sm:py-2.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl border-[2px] sm:border-[3px] border-red-400 bg-gradient-to-b from-red-600 via-red-700 to-rose-900 text-white font-pixel text-xs sm:text-sm md:text-base uppercase tracking-widest drop-shadow-[0_3px_0_#4c0519] sm:drop-shadow-[0_4px_0_#4c0519] active:translate-y-1 active:drop-shadow-[0_0px_0_#4c0519] transition-all hover:brightness-110 hover:border-red-300 w-full cursor-pointer shadow-[0_0_15px_rgba(225,29,72,0.35)] hover:shadow-[0_0_25px_rgba(225,29,72,0.6)] min-h-[40px]"
                     >
                       <span className="text-base sm:text-lg md:text-xl group-hover:scale-125 group-hover:rotate-12 transition-transform drop-shadow-md">🍕</span>
                       <span className="text-stroke-sm drop-shadow-md">VOLVER A SPICYCRUST</span>
@@ -3345,6 +3365,7 @@ export default function PizzaCanvas({
                 <div className="flex justify-between items-center mb-3 sm:mb-4 border-b-2 border-amber-500/20 pb-3 shrink-0">
                   <div className="flex items-center gap-2">
                     <h2 className="text-xl sm:text-2xl font-pixel text-amber-400 tracking-wider text-stroke-sm drop-shadow-md">
+                      {activeModal === 'leaderboard' && '🏆 Clasificación'}
                       {activeModal === 'knives' && '🗡️ Armería Ninja'}
                       {activeModal === 'rules' && '📋 Cómo Jugar'}
                       {activeModal === 'settings' && '⚙️ Ajustes'}
@@ -3533,6 +3554,16 @@ export default function PizzaCanvas({
                           </button>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* LEADERBOARD MODAL CONTENT */}
+                  {activeModal === 'leaderboard' && (
+                    <div className="space-y-3">
+                      <p className="text-slate-300 font-sans text-xs sm:text-sm leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 text-center">
+                        🏆 <strong className="text-amber-400">Tabla de Clasificación Global</strong> · Récords arcade sincronizados.
+                      </p>
+                      <Leaderboard scores={scores} />
                     </div>
                   )}
                 </div>

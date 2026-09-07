@@ -776,6 +776,7 @@ export default function App() {
             onOpenWallet={() => setIsWalletOpen(true)}
             scoreRegistrationContent={scoreRegistrationCard}
             onPlayAgain={handlePlayAgain}
+            scores={scores}
           />
 
         </div>
