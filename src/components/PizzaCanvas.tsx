@@ -3304,10 +3304,11 @@ export default function PizzaCanvas({
                     <a
                       href="https://spicycrust.com"
                       target="_self"
-                      className="flex items-center justify-center gap-1.5 mt-1 py-1.5 px-3 rounded-xl border border-slate-700/60 bg-slate-900/50 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200 transition-all text-[9px] font-pixel uppercase tracking-wider cursor-pointer w-full min-h-[36px]"
+                      className="group relative flex items-center justify-center gap-2 mt-2 py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl sm:rounded-2xl border-[2px] sm:border-[3px] border-red-400 bg-gradient-to-b from-red-600 via-red-700 to-rose-900 text-white font-pixel text-xs sm:text-sm md:text-base uppercase tracking-widest drop-shadow-[0_3px_0_#4c0519] sm:drop-shadow-[0_4px_0_#4c0519] active:translate-y-1 active:drop-shadow-[0_0px_0_#4c0519] transition-all hover:brightness-110 hover:border-red-300 w-full cursor-pointer shadow-[0_0_15px_rgba(225,29,72,0.35)] hover:shadow-[0_0_25px_rgba(225,29,72,0.6)] min-h-[44px]"
                     >
-                      <span className="text-sm">🏠</span>
-                      <span>Volver a SpicyCrust</span>
+                      <span className="text-base sm:text-lg md:text-xl group-hover:scale-125 group-hover:rotate-12 transition-transform drop-shadow-md">🍕</span>
+                      <span className="text-stroke-sm drop-shadow-md">VOLVER A SPICYCRUST</span>
+                      <span className="text-xs text-amber-300 group-hover:translate-x-1 transition-transform">➔</span>
                     </a>
                   </div>
                 </div>
