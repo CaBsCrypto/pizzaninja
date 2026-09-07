@@ -11,7 +11,7 @@ if (typeof window !== 'undefined') {
       console.warn('Failed to define isSecureContext:', e);
     }
   }
-  if (!window.crypto) {
+  if (typeof window.crypto === 'undefined') {
     try {
       (window as any).crypto = {} as any;
     } catch (e) {}
