@@ -454,11 +454,10 @@ export default function HandTracker({
       lastXRef.current = [null, null];
       lastYRef.current = [null, null];
 
-      // Launch custom optimized tracking loop (requestVideoFrameCallback)
+      // Launch custom optimized tracking loop (requestVideoFrameCallback / RAF)
       // IMPORTANT: Use isEnabledRef.current (NOT isEnabled prop) to avoid stale closure crash
       let isProcessing = false;
-      let lastInferenceTime = 0;
-      addLog("Iniciando bucle de escaneo optimizado (20FPS cap)...");
+      addLog("Iniciando bucle de escaneo de alta fluidez (Zero-Lag)...");
 
       const tick = async (now?: number, metadata?: any) => {
         // CRITICAL: Read from ref, not from closed-over isEnabled prop
@@ -471,28 +470,25 @@ export default function HandTracker({
           return;
         }
 
-        const nowMs = Date.now();
-
-        // We use isProcessing to ensure we don't stack multiple inference calls
-        // Cap inference to ~30 FPS (33ms) to free up the main thread for the 60fps Canvas render
-        if (!isProcessing && nowMs - lastInferenceTime > 33) {
+        // PERF: Process every frame as soon as previous inference completes (no artificial 33ms throttle)
+        if (!isProcessing) {
           isProcessing = true;
-          lastInferenceTime = nowMs;
           try {
-            // PERF: On iOS Safari and some tablets, sending videoElement directly to WebGL
-            // causes synchronous CPU decoding stalls that destroy the framerate.
-            // We scale it down to 256x256 first via a 2D canvas drawImage.
+            // MediaPipe can process the HTMLVideoElement directly via WebGL/WASM texture binding.
+            // On devices with scaleCanvasRef, we feed the downscaled canvas to minimize GPU/WASM compute.
             if (scaleCanvasRef.current && videoRef.current) {
               const sCtx = scaleCanvasRef.current.getContext('2d', { willReadFrequently: true });
               if (sCtx) {
                 sCtx.drawImage(videoRef.current, 0, 0, scaleCanvasRef.current.width, scaleCanvasRef.current.height);
                 await handsInstanceRef.current.send({ image: scaleCanvasRef.current });
+              } else {
+                await handsInstanceRef.current.send({ image: videoRef.current });
               }
             } else {
               await handsInstanceRef.current.send({ image: videoRef.current });
             }
           } catch (sendErr) {
-            // Prevent spamming logs on every skipped frame
+            // Prevent spamming logs on skipped/busy frames
             console.warn("MediaPipe tick sync skip:", sendErr);
           } finally {
             isProcessing = false;
@@ -653,20 +649,23 @@ export default function HandTracker({
       }
       const normY = indexTip.y;
 
-      // Exponential Moving Average (EMA) per hand using normalized coords
+      // Velocity-Adaptive Dynamic EMA (One Euro Filter concept):
+      // On fast swipes (slashes), alpha jumps to ~0.95 for zero input lag and instant slicing response.
+      // On slow or stationary gestures, alpha smoothly drops towards base smoothingFactor to filter out camera jitter.
       let finalX = normX;
       let finalY = normY;
-      const alpha = smoothingFactorRef.current;
+      const baseAlpha = smoothingFactorRef.current;
       const prevX = lastXRef.current[assignedHandIdx];
       const prevY = lastYRef.current[assignedHandIdx];
 
       if (prevX !== null && prevY !== null) {
-        finalX = prevX + alpha * (normX - prevX);
-        finalY = prevY + alpha * (normY - prevY);
-        
-        // PERF: Se eliminó el envío de WebSocket de aquí. 
-        // ¡Estábamos saturando la red y el Garbage Collector mandando 60-120 mensajes JSON por segundo!
-        // Ahora es PizzaCanvas quien envía el corte al backend SOLO cuando impacta con una pizza.
+        const deltaDist = Math.hypot(normX - prevX, normY - prevY);
+        // Normalized speed threshold: deltaDist > 0.015 (~10px on screen) transitions to high reactivity
+        const speedFactor = Math.min(1.0, deltaDist / 0.045);
+        const dynamicAlpha = baseAlpha + (0.95 - baseAlpha) * speedFactor;
+
+        finalX = prevX + dynamicAlpha * (normX - prevX);
+        finalY = prevY + dynamicAlpha * (normY - prevY);
       }
 
       lastXRef.current[assignedHandIdx] = finalX;
