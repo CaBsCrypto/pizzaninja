@@ -385,28 +385,41 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
   };
 
   return (
-    <div id="ninja-leaderboard" className="panel-clash p-6 h-full flex flex-col justify-between relative overflow-hidden">
-      <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/20 rounded-full blur-3xl pointer-events-none" />
+    <div id="ninja-leaderboard" className="w-full flex flex-col justify-between relative overflow-hidden bg-slate-950/80 rounded-2xl border border-slate-800/80 p-3 sm:p-5 shadow-2xl backdrop-blur-md">
+      {/* Decorative ambient glow */}
+      <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
       
-      <div className="relative z-10">
-        <div className="flex items-center gap-3 border-b-4 border-blue-900/20 pb-4 mb-4">
-          <div className="bg-amber-400 p-3 rounded-2xl flex items-center justify-center border-b-4 border-amber-600 border-x-2 border-t-2 border-amber-300 shadow-md">
-            <Trophy className="w-6 h-6 text-white drop-shadow-md" />
+      <div className="relative z-10 space-y-3 sm:space-y-4">
+        {/* Header Title & Subtitle */}
+        <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.35)] border border-amber-300/40 shrink-0">
+              <Trophy className="w-5 h-5 text-slate-950 drop-shadow" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-pixel text-white tracking-wide uppercase flex items-center gap-2">
+                <span>Récords de Arena</span>
+                <span className="text-[9px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-mono font-bold tracking-widest hidden sm:inline">
+                  TOP 10
+                </span>
+              </h3>
+              <p className="text-[10px] sm:text-xs text-slate-400 font-sans">
+                Toca cualquier fila para ver la repetición del corte
+              </p>
+            </div>
           </div>
-          <div>
-            <span className="text-sm font-vt uppercase tracking-wider text-blue-700 block font-bold">Tabla Global</span>
-            <h2 className="text-2xl font-pixel text-blue-900 tracking-tight text-stroke-sm text-white drop-shadow-md">Récords de Arena</h2>
+
+          <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 px-2.5 py-1 rounded-xl font-mono text-[10px] text-amber-400 font-bold shrink-0">
+            <Flame className="w-3.5 h-3.5 text-amber-500" />
+            <span>{scores.length} PARTIDAS</span>
           </div>
         </div>
 
-        <p className="text-blue-900 text-sm mb-4 font-vt font-bold">
-          Visualiza las mejores marcas. Haz clic en cualquier récord para ver la repetición.
-        </p>
-
         {/* Game Mode Tabs Selector */}
-        <div className="flex bg-blue-900/10 border-2 border-blue-900/20 p-1.5 rounded-2xl mb-4 font-vt text-lg gap-1 shadow-inner">
+        <div className="flex bg-slate-900/90 border border-slate-800 p-1 rounded-xl font-pixel text-xs sm:text-sm gap-1.5 shadow-inner">
           {(['arcade', 'classic'] as const).map((mode) => {
-            const label = mode === 'classic' ? 'Clásico' : 'Arena';
+            const label = mode === 'classic' ? '🗡️ Modo Clásico' : '⚡ Modo Arena (45s)';
             const active = activeTab === mode;
             return (
               <button
@@ -415,10 +428,10 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
                   setActiveTab(mode);
                   setExpandedIndex(null);
                 }}
-                className={`flex-1 py-1.5 rounded-xl uppercase transition-all duration-150 cursor-pointer text-center ${
+                className={`flex-1 py-1.5 sm:py-2 rounded-lg uppercase tracking-wider transition-all duration-200 cursor-pointer text-center text-[10px] sm:text-xs font-bold ${
                   active 
-                    ? 'bg-amber-400 text-white font-pixel border-b-4 border-amber-600 text-stroke-sm scale-[1.02] shadow-md' 
-                    : 'text-blue-800 font-bold hover:bg-blue-200/50'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-[0_0_12px_rgba(245,158,11,0.3)] border border-amber-400/50 scale-[1.01]' 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
                 type="button"
               >
@@ -429,11 +442,12 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
         </div>
 
         {/* Scoring table list */}
-        <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
+        <div className="space-y-2 max-h-[340px] sm:max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
           {sortedScores.length === 0 ? (
-            <div className="text-center py-10 border-4 border-blue-300 border-dashed rounded-2xl bg-blue-100">
-              <Trophy className="w-10 h-10 text-amber-400 mx-auto mb-2 animate-bounce drop-shadow-md" />
-              <p className="text-blue-800 font-vt text-lg px-4">¡Sé el primero en dominar esta arena!</p>
+            <div className="text-center py-8 sm:py-12 border-2 border-slate-800 border-dashed rounded-2xl bg-slate-900/40">
+              <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-slate-600 mx-auto mb-2 animate-bounce" />
+              <p className="text-slate-300 font-pixel text-xs sm:text-sm uppercase tracking-wide">¡Sé el primero en conquistar el récord!</p>
+              <span className="text-[10px] text-slate-500 font-sans block mt-1">Juega una partida para registrar tu marca aquí</span>
             </div>
           ) : (
             sortedScores.map((record, index) => {
@@ -441,54 +455,56 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
               const isTop3 = itemRank <= 3;
               const isExpanded = expandedIndex === index;
               
-              const rankColor = 
-                itemRank === 1 ? 'bg-amber-400 border-amber-600 text-white text-stroke-sm' :
-                itemRank === 2 ? 'bg-slate-300 border-slate-500 text-white text-stroke-sm' :
-                itemRank === 3 ? 'bg-amber-600 border-amber-800 text-white text-stroke-sm' :
-                'bg-blue-800 border-blue-900 text-white text-stroke-sm';
+              const rankBadgeStyle = 
+                itemRank === 1 ? 'bg-gradient-to-br from-amber-400 to-yellow-600 text-slate-950 font-black border-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.5)]' :
+                itemRank === 2 ? 'bg-gradient-to-br from-slate-200 to-slate-400 text-slate-950 font-black border-slate-100 shadow-[0_0_10px_rgba(203,213,225,0.4)]' :
+                itemRank === 3 ? 'bg-gradient-to-br from-amber-700 to-amber-900 text-amber-100 font-black border-amber-600 shadow-[0_0_10px_rgba(180,83,9,0.3)]' :
+                'bg-slate-800 text-slate-400 font-bold border-slate-700';
+
+              const rankMedal = itemRank === 1 ? '🥇' : itemRank === 2 ? '🥈' : itemRank === 3 ? '🥉' : null;
 
               return (
                 <div 
                   key={index} 
-                  className={`flex flex-col rounded-2xl border-x-2 border-t-2 border-b-[6px] transition-all duration-300 relative overflow-hidden ${
+                  className={`flex flex-col rounded-xl border transition-all duration-200 relative overflow-hidden ${
                     isExpanded 
-                      ? 'bg-white border-blue-900 border-b-[4px] translate-y-[2px]' 
+                      ? 'bg-slate-900/95 border-amber-500/80 shadow-[0_0_15px_rgba(245,158,11,0.2)]' 
                       : isTop3 
-                        ? 'bg-blue-50 border-blue-300 border-b-[6px] hover:-translate-y-1 hover:border-b-[8px]' 
-                        : 'bg-white border-blue-200 border-b-[6px] hover:-translate-y-1 hover:border-b-[8px]'
+                        ? 'bg-slate-900/70 border-slate-700/80 hover:border-amber-500/50 hover:bg-slate-850' 
+                        : 'bg-slate-950/60 border-slate-800/60 hover:border-slate-700 hover:bg-slate-900/50'
                   }`}
                 >
                   {/* Clickable Header Row Area */}
                   <div 
                     onClick={() => setExpandedIndex(isExpanded ? null : index)}
-                    className="flex items-center justify-between p-3.5 cursor-pointer select-none group/row"
+                    className="flex items-center justify-between p-2.5 sm:p-3 cursor-pointer select-none group/row gap-2"
                   >
                     {/* Rank badge & metadata details */}
-                    <div className="flex items-center gap-3.5 z-10">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold font-mono bg-gradient-to-br ${rankColor}`}>
-                        {itemRank}
+                    <div className="flex items-center gap-2.5 sm:gap-3 z-10 min-w-0">
+                      <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-[11px] sm:text-xs border ${rankBadgeStyle} shrink-0`}>
+                        {rankMedal || itemRank}
                       </div>
 
-                      <div>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-200 font-mono font-bold tracking-wider uppercase">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-xs text-white font-mono font-bold tracking-wide truncate">
                           {record.pubkey ? (
-                            <div className="flex items-center gap-1">
-                              <span className="text-purple-400 font-black text-[10px] tracking-wide" title="Cuenta Stellar Soroban">🚀</span>
-                              <span className="text-cyan-400 font-black hover:text-cyan-300" title={record.pubkey}>
+                            <div className="flex items-center gap-1 truncate">
+                              <span className="text-purple-400 font-black text-[10px] shrink-0" title="Cuenta Stellar Soroban">🚀</span>
+                              <span className="text-cyan-400 font-black hover:text-cyan-300 truncate" title={record.pubkey}>
                                 {record.domain || `${record.pubkey.slice(0, 6)}...${record.pubkey.slice(-4)}`}
                               </span>
-                              <span className="bg-purple-500/10 text-[7px] text-purple-300 px-1 py-0.2 rounded border border-purple-500/20 font-sans tracking-wide uppercase font-black">SOL</span>
+                              <span className="bg-purple-500/20 text-[7px] text-purple-300 px-1 py-0.2 rounded border border-purple-500/30 font-sans tracking-wide uppercase font-black shrink-0">SOROBAN</span>
                             </div>
                           ) : (
-                            <>
-                              <User className="w-3.5 h-3.5 text-rose-500" />
-                              <span>{record.name || 'NINJA_ANON'}</span>
-                            </>
+                            <div className="flex items-center gap-1 truncate">
+                              <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <span className="text-slate-200 truncate">{record.name || 'CHEF_NINJA'}</span>
+                            </div>
                           )}
                           {record.isDemo && (
                             <span
-                              className="bg-slate-500/20 text-[7px] text-slate-300 px-1 py-0.2 rounded border border-slate-500/30 font-sans tracking-wide uppercase font-black"
-                              title="Registro de ejemplo, no proviene de la blockchain real"
+                              className="bg-slate-700/50 text-[7px] text-slate-400 px-1 py-0.2 rounded border border-slate-600 font-sans tracking-wide uppercase font-bold shrink-0"
+                              title="Registro de demostración"
                             >
                               DEMO
                             </span>
@@ -496,34 +512,36 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
                         </div>
                         
                         {/* Subtitle record details */}
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-1">
-                          <Calendar className="w-3 h-3 text-slate-600" />
-                          <span>{timeAgo(record.timestamp)}</span>
+                        <div className="flex items-center gap-2 text-[9.5px] text-slate-500 mt-0.5 font-sans">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-2.5 h-2.5 text-slate-600" />
+                            {timeAgo(record.timestamp)}
+                          </span>
+                          {record.slashes !== undefined && (
+                            <span className="hidden sm:inline text-slate-600">· {record.slashes} cortes</span>
+                          )}
                         </div>
                       </div>
                     </div>
 
                     {/* Score points display & action buttons */}
-                    <div className="flex items-center gap-2.5 z-10">
+                    <div className="flex items-center gap-2 z-10 shrink-0">
                       <div className="text-right">
-                        <span className="text-rose-400 text-sm font-black font-mono">+{record.score}</span>
-                        <span className="text-[9px] text-slate-500 block">puntos</span>
+                        <span className="text-amber-400 text-xs sm:text-sm font-black font-mono tracking-tight drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+                          {record.score.toLocaleString()}
+                        </span>
+                        <span className="text-[8px] text-slate-500 block uppercase font-mono leading-none">pts</span>
                       </div>
                       
                       {/* Expand Chevron affordance */}
-                      <div className="text-slate-500 group-hover/row:text-slate-300 transition-colors pl-1">
+                      <div className="text-slate-500 group-hover/row:text-amber-400 transition-colors pl-1">
                         {isExpanded ? (
-                          <ChevronUp className="w-4 h-4 text-amber-500 animate-pulse" />
+                          <ChevronUp className="w-4 h-4 text-amber-400" />
                         ) : (
-                          <ChevronDown className="w-4 h-4 text-slate-500" />
+                          <ChevronDown className="w-4 h-4" />
                         )}
                       </div>
                     </div>
-
-                    {/* Highlighting sheen backdrop logic */}
-                    {itemRank === 1 && !isExpanded && (
-                      <div className="absolute -inset-x-12 bottom-0 top-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent skew-x-12 pointer-events-none group-hover/row:translate-x-full duration-1000 transform" />
-                    )}
                   </div>
 
                   {/* Expandable Parameters Block with dynamic layout */}
@@ -533,30 +551,30 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: 'easeInOut' }}
-                        className="overflow-hidden border-t border-slate-800/60 bg-slate-950/45"
+                        transition={{ duration: 0.2, ease: 'easeInOut' }}
+                        className="overflow-hidden border-t border-slate-800 bg-slate-950/70"
                       >
-                        <div className="p-4 space-y-3.5 text-xs text-slate-300">
+                        <div className="p-3 sm:p-4 space-y-3 text-xs text-slate-300">
                           {/* Parameter grid values */}
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/60 flex flex-col items-center text-center">
-                              <Trophy className="w-3.5 h-3.5 text-rose-500/90 mb-1" />
-                              <span className="text-[9px] text-slate-500 font-mono tracking-wider uppercase">PUNTOS</span>
-                              <span className="text-xs font-black text-rose-400 mt-1 font-mono">
-                                {record.score}
+                          <div className="grid grid-cols-3 gap-2 font-mono">
+                            <div className="bg-slate-900/70 p-2 rounded-xl border border-slate-800 flex flex-col items-center text-center">
+                              <Trophy className="w-3.5 h-3.5 text-amber-400 mb-0.5" />
+                              <span className="text-[8px] text-slate-500 uppercase">PUNTOS</span>
+                              <span className="text-xs font-black text-amber-400 mt-0.5">
+                                {record.score.toLocaleString()}
                               </span>
                             </div>
-                            <div className="bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/60 flex flex-col items-center text-center">
-                              <Clock className="w-3.5 h-3.5 text-emerald-500/90 mb-1" />
-                              <span className="text-[9px] text-slate-500 font-mono tracking-wider uppercase">DURACIÓN</span>
-                              <span className="text-xs font-black text-emerald-400 mt-1 font-mono">
+                            <div className="bg-slate-900/70 p-2 rounded-xl border border-slate-800 flex flex-col items-center text-center">
+                              <Clock className="w-3.5 h-3.5 text-emerald-400 mb-0.5" />
+                              <span className="text-[8px] text-slate-500 uppercase">DURACIÓN</span>
+                              <span className="text-xs font-black text-emerald-400 mt-0.5">
                                 {record.duration !== undefined ? `${record.duration}s` : '45s'}
                               </span>
                             </div>
-                            <div className="bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/60 flex flex-col items-center text-center">
-                              <Swords className="w-3.5 h-3.5 text-amber-500/90 mb-1" />
-                              <span className="text-[9px] text-slate-500 font-mono tracking-wider uppercase">CORTES</span>
-                              <span className="text-xs font-black text-amber-400 mt-1 font-mono">
+                            <div className="bg-slate-900/70 p-2 rounded-xl border border-slate-800 flex flex-col items-center text-center">
+                              <Swords className="w-3.5 h-3.5 text-cyan-400 mb-0.5" />
+                              <span className="text-[8px] text-slate-500 uppercase">CORTES</span>
+                              <span className="text-xs font-black text-cyan-400 mt-0.5">
                                 {record.slashes !== undefined ? record.slashes : '0'}
                               </span>
                             </div>
@@ -572,12 +590,12 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
 
                           {/* Stellar Verification signature details */}
                           {record.pubkey && (
-                            <div className="bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-2.5 flex items-center justify-between text-[10px] font-mono mt-3">
-                              <div className="flex items-center gap-2 text-indigo-300">
+                            <div className="bg-indigo-950/30 border border-indigo-900/50 rounded-xl p-2.5 flex items-center justify-between text-[10px] font-mono">
+                              <div className="flex items-center gap-2 text-indigo-300 min-w-0">
                                 <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
-                                <div className="flex flex-col">
+                                <div className="flex flex-col min-w-0">
                                   <span className="text-[8px] text-indigo-400 font-bold uppercase tracking-widest leading-none">Firma On-Chain</span>
-                                  <span className="text-[9px] text-slate-300 leading-none mt-1 truncate max-w-[170px]" title={record.txHash || 'Soroban_Contract_Invoked'}>
+                                  <span className="text-[9px] text-slate-300 leading-none mt-1 truncate" title={record.txHash || 'Soroban_Contract_Invoked'}>
                                     Tx: {record.txHash || 'Soroban_Contract_Invoked'}
                                   </span>
                                 </div>
@@ -586,9 +604,9 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
                                 href={`https://stellar.expert/explorer/testnet/account/${record.pubkey}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 rounded-lg px-2 py-1 text-[8px] font-bold text-indigo-300 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                                className="bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/30 rounded-lg px-2 py-1 text-[8px] font-bold text-indigo-300 transition-all flex items-center gap-1 cursor-pointer shrink-0 ml-2"
                               >
-                                <span>Ver en Stellar</span>
+                                <span>Ver Stellar</span>
                                 <ExternalLink className="w-2.5 h-2.5" />
                               </a>
                             </div>
@@ -601,28 +619,6 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
               );
             })
           )}
-        </div>
-      </div>
-
-      {/* Embedded statistics box */}
-      <div className="bg-blue-900 p-4 rounded-2xl border-b-4 border-blue-950 mt-4 text-white">
-        <div className="flex items-center gap-2 text-sm uppercase font-vt tracking-wider text-amber-400 mb-2 font-bold">
-          <Flame className="w-4 h-4" />
-          <span>ESTADÍSTICAS</span>
-        </div>
-        <div className="grid grid-cols-2 gap-3 text-sm font-vt">
-          <div>
-            <span className="text-blue-300">Batallas jugadas:</span>
-            <span className="text-white font-pixel block mt-1 text-lg text-stroke-sm">
-              {scores.length}
-            </span>
-          </div>
-          <div>
-            <span className="text-blue-300">Récord de Arena:</span>
-            <span className="text-amber-400 font-pixel block mt-1 text-lg text-stroke-sm">
-              {sortedScores[0] ? `${sortedScores[0].score}` : '0'} PTS
-            </span>
-          </div>
         </div>
       </div>
     </div>

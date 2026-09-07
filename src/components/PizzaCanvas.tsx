@@ -3356,16 +3356,16 @@ export default function PizzaCanvas({
 
           {/* Modal Overlay */}
           {activeModal && (
-            <div className="absolute inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-md pointer-events-auto" onClick={() => setActiveModal(null)}>
+            <div className="absolute inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/85 backdrop-blur-md pointer-events-auto" onClick={() => setActiveModal(null)}>
               <div 
-                className="relative bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-[3px] sm:border-4 border-amber-500/70 rounded-3xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] flex flex-col shadow-[0_0_35px_rgba(245,158,11,0.25),0_12px_24px_rgba(0,0,0,0.8)] animate-[bounce-in_0.25s_cubic-bezier(0.175,0.885,0.32,1.2)]"
+                className={`relative bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-[3px] sm:border-4 border-amber-500/70 rounded-3xl p-3 sm:p-5 md:p-6 w-full ${activeModal === 'leaderboard' ? 'max-w-2xl' : 'max-w-md'} max-h-[92vh] flex flex-col shadow-[0_0_35px_rgba(245,158,11,0.25),0_12px_24px_rgba(0,0,0,0.8)] animate-[bounce-in_0.25s_cubic-bezier(0.175,0.885,0.32,1.2)]`}
                 onClick={e => e.stopPropagation()}
               >
                 {/* Header */}
-                <div className="flex justify-between items-center mb-3 sm:mb-4 border-b-2 border-amber-500/20 pb-3 shrink-0">
+                <div className="flex justify-between items-center mb-2.5 sm:mb-4 border-b-2 border-amber-500/20 pb-2.5 sm:pb-3 shrink-0">
                   <div className="flex items-center gap-2">
                     <h2 className="text-xl sm:text-2xl font-pixel text-amber-400 tracking-wider text-stroke-sm drop-shadow-md">
-                      {activeModal === 'leaderboard' && '🏆 Clasificación'}
+                      {activeModal === 'leaderboard' && '🏆 Clasificación de Arena'}
                       {activeModal === 'knives' && '🗡️ Armería Ninja'}
                       {activeModal === 'rules' && '📋 Cómo Jugar'}
                       {activeModal === 'settings' && '⚙️ Ajustes'}
@@ -3559,10 +3559,7 @@ export default function PizzaCanvas({
 
                   {/* LEADERBOARD MODAL CONTENT */}
                   {activeModal === 'leaderboard' && (
-                    <div className="space-y-3">
-                      <p className="text-slate-300 font-sans text-xs sm:text-sm leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 text-center">
-                        🏆 <strong className="text-amber-400">Tabla de Clasificación Global</strong> · Récords arcade sincronizados.
-                      </p>
+                    <div className="w-full">
                       <Leaderboard scores={scores} />
                     </div>
                   )}
