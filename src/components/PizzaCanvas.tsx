@@ -1153,6 +1153,8 @@ export default function PizzaCanvas({
     if (!ctx) return;
     // Canvas now must render even when !isPlaying because the Start Pizza is drawn inside the canvas loop itself.
     let animationFrameId: number;
+    let loopRunner: () => void;
+    let lastRenderTs = performance.now();
 
     // Get the prepared OffscreenCanvas instances for the game
     const cache = getSpriteCache();
