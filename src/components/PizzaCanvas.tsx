@@ -3235,9 +3235,7 @@ export default function PizzaCanvas({
               <button onClick={(e) => { e.stopPropagation(); setActiveModal('leaderboard'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-amber-400 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(245,158,11,0.4)] cursor-pointer" title="Clasificación / Récords">
                 🏆
               </button>
-              <button onClick={(e) => { e.stopPropagation(); setActiveModal('knives'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-rose-500 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(244,63,94,0.4)] cursor-pointer" title="Armería">
-                🗡️
-              </button>
+              {/* Botón de Armería temporalmente oculto */}
               <button onClick={(e) => { e.stopPropagation(); setActiveModal('rules'); playWebSound('splat'); }} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 border-2 border-emerald-500 rounded-full flex items-center justify-center text-lg sm:text-xl md:text-2xl hover:scale-110 hover:bg-slate-800 transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] cursor-pointer" title="Cómo Jugar">
                 📋
               </button>
