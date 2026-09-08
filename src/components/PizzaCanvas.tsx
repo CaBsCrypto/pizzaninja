@@ -2968,10 +2968,10 @@ export default function PizzaCanvas({
   };
 
   return (
-    <div className="w-full h-full flex-1 min-h-0 relative flex items-center justify-center p-0.5 sm:p-1">
+    <div className="w-full h-full flex-1 min-h-0 relative flex items-center justify-center p-0.5 sm:p-2">
       <div
         ref={containerRef}
-        className={`relative w-full h-full max-w-full max-h-full mx-auto bg-slate-950/95 shadow-2xl flex flex-col rounded-2xl sm:rounded-3xl border-2 sm:border-[4px] transition-colors duration-150 overflow-hidden ${
+        className={`relative w-full h-full max-w-full max-h-full md:aspect-[16/9] md:w-auto md:h-full md:max-w-[calc((100dvh-5rem)*16/9)] mx-auto bg-slate-950/95 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col rounded-2xl sm:rounded-3xl border-2 sm:border-[4px] transition-colors duration-150 overflow-hidden ${
           damageFlash ? 'border-red-600 bg-red-950/80 shadow-[0_0_50px_rgba(220,38,38,0.8)]' : 'border-amber-500'
         }`}
       >
