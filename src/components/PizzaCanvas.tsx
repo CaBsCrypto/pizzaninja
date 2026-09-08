@@ -2968,10 +2968,10 @@ export default function PizzaCanvas({
   };
 
   return (
-    <div className="w-full h-full flex-1 min-h-0 relative flex items-center justify-center p-0.5 sm:p-2">
+    <div className="w-full h-full flex-1 min-h-0 relative flex items-center justify-center p-0.5 sm:p-1 md:p-2">
       <div
         ref={containerRef}
-        className={`relative w-full h-full max-w-full max-h-full md:aspect-[16/9] md:w-full md:h-auto md:max-h-[calc(100dvh-6rem)] md:max-w-[calc((100dvh-6rem)*16/9)] lg:max-w-6xl mx-auto bg-slate-950/95 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col rounded-2xl sm:rounded-3xl border-2 sm:border-[4px] transition-colors duration-150 overflow-hidden ${
+        className={`relative w-full h-full max-w-full max-h-full md:aspect-[16/9] md:w-full md:h-full md:max-h-[calc(100dvh-5.5rem)] md:max-w-[calc((100dvh-5.5rem)*16/9)] mx-auto bg-slate-950/95 shadow-[0_0_60px_rgba(0,0,0,0.85)] flex flex-col rounded-2xl sm:rounded-3xl border-2 sm:border-[4px] transition-colors duration-150 overflow-hidden ${
           damageFlash ? 'border-red-600 bg-red-950/80 shadow-[0_0_50px_rgba(220,38,38,0.8)]' : 'border-amber-500'
         }`}
       >
@@ -3253,34 +3253,34 @@ export default function PizzaCanvas({
           </div>
 
           {/* Main Content Centered */}
-          <div className={`flex flex-col landscape:flex-row items-center justify-center gap-1 sm:gap-3 md:gap-6 landscape:gap-4 lg:landscape:gap-12 w-full max-w-lg landscape:max-w-4xl mx-auto z-10 my-auto pt-8 sm:pt-0 transition-all duration-300 ${activeModal ? 'blur-md scale-95 opacity-50' : 'blur-0 scale-100 opacity-100'}`}>
+          <div className={`flex flex-col landscape:flex-row items-center justify-center gap-2 sm:gap-4 md:gap-8 landscape:gap-6 lg:landscape:gap-14 w-full max-w-lg landscape:max-w-5xl mx-auto z-10 my-auto pt-8 sm:pt-0 transition-all duration-300 ${activeModal ? 'blur-md scale-95 opacity-50' : 'blur-0 scale-100 opacity-100'}`}>
             
             {controlMode === 'mouse' ? (
               <>
                 {/* Mascot */}
                 <div className="relative group animate-[fade-in-up_0.5s_ease-out] shrink-0 pointer-events-none">
                   <div className="absolute -inset-8 bg-gradient-to-r from-emerald-500/20 via-green-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse" />
-                  <img src="/ninja_turtle.png" alt="Ninja Turtle Mascot" className="relative w-20 h-20 sm:w-32 sm:h-32 md:w-48 md:h-48 landscape:w-20 landscape:h-20 sm:landscape:w-28 sm:landscape:h-28 md:landscape:w-40 md:landscape:h-40 object-contain drop-shadow-[0_0_25px_rgba(16,185,129,0.5)] animate-[bounce_4s_infinite]" />
+                  <img src="/ninja_turtle.png" alt="Ninja Turtle Mascot" className="relative w-24 h-24 sm:w-36 sm:h-36 md:w-56 md:h-56 landscape:w-24 landscape:h-24 sm:landscape:w-36 sm:landscape:h-36 md:landscape:w-52 md:landscape:h-52 object-contain drop-shadow-[0_0_30px_rgba(16,185,129,0.5)] animate-[bounce_4s_infinite]" />
                 </div>
 
                 {/* Right Side / Bottom Side Container */}
                 <div className="flex flex-col items-center landscape:items-start w-full max-w-xs sm:max-w-sm landscape:max-w-xl pointer-events-none">
                   {/* Title */}
                   <div className="text-center landscape:text-left">
-                    <h1 className="text-2xl sm:text-4xl md:text-5xl landscape:text-3xl sm:landscape:text-4xl md:landscape:text-5xl font-pixel text-white text-stroke-title tracking-widest leading-none drop-shadow-2xl">Slash Slice</h1>
-                    <span className="text-[9px] sm:text-[11px] md:text-xs font-pixel text-emerald-400 text-stroke-sm uppercase tracking-widest block mt-1 sm:mt-1.5 drop-shadow-lg">Turtle Ninja Edition</span>
+                    <h1 className="text-3xl sm:text-5xl md:text-6xl landscape:text-4xl sm:landscape:text-5xl md:landscape:text-6xl font-pixel text-white text-stroke-title tracking-widest leading-none drop-shadow-2xl">Slash Slice</h1>
+                    <span className="text-[10px] sm:text-xs md:text-sm font-pixel text-emerald-400 text-stroke-sm uppercase tracking-widest block mt-1.5 sm:mt-2 drop-shadow-lg">Turtle Ninja Edition</span>
                   </div>
 
                   {/* Score badge from last game (conditional) */}
                   {score > 0 && (
-                    <div className="bg-slate-900/80 border border-emerald-400/50 rounded-full px-3 sm:px-5 py-1 sm:py-1.5 mt-1.5 sm:mt-2 flex items-center justify-center gap-2 text-xs sm:text-sm font-pixel text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                      <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" /> 
+                    <div className="bg-slate-900/80 border border-emerald-400/50 rounded-full px-3.5 sm:px-6 py-1 sm:py-2 mt-2 sm:mt-3 flex items-center justify-center gap-2 text-xs sm:text-base font-pixel text-emerald-100 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                      <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" /> 
                       Última Puntuación: <span className="text-emerald-400">{score}</span>
                     </div>
                   )}
 
                   {/* AAA Play Buttons */}
-                  <div className="flex flex-col gap-2 sm:gap-3 mt-3 sm:mt-4 md:mt-6 pointer-events-auto z-50 w-full max-w-[260px] sm:max-w-xs landscape:max-w-sm">
+                  <div className="flex flex-col gap-2.5 sm:gap-3.5 md:gap-4 mt-3.5 sm:mt-5 md:mt-7 pointer-events-auto z-50 w-full max-w-[280px] sm:max-w-md landscape:max-w-md">
                     <button
                       type="button"
                       onClick={() => {
@@ -3288,7 +3288,7 @@ export default function PizzaCanvas({
                         playWebSound('slash');
                         initiateCountdown();
                       }}
-                      className="bg-gradient-to-b from-amber-400 to-amber-600 border-[2px] sm:border-[3px] border-amber-200 rounded-xl sm:rounded-2xl py-2.5 sm:py-3.5 md:py-4 px-4 sm:px-6 text-white font-pixel text-sm sm:text-lg md:text-xl uppercase tracking-widest drop-shadow-[0_3px_0_#b45309] sm:drop-shadow-[0_4px_0_#b45309] active:translate-y-1 active:drop-shadow-[0_0px_0_#b45309] transition-all hover:brightness-110 flex items-center justify-center gap-2 sm:gap-3 w-full cursor-pointer shadow-2xl min-h-[44px]"
+                      className="bg-gradient-to-b from-amber-400 to-amber-600 border-[2px] sm:border-[3px] border-amber-200 rounded-xl sm:rounded-2xl py-3 sm:py-4 md:py-5 px-5 sm:px-8 text-white font-pixel text-sm sm:text-xl md:text-2xl uppercase tracking-widest drop-shadow-[0_3px_0_#b45309] sm:drop-shadow-[0_4px_0_#b45309] active:translate-y-1 active:drop-shadow-[0_0px_0_#b45309] transition-all hover:brightness-110 flex items-center justify-center gap-2 sm:gap-3 w-full cursor-pointer shadow-2xl min-h-[48px] sm:min-h-[56px]"
                     >
                       <span className="text-xl sm:text-2xl md:text-3xl drop-shadow-md">🖱️</span>
                       <span>JUGAR NORMAL</span>
@@ -3300,7 +3300,7 @@ export default function PizzaCanvas({
                         setControlMode('camera');
                         playWebSound('slash');
                       }}
-                      className="bg-gradient-to-b from-blue-500 to-blue-700 border-[2px] sm:border-[3px] border-blue-300 rounded-xl sm:rounded-2xl py-2 sm:py-3 px-4 sm:px-6 text-white font-pixel text-xs sm:text-base md:text-lg uppercase tracking-widest drop-shadow-[0_3px_0_#1e3a8a] sm:drop-shadow-[0_4px_0_#1e3a8a] active:translate-y-1 active:drop-shadow-[0_0px_0_#1e3a8a] transition-all hover:brightness-110 flex items-center justify-center gap-2 sm:gap-3 w-full cursor-pointer shadow-xl opacity-90 hover:opacity-100 min-h-[44px]"
+                      className="bg-gradient-to-b from-blue-500 to-blue-700 border-[2px] sm:border-[3px] border-blue-300 rounded-xl sm:rounded-2xl py-2.5 sm:py-3.5 md:py-4 px-5 sm:px-8 text-white font-pixel text-xs sm:text-lg md:text-xl uppercase tracking-widest drop-shadow-[0_3px_0_#1e3a8a] sm:drop-shadow-[0_4px_0_#1e3a8a] active:translate-y-1 active:drop-shadow-[0_0px_0_#1e3a8a] transition-all hover:brightness-110 flex items-center justify-center gap-2 sm:gap-3 w-full cursor-pointer shadow-xl opacity-90 hover:opacity-100 min-h-[44px] sm:min-h-[50px]"
                     >
                       <span className="text-lg sm:text-xl md:text-2xl drop-shadow-md">📷</span>
                       <span>JUGAR CÁMARA</span>
@@ -3313,7 +3313,7 @@ export default function PizzaCanvas({
                         setActiveModal('leaderboard');
                         playWebSound('splat');
                       }}
-                      className="bg-gradient-to-b from-purple-600 via-purple-700 to-indigo-900 border-[2px] sm:border-[3px] border-purple-300 rounded-xl sm:rounded-2xl py-2 sm:py-2.5 px-4 sm:px-6 text-white font-pixel text-xs sm:text-sm md:text-base uppercase tracking-widest drop-shadow-[0_3px_0_#3b0764] sm:drop-shadow-[0_4px_0_#3b0764] active:translate-y-1 active:drop-shadow-[0_0px_0_#3b0764] transition-all hover:brightness-110 flex items-center justify-center gap-2 sm:gap-3 w-full cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.3)] hover:shadow-[0_0_25px_rgba(168,85,247,0.5)] min-h-[40px]"
+                      className="bg-gradient-to-b from-purple-600 via-purple-700 to-indigo-900 border-[2px] sm:border-[3px] border-purple-300 rounded-xl sm:rounded-2xl py-2 sm:py-3 md:py-3.5 px-4 sm:px-6 text-white font-pixel text-xs sm:text-base md:text-lg uppercase tracking-widest drop-shadow-[0_3px_0_#3b0764] sm:drop-shadow-[0_4px_0_#3b0764] active:translate-y-1 active:drop-shadow-[0_0px_0_#3b0764] transition-all hover:brightness-110 flex items-center justify-center gap-2 sm:gap-3 w-full cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.3)] hover:shadow-[0_0_25px_rgba(168,85,247,0.5)] min-h-[40px] sm:min-h-[46px]"
                     >
                       <span className="text-base sm:text-lg md:text-xl drop-shadow-md">🏆</span>
                       <span className="text-stroke-sm">CLASIFICACIÓN / RÉCORDS</span>
@@ -3322,7 +3322,7 @@ export default function PizzaCanvas({
                     <a
                       href="https://spicycrust.com"
                       target="_self"
-                      className="group relative flex items-center justify-center gap-2 mt-1 py-2 sm:py-2.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl border-[2px] sm:border-[3px] border-red-400 bg-gradient-to-b from-red-600 via-red-700 to-rose-900 text-white font-pixel text-xs sm:text-sm md:text-base uppercase tracking-widest drop-shadow-[0_3px_0_#4c0519] sm:drop-shadow-[0_4px_0_#4c0519] active:translate-y-1 active:drop-shadow-[0_0px_0_#4c0519] transition-all hover:brightness-110 hover:border-red-300 w-full cursor-pointer shadow-[0_0_15px_rgba(225,29,72,0.35)] hover:shadow-[0_0_25px_rgba(225,29,72,0.6)] min-h-[40px]"
+                      className="group relative flex items-center justify-center gap-2 mt-0.5 py-2 sm:py-3 md:py-3.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl border-[2px] sm:border-[3px] border-red-400 bg-gradient-to-b from-red-600 via-red-700 to-rose-900 text-white font-pixel text-xs sm:text-base md:text-lg uppercase tracking-widest drop-shadow-[0_3px_0_#4c0519] sm:drop-shadow-[0_4px_0_#4c0519] active:translate-y-1 active:drop-shadow-[0_0px_0_#4c0519] transition-all hover:brightness-110 hover:border-red-300 w-full cursor-pointer shadow-[0_0_15px_rgba(225,29,72,0.35)] hover:shadow-[0_0_25px_rgba(225,29,72,0.6)] min-h-[40px] sm:min-h-[46px]"
                     >
                       <span className="text-base sm:text-lg md:text-xl group-hover:scale-125 group-hover:rotate-12 transition-transform drop-shadow-md">🍕</span>
                       <span className="text-stroke-sm drop-shadow-md">VOLVER A SPICYCRUST</span>
