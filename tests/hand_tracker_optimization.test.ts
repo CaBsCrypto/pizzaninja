@@ -143,6 +143,23 @@ describe('HandTracker High-Performance Optimization & Zero-Latency Filtering Sui
       const fresh = filter.filter(0.1, 500);
       assert.equal(fresh, 0.1, 'After reset, first value must pass through cleanly');
     });
+
+    test('1.10: Non-finite filter coefficients (minCutoff/beta/dCutoff = NaN) do not brick filter or corrupt dxPrev', () => {
+      const filter = new OneEuroFilter(NaN, NaN, NaN);
+      const val1 = filter.filter(0.5, 1000);
+      assert.equal(val1, 0.5);
+
+      // Subsequent frame with NaN coefficients should still compute a valid finite output
+      const val2 = filter.filter(0.6, 1016);
+      assert.ok(Number.isFinite(val2), 'Output must remain finite despite NaN coefficients');
+
+      // Restoring valid parameters must recover full filtering immediately
+      filter.minCutoff = 1.65;
+      filter.beta = 15.0;
+      filter.dCutoff = 1.0;
+      const val3 = filter.filter(0.62, 1032);
+      assert.ok(Number.isFinite(val3) && Math.abs(val3 - 0.6) < 0.05, 'Filter must recover cleanly');
+    });
   });
 
   // ==========================================================================
@@ -193,6 +210,18 @@ describe('HandTracker High-Performance Optimization & Zero-Latency Filtering Sui
 
       // Mirror true: cx = (1 - 0.25) * 320 = 240, cy = 0.5 * 240 = 120
       assert.ok(ctx.calls.some(c => c.includes('arc(240,120')), 'Mirrored X coordinate must be (1 - x) * width');
+    });
+
+    test('2.4: Landmarks with NaN or Infinity coordinates are safely bypassed without drawing NaN paths', () => {
+      const ctx = createMockCtx();
+      const corruptLandmarks = [
+        { x: NaN, y: 0.5 },
+        { x: 0.5, y: Infinity },
+        { x: -Infinity, y: NaN },
+      ];
+      assert.doesNotThrow(() => drawConnectors(ctx as any, corruptLandmarks, 320, 240, false, '#fff'));
+      assert.doesNotThrow(() => drawLandmarks(ctx as any, corruptLandmarks, 320, 240, false, '#fff', '#000'));
+      assert.ok(!ctx.calls.some(c => c.includes('NaN') || c.includes('Infinity')), 'No calls with NaN or Infinity allowed');
     });
   });
 

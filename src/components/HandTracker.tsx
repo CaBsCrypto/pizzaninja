@@ -704,7 +704,9 @@ export default function HandTracker({
             }
 
             if (scaleCanvasRef.current && videoRef.current) {
-              if (!scaleCtxRef.current) {
+              if (scaleCanvasRef.current.width !== 320) scaleCanvasRef.current.width = 320;
+              if (scaleCanvasRef.current.height !== 240) scaleCanvasRef.current.height = 240;
+              if (!scaleCtxRef.current || scaleCtxRef.current.canvas !== scaleCanvasRef.current) {
                 scaleCtxRef.current = scaleCanvasRef.current.getContext('2d', { willReadFrequently: true });
               }
               const sCtx = scaleCtxRef.current;
@@ -813,6 +815,16 @@ export default function HandTracker({
       handsInstanceRef.current = null;
     }
 
+    // Clear overlay canvas on shutdown to prevent frozen ghost skeletons
+    if (overlayCanvasRef.current) {
+      try {
+        const ctx = overlayCanvasRef.current.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+      } catch (e) {}
+    }
+
+    scaleCtxRef.current = null;
+
     setModelStatus('off');
     setHandDetected(false);
     onHandPresenceChange?.(false);
@@ -823,6 +835,11 @@ export default function HandTracker({
     oneEuroFiltersRef.current.y.forEach(f => f.reset());
     lastXRef.current = [null, null];
     lastYRef.current = [null, null];
+
+    // Dispatch disengage for both hands so parent game engine cleanly terminates slices
+    onCoordsTrackedRef.current(0, 0, 0, false);
+    onCoordsTrackedRef.current(0, 0, 1, false);
+
     addLog("Sensor apagado.");
   };
 
@@ -877,7 +894,7 @@ export default function HandTracker({
       for (let handIdx = 0; handIdx < numHands; handIdx++) {
         const landmarks = results.multiHandLandmarks[handIdx];
         const indexTip = landmarks?.[8]; // INDEX_FINGER_TIP
-        if (!indexTip || typeof indexTip.x !== 'number' || typeof indexTip.y !== 'number') {
+        if (!indexTip || !Number.isFinite(indexTip.x) || !Number.isFinite(indexTip.y)) {
           continue;
         }
 
