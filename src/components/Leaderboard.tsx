@@ -501,6 +501,14 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
                               <span className="text-slate-200 truncate">{record.name || 'CHEF_NINJA'}</span>
                             </div>
                           )}
+                          {record.isSpicyCrust && (
+                            <span
+                              className="bg-amber-500/20 text-[7px] text-amber-300 px-1 py-0.2 rounded border border-amber-500/30 font-sans tracking-wide uppercase font-black shrink-0 flex items-center gap-0.5"
+                              title="Puntaje verificado en SpicyCrust Central"
+                            >
+                              <span>🍕</span> SPICYCRUST
+                            </span>
+                          )}
                           {record.isDemo && (
                             <span
                               className="bg-slate-700/50 text-[7px] text-slate-400 px-1 py-0.2 rounded border border-slate-600 font-sans tracking-wide uppercase font-bold shrink-0"

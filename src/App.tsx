@@ -6,10 +6,10 @@ import Leaderboard from './components/Leaderboard';
 import { ScoreRecord, SlashReplayPoint } from './types';
 import StellarHub, { StellarWalletState } from './components/StellarHub';
 import { buildAndSignSubmitScoreTx } from './services/stellarWallet';
-import { isConnected, requestAccess } from "@stellar/freighter-api";
 import { useSorobanBalance } from './hooks/useSorobanBalance';
 import { useSorobanNFTBalance } from './hooks/useSorobanNFTBalance';
 import Shop, { ShopItem, SHOP_ITEMS } from './components/Shop';
+import { submitScore as submitSpicyCrustScore, getLeaderboard as getSpicyCrustLeaderboard } from './services/spicycrustApi';
 
 // Web audio API Helper to make nice sound effects for menu
 function playWebSound(type: 'coin' | 'register') {
@@ -197,25 +197,55 @@ export default function App() {
       }
     };
 
-    // Load from database (Vercel KV)
-    fetch('/api/score')
-      .then(res => {
-        if (!res.ok) throw new Error("Leaderboard API returned status " + res.status);
-        return res.json();
-      })
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          // Sort descending by score
-          const sorted = data.sort((a: any, b: any) => Number(b.score) - Number(a.score));
+    // 1. Fetch live leaderboard from SpicyCrust API
+    getSpicyCrustLeaderboard(50)
+      .then(ranking => {
+        if (Array.isArray(ranking) && ranking.length > 0) {
+          const apiScores: ScoreRecord[] = ranking.map(item => ({
+            name: item.nickname || 'CHEF_NINJA',
+            score: Number(item.score) || 0,
+            timestamp: item.created_at ? new Date(item.created_at).getTime() : Date.now(),
+            duration: item.metadata?.duration || 45,
+            slashes: item.metadata?.slashes || 0,
+            mode: item.metadata?.mode || 'arcade',
+            isSpicyCrust: true
+          }));
+          const sorted = apiScores.sort((a, b) => b.score - a.score);
           setScores(sorted);
           localStorage.setItem('slash_slice_scores_v2', JSON.stringify(sorted));
         } else {
-          loadLocalBackup();
+          // Fallback to local / internal API
+          fetch('/api/score')
+            .then(res => {
+              if (!res.ok) throw new Error("Leaderboard API returned status " + res.status);
+              return res.json();
+            })
+            .then(data => {
+              if (Array.isArray(data) && data.length > 0) {
+                const sorted = data.sort((a: any, b: any) => Number(b.score) - Number(a.score));
+                setScores(sorted);
+                localStorage.setItem('slash_slice_scores_v2', JSON.stringify(sorted));
+              } else {
+                loadLocalBackup();
+              }
+            })
+            .catch(() => loadLocalBackup());
         }
       })
       .catch(err => {
-        console.error("Error fetching global scores, falling back to local:", err);
-        loadLocalBackup();
+        console.warn('[SpicyCrust API] Leaderboard load error, falling back:', err);
+        fetch('/api/score')
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data) && data.length > 0) {
+              const sorted = data.sort((a: any, b: any) => Number(b.score) - Number(a.score));
+              setScores(sorted);
+              localStorage.setItem('slash_slice_scores_v2', JSON.stringify(sorted));
+            } else {
+              loadLocalBackup();
+            }
+          })
+          .catch(() => loadLocalBackup());
       });
   }, []);
 
@@ -262,6 +292,42 @@ export default function App() {
     setScores(updated);
     localStorage.setItem('slash_slice_scores_v2', JSON.stringify(updated));
     setPendingScore(null);
+
+    // 1. Submit score to SpicyCrust Central API
+    submitSpicyCrustScore({
+      nickname: trimmedName,
+      score: pendingScore.score,
+      metadata: {
+        duration: pendingScore.duration,
+        slashes: pendingScore.slashes,
+        mode: pendingScore.gameMode || 'arcade',
+        slashHistory: pendingScore.slashHistory
+      }
+    })
+    .then(apiRes => {
+      console.log('[SpicyCrust API] Score submitted successfully:', apiRes);
+      showToast('🏆 ¡Puntaje enviado a SpicyCrust Leaderboard!', 'success');
+      // Refresh live leaderboard
+      getSpicyCrustLeaderboard(50).then(ranking => {
+        if (Array.isArray(ranking) && ranking.length > 0) {
+          const apiScores: ScoreRecord[] = ranking.map(item => ({
+            name: item.nickname || 'CHEF_NINJA',
+            score: Number(item.score) || 0,
+            timestamp: item.created_at ? new Date(item.created_at).getTime() : Date.now(),
+            duration: item.metadata?.duration || 45,
+            slashes: item.metadata?.slashes || 0,
+            mode: item.metadata?.mode || 'arcade',
+            isSpicyCrust: true
+          }));
+          const sorted = apiScores.sort((a, b) => b.score - a.score);
+          setScores(sorted);
+          localStorage.setItem('slash_slice_scores_v2', JSON.stringify(sorted));
+        }
+      }).catch(console.warn);
+    })
+    .catch(err => {
+      console.warn('[SpicyCrust API] Failed to submit score:', err);
+    });
 
     // Soroban Minting Integration
     if (walletState.connected && walletState.publicKey && pendingScore.score > 0) {
@@ -567,6 +633,20 @@ export default function App() {
                       playWebSound('register');
                       setMintedTx(data.txHash);
                       showToast('🔥 ¡Récord Inmortalizado en Stellar!', 'success');
+
+                      // Submit score to SpicyCrust Central API
+                      submitSpicyCrustScore({
+                        nickname: newRecord.name,
+                        score: pendingScore.score,
+                        metadata: {
+                          duration: pendingScore.duration,
+                          slashes: pendingScore.slashes,
+                          mode: pendingScore.gameMode || 'arcade',
+                          slashHistory: pendingScore.slashHistory,
+                          pubkey: walletState.publicKey,
+                          txHash: data.txHash
+                        }
+                      }).catch(err => console.warn('[SpicyCrust API] Score send fallback:', err));
                     } else {
                       setMintingStep('error');
                       alert("Error al registrar el récord: " + data.error);
