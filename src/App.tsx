@@ -57,8 +57,9 @@ export default function App() {
     gameMode?: string;
   } | null>(null);
 
-  // Score name/moniker registration input state
-  const [chefName, setChefName] = useState('');
+  // Score name/moniker and email registration input state
+  const [chefName, setChefName] = useState(() => localStorage.getItem('slash_slice_player_name') || '');
+  const [chefEmail, setChefEmail] = useState(() => localStorage.getItem('slash_slice_player_email') || '');
   
   // Leaderboard lists
   const [scores, setScores] = useState<ScoreRecord[]>([]);
@@ -268,7 +269,6 @@ export default function App() {
       gameStartTimestamp,
       gameMode,
     });
-    setChefName(''); // Reset input name on game over
     playWebSound('coin');
 
     // 🚀 INMEDIATO: Enviar a la API de SpicyCrust apenas termina la partida
@@ -316,6 +316,14 @@ export default function App() {
     if (!pendingScore) return;
 
     const trimmedName = chefName.trim().toUpperCase() || 'ANÓNIMO';
+    const trimmedEmail = chefEmail.trim().toLowerCase();
+    
+    // Save player profile locally for next games
+    localStorage.setItem('slash_slice_player_name', trimmedName);
+    if (trimmedEmail) {
+      localStorage.setItem('slash_slice_player_email', trimmedEmail);
+    }
+
     const newRecord: ScoreRecord = {
       name: trimmedName,
       score: pendingScore.score,
@@ -334,6 +342,7 @@ export default function App() {
     // 1. Submit score to SpicyCrust Central API
     submitSpicyCrustScore({
       nickname: trimmedName,
+      email: trimmedEmail,
       score: pendingScore.score,
       metadata: {
         duration: pendingScore.duration,
@@ -726,21 +735,41 @@ export default function App() {
           )
         ) : (
           <form onSubmit={handleRegisterScore} className="flex flex-col gap-3 sm:gap-4">
-            <div className="space-y-1 sm:space-y-2">
-              <label htmlFor="chef-name" className="font-pixel text-blue-900 text-base sm:text-lg block drop-shadow-sm text-center">
-                Firma tu obra maestra
-              </label>
-              <input
-                id="chef-name"
-                type="text"
-                maxLength={12}
-                placeholder="CHEF_NINJA"
-                value={chefName}
-                onChange={(e) => setChefName(e.target.value)}
-                className="bg-white border-2 sm:border-4 border-blue-200 text-blue-900 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-4 text-xl sm:text-2xl font-vt text-center uppercase focus:outline-none focus:border-amber-400 shadow-inner w-full transition-all"
-                required
-              />
+            <div className="space-y-2 sm:space-y-3">
+              <div>
+                <label htmlFor="chef-name" className="font-pixel text-blue-900 text-xs sm:text-sm block drop-shadow-sm mb-1 text-center">
+                  👤 Apodo / Nickname
+                </label>
+                <input
+                  id="chef-name"
+                  type="text"
+                  maxLength={15}
+                  placeholder="CHEF_NINJA"
+                  value={chefName}
+                  onChange={(e) => setChefName(e.target.value)}
+                  className="bg-white border-2 sm:border-4 border-blue-200 text-blue-900 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2 sm:py-3 text-lg sm:text-xl font-vt text-center uppercase focus:outline-none focus:border-amber-400 shadow-inner w-full transition-all"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="chef-email" className="font-pixel text-blue-900 text-xs sm:text-sm block drop-shadow-sm mb-1 text-center">
+                  ✉️ Correo Electrónico (SpicyCrust)
+                </label>
+                <input
+                  id="chef-email"
+                  type="email"
+                  placeholder="tu@correo.com"
+                  value={chefEmail}
+                  onChange={(e) => setChefEmail(e.target.value)}
+                  className="bg-white border-2 sm:border-4 border-blue-200 text-blue-900 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2 sm:py-2.5 text-base sm:text-lg font-sans text-center focus:outline-none focus:border-amber-400 shadow-inner w-full transition-all placeholder:text-slate-400"
+                />
+                <span className="text-[10px] text-blue-800 font-sans block text-center mt-1 opacity-80">
+                  Opcional — para vincular tu posición en el leaderboard central de SpicyCrust.
+                </span>
+              </div>
             </div>
+
             <button type="submit" className="btn-clash-blue py-2.5 sm:py-3 md:py-4 text-lg sm:text-xl w-full flex items-center justify-center gap-2 sm:gap-3 mt-1 sm:mt-2 min-h-[44px] cursor-pointer">
               <span>GUARDAR RÉCORD</span>
               <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6" />
