@@ -1462,7 +1462,7 @@ export default function PizzaCanvas({
       if (controlMode === 'camera' && !isPaused) {
         const nowMs = Date.now();
         const dt = 0.01666 * timeScale; // Real delta timestep for spring stability
-        const smoothTime = 0.04; // Hyper-snappy 40ms critically damped response time for zero perceived camera latency
+        const smoothTime = 0.014; // Ultra-snappy 14ms critically damped response time for true zero perceived camera latency
 
         for (let handIdx = 0; handIdx < 2; handIdx++) {
           const lastUpdate = stateRef.current.handLastUpdateTime[handIdx];

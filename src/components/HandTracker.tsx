@@ -249,10 +249,10 @@ export default function HandTracker({
   const [lastFrameTime, setLastFrameTime] = useState<string>('');
   
   // Advanced Calibration
-  const [smoothingFactor, setSmoothingFactor] = useState(0.50); // PERF: 0.50 is much snappier than 0.24, reducing input lag
-  const [minCutoff, setMinCutoff] = useState(1.65); // Hz (min cutoff for One Euro Filter at idle/rest)
-  const [beta, setBeta] = useState(15.0); // Speed coefficient (eliminates lag during rapid slashing)
-  const [dCutoff, setDCutoff] = useState(1.0); // Hz (cutoff for derivative velocity filter)
+  const [smoothingFactor, setSmoothingFactor] = useState(0.70); // PERF: 0.70 snappy direct tracking
+  const [minCutoff, setMinCutoff] = useState(1.20); // Hz (stable idle/rest filtering)
+  const [beta, setBeta] = useState(38.0); // Ultra-reactive speed coefficient (0ms lag during slashing)
+  const [dCutoff, setDCutoff] = useState(1.2); // Hz (rapid velocity reaction)
   const [mirrorX, setMirrorX] = useState(true);
   const [detectionConfidence, setDetectionConfidence] = useState(0.40);
 
@@ -261,8 +261,8 @@ export default function HandTracker({
     x: OneEuroFilter[];
     y: OneEuroFilter[];
   }>({
-    x: [new OneEuroFilter(1.65, 15.0, 1.0), new OneEuroFilter(1.65, 15.0, 1.0)],
-    y: [new OneEuroFilter(1.65, 15.0, 1.0), new OneEuroFilter(1.65, 15.0, 1.0)],
+    x: [new OneEuroFilter(1.20, 38.0, 1.2), new OneEuroFilter(1.20, 38.0, 1.2)],
+    y: [new OneEuroFilter(1.20, 38.0, 1.2), new OneEuroFilter(1.20, 38.0, 1.2)],
   });
 
   // Camera Devices Listing
