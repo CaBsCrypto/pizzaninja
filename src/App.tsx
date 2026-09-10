@@ -327,6 +327,7 @@ export default function App() {
     })
     .catch(err => {
       console.warn('[SpicyCrust API] Failed to submit score:', err);
+      showToast(`⚠️ No se pudo enviar a SpicyCrust (${err.message || 'Error de conexión'})`, 'error');
     });
 
     // Soroban Minting Integration

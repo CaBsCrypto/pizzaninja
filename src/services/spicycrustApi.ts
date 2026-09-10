@@ -56,25 +56,36 @@ export async function submitScore({
   metadata = {},
   player_external_id
 }: SpicyCrustScorePayload) {
-  const seasonSlug = await getActiveSeason();
-  const res = await fetch(`${API_BASE}/scores`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Game-Key': GAME_KEY
-    },
-    body: JSON.stringify({
-      game_slug: GAME_SLUG,
-      season_slug: seasonSlug,
-      player_external_id: player_external_id || ('player-' + Date.now()),
-      email,
-      nickname,
-      score,
-      metadata
-    }),
-    signal: AbortSignal.timeout(8000)
-  });
-  return await res.json();
+  try {
+    const seasonSlug = await getActiveSeason();
+    const res = await fetch(`${API_BASE}/scores`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Game-Key': GAME_KEY
+      },
+      body: JSON.stringify({
+        game_slug: GAME_SLUG,
+        season_slug: seasonSlug,
+        player_external_id: player_external_id || ('player-' + Date.now()),
+        email: email || '',
+        nickname: nickname || 'CHEF_NINJA',
+        score: Number(score) || 0,
+        metadata: metadata || {}
+      }),
+      signal: AbortSignal.timeout(8000)
+    });
+
+    const json = await res.json();
+    if (!res.ok || json.success === false) {
+      console.error('[SpicyCrust API] Submit rejected with status', res.status, json);
+      throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
+    }
+    return json;
+  } catch (err: any) {
+    console.error('[SpicyCrust API] Submit error:', err);
+    throw err;
+  }
 }
 
 export async function getLeaderboard(limit = 10): Promise<SpicyCrustLeaderboardEntry[]> {
