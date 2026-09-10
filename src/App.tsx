@@ -249,7 +249,7 @@ export default function App() {
       });
   }, []);
 
-  // When a game finishes, record score state as pending submission
+  // When a game finishes, immediately submit score to SpicyCrust API and open modal
   const handleGameOver = (
     finalScore: number,
     finalDuration: number,
@@ -259,7 +259,6 @@ export default function App() {
     gameMode?: string
   ) => {
     // Game-over must always take visual priority: close any other overlays
-    // that could still be mounted (e.g. the shop was opened mid-game).
     setShowShop(false);
     setPendingScore({
       score: finalScore,
@@ -271,6 +270,45 @@ export default function App() {
     });
     setChefName(''); // Reset input name on game over
     playWebSound('coin');
+
+    // 🚀 INMEDIATO: Enviar a la API de SpicyCrust apenas termina la partida
+    if (finalScore > 0) {
+      const defaultName = walletState.domainName || (walletState.publicKey ? `${walletState.publicKey.slice(0, 6)}...${walletState.publicKey.slice(-4)}` : 'CHEF_NINJA');
+      submitSpicyCrustScore({
+        nickname: defaultName,
+        score: finalScore,
+        metadata: {
+          duration: finalDuration,
+          slashes: finalSlashes,
+          mode: gameMode || 'arcade',
+          slashHistory: slashHistory || []
+        }
+      })
+      .then(apiRes => {
+        console.log('[SpicyCrust API] Auto-submitted on GameOver:', apiRes);
+        showToast('🏆 ¡Puntaje enviado a SpicyCrust!', 'success');
+        // Refresh live ranking
+        getSpicyCrustLeaderboard(50).then(ranking => {
+          if (Array.isArray(ranking) && ranking.length > 0) {
+            const apiScores: ScoreRecord[] = ranking.map(item => ({
+              name: item.nickname || 'CHEF_NINJA',
+              score: Number(item.score) || 0,
+              timestamp: item.created_at ? new Date(item.created_at).getTime() : Date.now(),
+              duration: item.metadata?.duration || 45,
+              slashes: item.metadata?.slashes || 0,
+              mode: item.metadata?.mode || 'arcade',
+              isSpicyCrust: true
+            }));
+            const sorted = apiScores.sort((a, b) => b.score - a.score);
+            setScores(sorted);
+            localStorage.setItem('slash_slice_scores_v2', JSON.stringify(sorted));
+          }
+        }).catch(console.warn);
+      })
+      .catch(err => {
+        console.warn('[SpicyCrust API] GameOver auto-submit error:', err);
+      });
+    }
   };
 
   const handleRegisterScore = (e: React.FormEvent) => {
