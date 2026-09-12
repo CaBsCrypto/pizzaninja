@@ -416,30 +416,7 @@ export default function Leaderboard({ scores }: LeaderboardProps) {
           </div>
         </div>
 
-        {/* Game Mode Tabs Selector */}
-        <div className="flex bg-slate-900/90 border border-slate-800 p-1 rounded-xl font-pixel text-xs sm:text-sm gap-1.5 shadow-inner">
-          {(['arcade', 'classic'] as const).map((mode) => {
-            const label = mode === 'classic' ? '🗡️ Modo Clásico' : '⚡ Modo Arena (45s)';
-            const active = activeTab === mode;
-            return (
-              <button
-                key={mode}
-                onClick={() => {
-                  setActiveTab(mode);
-                  setExpandedIndex(null);
-                }}
-                className={`flex-1 py-1.5 sm:py-2 rounded-lg uppercase tracking-wider transition-all duration-200 cursor-pointer text-center text-[10px] sm:text-xs font-bold ${
-                  active 
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-[0_0_12px_rgba(245,158,11,0.3)] border border-amber-400/50 scale-[1.01]' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                }`}
-                type="button"
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Mode Selector Hidden (Classic mode disabled for current event) */}
 
         {/* Scoring table list */}
         <div className="space-y-2 max-h-[340px] sm:max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
