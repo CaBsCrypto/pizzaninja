@@ -230,7 +230,7 @@ export default function HandTracker({
   onHandPresenceChange
 }: HandTrackerProps) {
   // Config & Status States
-  const [sourceType, setSourceType] = useState<'local' | 'cdn'>('cdn'); // Highly reliable CDN by default, local as backup
+  const [sourceType, setSourceType] = useState<'local' | 'cdn'>('local'); // Fast offline pre-patched local assets by default, CDN as fallback
   const [cdnStatus, setCdnStatus] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [modelStatus, setModelStatus] = useState<'off' | 'starting' | 'active' | 'error'>('off');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -441,9 +441,9 @@ export default function HandTracker({
           await loadScript('/mediapipe/camera_utils.js');
           await loadScript('/mediapipe/hands.js');
         } else {
-          addLog("Intentando cargar libs estables desde CDN (jsdelivr@0.4.1646424915)...");
+          addLog("Intentando cargar libs estables desde CDN (jsdelivr@0.4.1675469240)...");
           await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js');
-          await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js');
+          await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js');
         }
         
         if (isCancelled || !isEnabledRef.current) {
@@ -564,7 +564,7 @@ export default function HandTracker({
         locateFile: (file: string) => {
           const resolvedPath = sourceType === 'local' 
             ? `/mediapipe/${file}`
-            : `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`;
+            : `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
           return resolvedPath;
         },
         print: console.log.bind(console),
@@ -655,7 +655,6 @@ export default function HandTracker({
       videoRef.current.srcObject = stream;
       
       try {
-        videoRef.current.load();
         await videoRef.current.play();
         addLog(`Reproductor de video activo. Resolucion actual: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`);
       } catch (pErr) {
@@ -1118,11 +1117,32 @@ export default function HandTracker({
           <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 bg-slate-950/95">
             <RefreshCcw className="w-8 h-8 text-amber-400 animate-spin mb-3" />
             <span className="text-[10px] font-mono text-amber-300 font-bold uppercase tracking-widest leading-none">
-              Inicializando Pipeline Dual
+              Inicializando Pipeline {sourceType === 'local' ? 'Local' : 'CDN'}
             </span>
             <p className="text-[9px] text-slate-500 mt-1 max-w-[200px] leading-relaxed">
-              Cargando librerías WebAssembly y abriendo sensor local...
+              Cargando librerías WebAssembly y abriendo sensor de cámara...
             </p>
+            <div className="flex items-center gap-2 mt-3">
+              {onFallbackToMouse && (
+                <button
+                  type="button"
+                  onClick={onFallbackToMouse}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[8.5px] font-mono rounded-lg transition border border-slate-700 cursor-pointer"
+                >
+                  Usar Ratón
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSourceType(prev => prev === 'local' ? 'cdn' : 'local');
+                  addLog(`Alternando fuente manual a ${sourceType === 'local' ? 'CDN' : 'LOCAL'}...`);
+                }}
+                className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[8.5px] font-mono rounded-lg transition border border-amber-500/30 cursor-pointer"
+              >
+                Probar {sourceType === 'local' ? 'CDN' : 'Local'}
+              </button>
+            </div>
           </div>
         )}
 
